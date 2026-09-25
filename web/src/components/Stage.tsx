@@ -79,19 +79,35 @@ export function Stage({
 
   return (
     <section className="flex min-h-0 flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate font-display text-[22px] font-bold tracking-[-0.01em] text-ink">{title}</h1>
-          <p className="text-[13px] text-ink-muted">{activeJob ? "Rendering" : selected ? "Latest render" : "Nothing here yet"}</p>
+          <p className="truncate font-mono text-[11.5px] tracking-[0.02em] text-ink-muted" title={selectedJob?.prompt}>
+            {activeJob ? "Rendering…" : selectedJob ? `${selectedJob.settings.model} · ${selectedJob.settings.width}×${selectedJob.settings.height} · seed ${selectedJob.seed}` : selected ? selected.filename : "Nothing here yet"}
+          </p>
         </div>
-        <ToggleGroup type="single" value={filter} onValueChange={(v) => v && onFilter(v as "session" | "all")} spacing={0} className="shrink-0 rounded-full bg-pill p-[3px]" aria-label="Filmstrip filter">
-          <ToggleGroupItem value="session" className="h-6 rounded-full! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
-            This session
-          </ToggleGroupItem>
-          <ToggleGroupItem value="all" className="h-6 rounded-full! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
-            Everything <span className="text-faint">{gallery.length}</span>
-          </ToggleGroupItem>
-        </ToggleGroup>
+        {selected && !activeJob ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" className="btn-quiet" onClick={() => onUseAsInput(selected)}>
+              <Pencil className="size-3.5" /> Edit
+            </button>
+            <a className="btn-quiet no-underline" href={viewUrl(selected)} download={selected.filename}>
+              <Download className="size-3.5" /> Save
+            </a>
+            <a className="btn-quiet px-2 no-underline" href={viewUrl(selected)} target="_blank" rel="noreferrer" aria-label="Open full size">
+              <ExternalLink className="size-3.5" />
+            </a>
+            <ConfirmDelete
+              filename={selected.filename}
+              onConfirm={() => onDelete(selected)}
+              trigger={
+                <button type="button" className="btn-quiet px-2 hover:border-danger/40 hover:text-danger" aria-label="Delete image">
+                  <Trash2 className="size-3.5" />
+                </button>
+              }
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className={`relative flex min-h-[320px] flex-1 items-center justify-center overflow-hidden rounded-[10px] border border-line shadow-[var(--shadow-hairline)] ${activeJob ? "safelight-wash" : "easel"}`}>
@@ -154,32 +170,19 @@ export function Stage({
         </div>
       ) : null}
 
-      {selected && !activeJob ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="min-w-0 flex-1 truncate font-mono text-[11.5px] tracking-[0.02em] text-ink-muted" title={selectedJob?.prompt}>
-            {selectedJob ? `${selectedJob.settings.model} · ${selectedJob.settings.width}×${selectedJob.settings.height} · seed ${selectedJob.seed}` : selected.filename}
-          </p>
-          <button type="button" className="btn-quiet" onClick={() => onUseAsInput(selected)}>
-            <Pencil className="size-3.5" /> Edit
-          </button>
-          <a className="btn-quiet no-underline" href={viewUrl(selected)} download={selected.filename}>
-            <Download className="size-3.5" /> Save
-          </a>
-          <a className="btn-quiet px-2 no-underline" href={viewUrl(selected)} target="_blank" rel="noreferrer" aria-label="Open full size">
-            <ExternalLink className="size-3.5" />
-          </a>
-          <ConfirmDelete
-            filename={selected.filename}
-            onConfirm={() => onDelete(selected)}
-            trigger={
-              <button type="button" className="btn-quiet px-2 hover:border-danger/40 hover:text-danger" aria-label="Delete image">
-                <Trash2 className="size-3.5" />
-              </button>
-            }
-          />
+      {items.length > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[13px] font-medium text-faint">Earlier renders</span>
+          <ToggleGroup type="single" value={filter} onValueChange={(v) => v && onFilter(v as "session" | "all")} spacing={0} className="shrink-0 rounded-full bg-pill p-[3px]" aria-label="Filmstrip filter">
+            <ToggleGroupItem value="session" className="h-6 rounded-full! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
+              This session
+            </ToggleGroupItem>
+            <ToggleGroupItem value="all" className="h-6 rounded-full! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
+              Everything <span className="text-faint">{gallery.length}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
       ) : null}
-
       {items.length > 0 ? (
         <div className="contact-strip -mx-1 flex gap-1.5 overflow-x-auto">
           {items.map((it) => {

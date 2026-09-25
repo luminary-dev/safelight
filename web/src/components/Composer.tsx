@@ -75,7 +75,7 @@ export function Composer({
         </ToggleGroupItem>
       </ToggleGroup>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5">
         <h2 className="font-display text-[19px] font-bold tracking-[-0.01em] text-ink">What should we make?</h2>
         {isEdit ? (
           <InputImages
@@ -106,28 +106,29 @@ export function Composer({
           }}
           rows={4}
           placeholder={isEdit ? "Describe the change" : "Describe what you want to see"}
-          className="w-full resize-none rounded-[16px] bg-paper p-3.5 text-[15px] leading-[1.55] text-ink outline-none placeholder:text-placeholder focus:shadow-[var(--focus-ring)]"
-          style={{ fieldSizing: "content", minHeight: 110 } as React.CSSProperties}
+          className="min-h-[110px] w-full flex-1 resize-none rounded-[16px] bg-paper p-3.5 text-[15px] leading-[1.55] text-ink outline-none placeholder:text-placeholder focus:shadow-[var(--focus-ring)]"
         />
       </div>
 
       {!sizeLocked ? (
         <div className="flex flex-col gap-2">
-          <span className="text-[13px] font-medium text-faint">Shape</span>
-          <ToggleGroup type="single" value={settings.presetId} onValueChange={(v) => v && applyPreset(v, settings.scaleId)} className="flex-wrap gap-1.5" aria-label="Aspect ratio">
-            {SIZE_PRESETS.map((p) => {
-              const w = p.width >= p.height ? 14 : Math.round((14 * p.width) / p.height);
-              const h = p.height >= p.width ? 14 : Math.round((14 * p.height) / p.width);
-              return (
-                <ToggleGroupItem key={p.id} value={p.id} title={p.label} className="h-8 gap-2 rounded-[10px]! border border-line bg-transparent px-2.5 font-mono text-[11px] text-ink hover:bg-pill data-[state=on]:border-ink data-[state=on]:bg-ink data-[state=on]:text-paper-2">
-                  <span className="block rounded-[2px] border border-current" style={{ width: w, height: h }} />
+          <div className="flex items-baseline justify-between">
+            <span className="text-[13px] font-medium text-faint">Shape</span>
+            {!isCloud ? (
+              <span className="font-mono text-[11px] text-placeholder">
+                {settings.width} × {settings.height}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ToggleGroup type="single" value={settings.presetId} onValueChange={(v) => v && applyPreset(v, settings.scaleId)} className="flex-wrap gap-1" aria-label="Aspect ratio">
+              {SIZE_PRESETS.map((p) => (
+                <ToggleGroupItem key={p.id} value={p.id} title={p.label} className="h-7 rounded-[9px]! border border-line bg-transparent px-2 font-mono text-[11px] text-ink-muted hover:bg-pill hover:text-ink data-[state=on]:border-ink data-[state=on]:bg-ink data-[state=on]:text-paper-2">
                   {p.ratio}
                 </ToggleGroupItem>
-              );
-            })}
-          </ToggleGroup>
-          {!isCloud ? (
-            <div className="flex items-center gap-3">
+              ))}
+            </ToggleGroup>
+            {!isCloud ? (
               <ToggleGroup type="single" value={settings.scaleId} onValueChange={(v) => v && applyPreset(settings.presetId, v)} spacing={0} className="rounded-[10px] bg-paper p-[3px]" aria-label="Output size">
                 {SIZE_SCALES.map((sc) => (
                   <ToggleGroupItem key={sc.id} value={sc.id} className="h-6 rounded-[7px]! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
@@ -135,11 +136,8 @@ export function Composer({
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-              <span className="font-mono text-[11px] text-faint">
-                {settings.width} × {settings.height}
-              </span>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       ) : null}
 
