@@ -1,0 +1,8 @@
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
+  sharp: false
+  unrs-resolver: false
+fetchRetries: 6
+fetchTimeout: 600000
+networkConcurrency: 4

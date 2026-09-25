@@ -1,0 +1,403 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+  Safelight v3 "Soft & calm" (design 1b from the redesign doc): airy light-first
+  palette on #f7f7f5 with white cards, a gray text ramp, and a gentle lime accent.
+  Outfit carries all text; JetBrains Mono is the utility voice for captions and
+  counts. Shapes are generously rounded (pill buttons, 16–24px cards), shadows
+  whisper. Dark is a quiet zinc companion with the lime brightened for contrast.
+  Token names are stable (--paper, --ink, --terracotta, --green…); --terracotta
+  now carries the text-safe lime, --primary the lime fill.
+*/
+:root {
+  /* The soft shell: panels float on a slightly darker ground. */
+  --shell: #eeeeec;
+  --paper: #f7f7f5;
+  --paper-2: #ffffff;
+  --pill: #efefec;
+  --line: rgba(0, 0, 0, 0.07);
+  --line-strong: rgba(0, 0, 0, 0.13);
+  --ink: #0d0d0f;
+  --ink-muted: #3f3f46;
+  --faint: #6b7280;
+  --placeholder: #9ca3af;
+  --terracotta: #5a9e08;
+  --terracotta-deep: #4a8407;
+  --terracotta-wash: rgba(132, 204, 22, 0.14);
+  --green: #22c55e;
+  --green-wash: rgba(34, 197, 94, 0.12);
+  --danger: #dc2626;
+  --danger-wash: rgba(220, 38, 38, 0.1);
+  --glass: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --shadow-raised: 0 16px 44px rgba(0, 0, 0, 0.1);
+  --shadow-hairline: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --glow-safelight: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --focus-ring: 0 0 0 3px rgba(132, 204, 22, 0.35);
+  --tray: #efefec;
+  --primary-hover: #76b512;
+  --dur-fast: 150ms;
+  --dur-base: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-2);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-2);
+  --popover-foreground: var(--ink);
+  --primary: #84cc16;
+  --primary-foreground: #16210a;
+  --primary-ink: #16210a;
+  --secondary: var(--pill);
+  --secondary-foreground: var(--ink);
+  --muted: var(--pill);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--pill);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--terracotta);
+  --radius: 0.875rem;
+  color-scheme: light;
+}
+
+.dark {
+  --shell: #0f0f11;
+  --paper: #131316;
+  --paper-2: #1b1b1f;
+  --pill: #232329;
+  --line: rgba(244, 244, 245, 0.08);
+  --line-strong: rgba(244, 244, 245, 0.16);
+  --ink: #f4f4f5;
+  --ink-muted: #b6b6bd;
+  --faint: #8e8e96;
+  --placeholder: #6b6b73;
+  --terracotta: #a3e635;
+  --terracotta-deep: #bef264;
+  --terracotta-wash: rgba(163, 230, 53, 0.14);
+  --green: #4ade80;
+  --green-wash: rgba(74, 222, 128, 0.12);
+  --danger: #f87171;
+  --danger-wash: rgba(248, 113, 113, 0.14);
+  --glass: rgba(27, 27, 31, 0.85);
+  --glass-border: rgba(244, 244, 245, 0.1);
+  --shadow-raised: 0 24px 64px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(244, 244, 245, 0.05) inset;
+  --shadow-hairline: 0 1px 0 rgba(244, 244, 245, 0.04) inset, 0 1px 2px rgba(0, 0, 0, 0.4);
+  --glow-safelight: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --focus-ring: 0 0 0 3px rgba(163, 230, 53, 0.35);
+  --tray: #101013;
+  --primary-hover: #96d423;
+  --primary: #84cc16;
+  --primary-foreground: #16210a;
+  --primary-ink: #16210a;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-shell: var(--shell);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-pill: var(--pill);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-glass: var(--glass);
+  --color-primary-ink: var(--primary-ink);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-faint: var(--faint);
+  --color-placeholder: var(--placeholder);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-deep: var(--terracotta-deep);
+  --color-terracotta-wash: var(--terracotta-wash);
+  --color-green: var(--green);
+  --color-green-wash: var(--green-wash);
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+  --color-tray: var(--tray);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-hairline: var(--shadow-hairline);
+  --ease-studio: var(--ease);
+
+  /* Fonts are literal family names: @theme inline resolves at parse time, not runtime. */
+  --font-sans: "Outfit", "Outfit Fallback", system-ui, sans-serif;
+  --font-display: "Outfit", "Outfit Fallback", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, Menlo, monospace;
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+html {
+  background: var(--shell);
+}
+
+body {
+  background: var(--shell);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  transition-timing-function: var(--ease);
+  transition-duration: var(--dur-fast);
+}
+
+:where(button, a, input, select, textarea, [role="tab"], [role="switch"]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: inherit;
+}
+
+a {
+  color: var(--terracotta);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: var(--terracotta-deep);
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: var(--placeholder);
+}
+textarea:focus,
+input:focus,
+select:focus {
+  outline: none;
+}
+input[type="range"]:focus-visible,
+[data-slot="sheet-content"]:focus-visible,
+[data-slot="dialog-content"]:focus-visible,
+[data-slot="popover-content"]:focus-visible {
+  box-shadow: none;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+::selection {
+  background: var(--terracotta-wash);
+}
+
+@layer components {
+  .eyebrow {
+    @apply font-mono text-[11px] tracking-[0.06em] text-faint;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-transparent px-3.5 py-2 text-[13px] font-medium text-ink transition-[border-color,background-color,color,transform] hover:border-faint hover:bg-paper-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .pill[data-active="true"] {
+    @apply border-terracotta/40 bg-terracotta-wash text-terracotta hover:bg-terracotta-wash;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-display text-[15px] font-semibold text-primary-ink shadow-[var(--glow-safelight)] transition-[background-color,transform,box-shadow] active:scale-[0.98] disabled:cursor-not-allowed disabled:border disabled:border-line disabled:bg-transparent disabled:text-placeholder disabled:shadow-none;
+    background: var(--primary);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+  }
+  .btn-ink {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 font-display text-sm font-medium text-paper transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-ink:hover:not(:disabled) {
+    background: var(--primary);
+    color: var(--primary-ink);
+  }
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    backdrop-filter: blur(22px) saturate(140%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-raised);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .glass {
+      background: var(--paper-2);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+  .btn-quiet {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full border border-line bg-paper-2 px-3.5 py-2 font-display text-[13px] font-medium text-ink transition-colors hover:border-faint active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .panel {
+    @apply rounded-[22px] border border-line bg-paper-2;
+  }
+  .panel-side {
+    @apply rounded-[22px] border border-line bg-paper;
+  }
+  .card {
+    @apply rounded-[20px] border border-line bg-paper-2 shadow-[var(--shadow-hairline)];
+  }
+  .card-raised {
+    @apply rounded-[20px] border border-line bg-paper-2 shadow-[var(--shadow-raised)];
+  }
+  .status-pill {
+    @apply inline-flex items-center gap-2 rounded-full border border-line bg-paper-2 px-3 py-1.5 text-[12px] font-medium text-ink-muted transition-[border-color,color] hover:border-faint hover:text-ink;
+  }
+  .status-pill[data-tone="ok"] {
+    @apply border-green/30 bg-green-wash text-green;
+  }
+  .status-pill[data-tone="warn"] {
+    @apply border-terracotta/30 bg-terracotta-wash text-terracotta;
+  }
+  .status-pill[data-tone="down"] {
+    @apply border-danger/30 bg-danger-wash text-danger;
+  }
+  .field {
+    @apply w-full rounded-[12px] border border-line bg-paper-2 px-3.5 py-2 text-sm text-ink transition-[border-color,box-shadow] hover:border-faint focus:border-terracotta;
+  }
+  .code {
+    @apply rounded-md bg-terracotta-wash px-1.5 py-0.5 font-mono text-[13px] text-terracotta-deep;
+  }
+  .editorial-input {
+    @apply w-full resize-none border-0 border-b border-line-strong bg-transparent px-0 py-3 font-sans text-[15px] leading-[1.6] text-ink placeholder:text-placeholder focus:border-terracotta;
+    transition: border-color var(--dur-fast) var(--ease);
+  }
+  .form-row {
+    @apply grid grid-cols-[96px_1fr] items-center gap-4 border-b border-line py-3 last:border-b-0;
+  }
+  .form-label {
+    @apply font-sans text-[12px] font-medium tracking-[0.01em] text-faint;
+  }
+
+  /* Legacy hook names kept so components restyle without edits. */
+
+  /* The ready dot: a soft green glow. */
+  .lamp {
+    @apply relative inline-block size-2 rounded-full bg-green;
+    box-shadow: 0 0 6px 1px var(--green-wash);
+  }
+  .lamp[data-off="true"] {
+    @apply bg-line-strong;
+    box-shadow: none;
+  }
+
+  /* The result surface: a calm, plain tray. */
+  .easel {
+    background: var(--tray);
+  }
+
+  /* While rendering: the faintest lime warmth over the tray. */
+  .safelight-wash {
+    background: radial-gradient(ellipse at 50% 30%, var(--terracotta-wash), transparent 70%), var(--tray);
+  }
+
+  /* Earlier renders: a soft rounded shelf, no ornament. */
+  .contact-strip {
+    padding: 8px;
+    border-radius: 16px;
+    background: var(--pill);
+  }
+}
+
+/* The greeting orb drifts, slowly, like something alive. */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* A new render arriving: a gentle fade and settle. */
+@keyframes develop {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.develop {
+  animation: develop 0.45s var(--ease) both;
+}
+
+/* Indeterminate progress: a short bar sweeping the track while a stage reports no counters. */
+@keyframes progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(500%);
+  }
+}
+.progress-sweep {
+  width: 25%;
+  animation: progress-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes studio-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse {
+  animation: studio-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

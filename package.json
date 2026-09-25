@@ -1,0 +1,9 @@
+{
+  "name": "safelight",
+  "private": true,
+  "scripts": {
+    "comfy": "./scripts/comfy.sh",
+    "web": "pnpm --dir web dev",
+    "dev": "./scripts/dev.sh"
+  }
+}

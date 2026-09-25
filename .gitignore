@@ -1,0 +1,24 @@
+# ComfyUI is cloned, not committed (see README: setup from scratch + GGUF patch note)
+comfyui/
+comfyui.log
+
+# Secrets and private state — never commit (.env.example stays)
+.env
+.env.local
+.env*.local
+data/
+
+# The user's reference photos and renders
+inputs/
+outputs/
+
+# Build artifacts and dependencies
+web/node_modules/
+web/.next/
+web/tsconfig.tsbuildinfo
+
+# OS noise
+.DS_Store
+
+# dependencies anywhere
+node_modules/
