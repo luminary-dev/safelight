@@ -18,8 +18,8 @@ export interface StatusInputs {
   ollamaUp: boolean;
   localChatCount: number;
   localImageCount: number;
-  /** provider → configured key info. */
-  keys: { provider: string; configured: boolean; hint?: string }[];
+  /** provider → configured key info (services filtered out for backend rows). */
+  keys: { provider: string; configured: boolean; hint?: string; kind?: string }[];
   cloudErrors: Record<string, string> | undefined;
   /** provider → chat model count. */
   chatCounts: Record<string, number>;
@@ -28,11 +28,26 @@ export interface StatusInputs {
   onAddKey: () => void;
 }
 
-const CLOUD_ROWS: { id: string; label: string }[] = [
+// Shown when nothing is configured yet, so "Add key" has somewhere to live.
+const STARTER_ROWS: { id: string; label: string }[] = [
   { id: "openai", label: "OpenAI" },
   { id: "anthropic", label: "Anthropic" },
   { id: "gemini", label: "Gemini" },
 ];
+
+const LABELS: Record<string, string> = {
+  openai: "OpenAI", anthropic: "Anthropic", gemini: "Gemini", openrouter: "OpenRouter", groq: "Groq",
+  mistral: "Mistral", deepseek: "DeepSeek", xai: "xAI", together: "Together", cerebras: "Cerebras", gateway: "AI Gateway",
+};
+
+/** Every configured model provider gets a live row; unconfigured ones collapse to the starter trio. */
+function cloudRows(i: StatusInputs): { id: string; label: string }[] {
+  const configured = i.keys.filter((k) => (k.kind ?? "model") === "model" && k.configured).map((k) => ({ id: k.provider, label: LABELS[k.provider] ?? k.provider }));
+  if (configured.length === 0) return STARTER_ROWS;
+  // Keep the starter trio's unconfigured rows visible too (their Add key affordance).
+  const extras = STARTER_ROWS.filter((r) => !configured.some((c) => c.id === r.id));
+  return [...configured, ...extras];
+}
 
 function cloudRow(i: StatusInputs, id: string, label: string): SystemRow {
   const k = i.keys.find((x) => x.provider === id);
@@ -70,7 +85,7 @@ export function deriveStatus(i: StatusInputs): { systems: SystemRow[]; overall: 
             ? { id: "ollama", label: "Ollama", detail: { key: "ollamaOk", values: { count: i.localChatCount } }, tone: "ok" }
             : { id: "ollama", label: "Ollama", detail: { key: "ollamaNoModels" }, tone: "warn" }
           : { id: "ollama", label: "Ollama", detail: { key: "ollamaOffline" }, tone: "down" },
-        ...CLOUD_ROWS.map((c) => cloudRow(i, c.id, c.label)),
+        ...cloudRows(i).map((c) => cloudRow(i, c.id, c.label)),
       ];
 
   const renderish = i.topMode === "image" || i.topMode === "blueprints";

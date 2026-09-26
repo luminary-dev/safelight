@@ -2,11 +2,13 @@ import { cancelDownload, listDownloads, startDownload } from "@/lib/models/downl
 import { SELECTABLE_KINDS } from "@/lib/models/kinds";
 import { resolveModelPaths, targetDirForKind } from "@/lib/models/paths";
 import type { FileKind } from "@/lib/models/types";
+import { hydrateServiceEnv } from "@/lib/providers/keys";
 
 export const runtime = "nodejs";
 
 /** GET /api/models/download — poll all download progress. */
 export async function GET() {
+  await hydrateServiceEnv();
   return Response.json({ root: resolveModelPaths().root, downloads: listDownloads() });
 }
 
@@ -20,6 +22,7 @@ interface StartBody {
 
 /** POST /api/models/download — start a download into the right models subfolder. */
 export async function POST(req: Request) {
+  await hydrateServiceEnv();
   let body: StartBody;
   try {
     body = (await req.json()) as StartBody;

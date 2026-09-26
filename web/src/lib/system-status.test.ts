@@ -113,3 +113,21 @@ describe("deriveStatus", () => {
     expect(systems.find((r) => r.id === "gemini")?.detail).toEqual({ key: "cloudOkConnected", values: { hint: "" } });
   });
 });
+
+describe("dynamic cloud rows", () => {
+  it("configured providers get live rows; services never do; the starter trio fills gaps", () => {
+    const { systems } = deriveStatus(
+      inputs({
+        keys: [
+          { provider: "groq", configured: true, hint: "…gk", kind: "model" },
+          { provider: "mistral", configured: true, kind: "model" },
+          { provider: "brave", configured: true, kind: "search" },
+        ],
+        chatCounts: { groq: 3 },
+      }),
+    );
+    const ids = systems.map((r) => r.id);
+    expect(ids).toEqual(expect.arrayContaining(["groq", "mistral", "openai", "anthropic", "gemini"]));
+    expect(ids).not.toContain("brave");
+  });
+});

@@ -6,6 +6,7 @@ import { ddg } from "./ddg";
 import { tavily } from "./tavily";
 import type { SearchProvider, SearchResult } from "./types";
 import { assertOutboundAllowed } from "@/lib/privacy";
+import { hydrateServiceEnv } from "@/lib/providers/keys";
 
 const TTL_MS = 60 * 60 * 1000;
 const MAX_RESULTS = 8;
@@ -28,6 +29,7 @@ export async function searchWeb(query: string, opts?: { providers?: SearchProvid
   const q = query.trim();
   if (!q) throw new Error("Empty query.");
   assertOutboundAllowed("web search");
+  await hydrateServiceEnv(); // vault-stored Brave/Tavily keys reach the adapters' env reads
   const providers = opts?.providers ?? DEFAULT_PROVIDERS;
   const db = getDb();
   const hash = queryHash(q);

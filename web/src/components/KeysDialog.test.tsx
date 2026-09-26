@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import { KeysDialog, type KeyStatus } from "./KeysDialog";
 import { renderApp, stubFetch, type FetchRoute } from "./test-utils";
 
-const openaiKey: KeyStatus = { provider: "openai", label: "OpenAI", configured: true, hint: "…f3ab", source: "vault", chat: true, images: true };
-const envKey: KeyStatus = { provider: "anthropic", label: "Anthropic", configured: true, source: "env", chat: true, images: false };
-const unsetKey: KeyStatus = { provider: "gemini", label: "Gemini", configured: false, chat: true, images: true };
+const openaiKey: KeyStatus = { provider: "openai", label: "OpenAI", configured: true, hint: "…f3ab", source: "vault", chat: true, images: true, kind: "model" as const };
+const envKey: KeyStatus = { provider: "anthropic", label: "Anthropic", configured: true, source: "env", chat: true, images: false, kind: "model" as const };
+const unsetKey: KeyStatus = { provider: "gemini", label: "Gemini", configured: false, chat: true, images: true, kind: "model" as const };
 
 const keysRoute = (keys: KeyStatus[]): FetchRoute => ({ url: "/api/keys", reply: { keys } });
 

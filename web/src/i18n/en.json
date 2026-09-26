@@ -111,8 +111,8 @@
   "keysDialog": {
     "ariaLabel": "API keys",
     "eyebrow": "API keys",
-    "heading": "Connect cloud models",
-    "intro": "Keys are stored on this machine in <code>safelight/data/keys.json</code> and never sent to the browser.",
+    "heading": "Connect keys",
+    "intro": "Keys are encrypted at rest in <code>data/keys.enc.json</code> (the vault key lives in the macOS Keychain) and never sent to the browser.",
     "close": "Close",
     "capChat": "chat",
     "capImages": "images",
@@ -132,7 +132,12 @@
     "failedSaveUrl": "Failed to save URL",
     "failedSave": "Failed to save",
     "loadFailed": "Could not load key status.",
-    "footer": "OpenAI and Gemini add image models to Image mode. Every provider adds chat models. Local models keep working without any key."
+    "footer": "OpenAI and Gemini add image models; all eleven providers add chat models. Search keys power Design mode's web research; download tokens unlock gated models on the hubs. Local models keep working without any key.",
+    "sectionModels": "Model providers",
+    "sectionSearch": "Web search",
+    "sectionDownloads": "Model downloads",
+    "capSearch": "search",
+    "capDownloads": "downloads"
   },
   "mcpDialog": {
     "eyebrow": "MCP servers",

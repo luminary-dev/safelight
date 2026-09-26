@@ -6,7 +6,9 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 export interface KeyStatus {
-  provider: "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together" | "cerebras" | "gateway";
+  provider:
+    | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together" | "cerebras" | "gateway"
+    | "brave" | "tavily" | "hf" | "civitai";
   label: string;
   configured: boolean;
   hint?: string;
@@ -14,6 +16,7 @@ export interface KeyStatus {
   baseUrl?: string;
   chat: boolean;
   images: boolean;
+  kind: "model" | "search" | "downloads";
 }
 
 // Key-format hints and console URLs — not translatable copy.
@@ -29,7 +32,13 @@ const HELP: Record<KeyStatus["provider"], { placeholder: string; url: string }> 
   together: { placeholder: "…", url: "https://api.together.ai/settings/api-keys" },
   cerebras: { placeholder: "csk-…", url: "https://cloud.cerebras.ai/platform" },
   gateway: { placeholder: "vck_…", url: "https://vercel.com/dashboard/ai-gateway" },
+  brave: { placeholder: "BSA…", url: "https://api-dashboard.search.brave.com/app/keys" },
+  tavily: { placeholder: "tvly-…", url: "https://app.tavily.com/home" },
+  hf: { placeholder: "hf_…", url: "https://huggingface.co/settings/tokens" },
+  civitai: { placeholder: "…", url: "https://civitai.com/user/account" },
 };
+
+
 
 export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged: () => void }) {
   const t = useTranslations("keysDialog");
@@ -128,15 +137,22 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
               </button>
             </div>
 
+            {([
+              { kind: "model" as const, title: t("sectionModels") },
+              { kind: "search" as const, title: t("sectionSearch") },
+              { kind: "downloads" as const, title: t("sectionDownloads") },
+            ]).map(({ kind, title }) => (
+            <section key={kind}>
+            <h3 className="form-label mt-4 first:mt-0">{title}</h3>
             <ul className="flex flex-col divide-y divide-line">
-              {keys.map((k) => (
+              {keys.filter((k) => k.kind === kind).map((k) => (
                 <li key={k.provider} className="flex flex-col gap-2.5 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <span className={`h-[7px] w-[7px] rounded-full ${k.configured ? "bg-green" : "bg-line"}`} />
                       <span className="font-display text-[15px] font-medium">{k.label}</span>
                       <span className="font-mono text-[11px] text-faint">
-                        {[k.chat ? t("capChat") : null, k.images ? t("capImages") : null].filter(Boolean).join(" · ")}
+                        {k.kind === "search" ? t("capSearch") : k.kind === "downloads" ? t("capDownloads") : [k.chat ? t("capChat") : null, k.images ? t("capImages") : null].filter(Boolean).join(" · ")}
                       </span>
                     </div>
                     {k.configured ? (
@@ -186,7 +202,7 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                       </button>
                     ) : null}
                   </div>
-                  {urlOpen[k.provider] ? (
+                  {k.kind !== "model" ? null : urlOpen[k.provider] ? (
                     <div className="flex gap-2">
                       <input
                         value={urls[k.provider] ?? k.baseUrl ?? ""}
@@ -209,6 +225,8 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                 </li>
               ))}
             </ul>
+            </section>
+            ))}
             {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
             {checked ? <p className={`mt-3 font-mono text-xs ${checked.ok ? "text-green" : "text-danger"}`}>{checked.message}</p> : null}
             <p className="mt-4 text-[13px] leading-relaxed text-faint">

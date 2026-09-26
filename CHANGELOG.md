@@ -27,6 +27,15 @@ All notable changes to Safelight are documented here. The format follows
   component suites behind a strict no-network stub. Suite: 577 → **1412 unit tests** plus 16
   e2e; coverage over the full surface 38 % → **77.7 % lines**, floors ratcheted to 75/72/62/63.
 
+### Added
+- The keys window now manages every key the app uses, not just LLM providers: Brave and
+  Tavily (Design mode's web search) and Hugging Face and Civitai (model-hub downloads) live
+  in the same encrypted vault with save-time validation, honest capability chips
+  (chat/images/search/downloads) in three sections, and vault keys bridged to the consumers
+  without touching your real environment variables. The sidebar status panel now shows a
+  live row for every configured provider instead of a hardcoded trio, and the dialog's
+  stale copy (plaintext-file claim, five-provider footer) is corrected.
+
 ### Fixed
 - Repository is public (source-available under BSL 1.1) with real branch protection:
   pull requests and green `verify`/`e2e`/`semgrep` checks required with strict

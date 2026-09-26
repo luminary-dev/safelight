@@ -54,7 +54,7 @@ describe("useBackends", () => {
   });
 
   it("loadKeys stores the provider key statuses", async () => {
-    const keys: KeyStatus[] = [{ provider: "openai", label: "OpenAI", configured: true, hint: "…f3ab", source: "vault", chat: true, images: true }];
+    const keys: KeyStatus[] = [{ provider: "openai", label: "OpenAI", configured: true, hint: "…f3ab", source: "vault", chat: true, images: true, kind: "model" as const }];
     stubFetch({ url: "/api/keys", reply: { keys } });
     const { result } = renderHook(() => useBackends());
 

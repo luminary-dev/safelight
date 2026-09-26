@@ -6,7 +6,7 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { resetDbForTests } from "@/lib/db";
-import { PROVIDER_META, PROVIDERS, setKey } from "@/lib/providers/keys";
+import { ALL_KEY_IDS, PROVIDER_META, PROVIDERS, setKey } from "@/lib/providers/keys";
 import { resetVaultForTests } from "@/lib/secrets/vault";
 import { GET, POST } from "./route";
 
@@ -79,7 +79,7 @@ describe("GET /api/keys", () => {
     const res = await GET();
     expect(res.status).toBe(200);
     const { keys } = (await res.json()) as { keys: KeyStatus[] };
-    expect(keys.map((k) => k.provider).sort()).toEqual([...PROVIDERS].sort());
+    expect(keys.map((k) => k.provider).sort()).toEqual([...ALL_KEY_IDS].sort());
     expect(keys.every((k) => !k.configured && k.hint === undefined)).toBe(true);
   });
 
