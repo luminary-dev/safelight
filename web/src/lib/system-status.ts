@@ -60,15 +60,16 @@ export function deriveStatus(i: StatusInputs): { systems: SystemRow[]; overall: 
         ...CLOUD_ROWS.map((c) => cloudRow(i, c.id, c.label)),
       ];
 
-  const relevant = i.topMode === "image" ? ["comfy", "openai", "gemini"] : ["ollama", "openai", "anthropic", "gemini"];
+  const renderish = i.topMode === "image" || i.topMode === "blueprints";
+  const relevant = renderish ? ["comfy", "openai", "gemini"] : ["ollama", "openai", "anthropic", "gemini"];
   const relevantRows = systems.filter((r) => relevant.includes(r.id));
   const overall: { tone: Tone; label: string } = i.checking
     ? { tone: "checking", label: "Checking" }
     : relevantRows.some((r) => r.tone === "ok") && relevantRows.every((r) => r.tone === "ok" || r.tone === "off")
-      ? { tone: "ok", label: i.topMode === "image" ? (i.online ? "Ready to render" : "Cloud ready") : "Ready to chat" }
+      ? { tone: "ok", label: renderish ? (i.online ? "Ready to render" : "Cloud ready") : "Ready to chat" }
       : relevantRows.some((r) => r.tone === "ok")
         ? { tone: "warn", label: "Partly ready" }
-        : { tone: "down", label: i.topMode === "image" ? "Nothing to render with" : "Nothing to chat with" };
+        : { tone: "down", label: renderish ? "Nothing to render with" : "Nothing to chat with" };
 
   return { systems, overall };
 }

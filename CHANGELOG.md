@@ -12,6 +12,11 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Blueprints (Workstream K): all 116 workflow templates the vendored render engine ships are
+  parsed into runnable capabilities — classified inputs (prompts, media slots, salient
+  numerics), honest ready/missing gating against installed nodes and models (24 ready on this
+  machine today), and a new Blueprints section in the sidebar with a searchable catalog and a
+  generic run form. Video, audio, and 3D workflows appear with exactly what they still need.
 - Local only switch (Workstream V): one toggle in Settings hard-disables every outbound
   call — cloud chat and images, web search, page fetches, model downloads, key validation,
   and remote MCP servers — while local renders, Ollama, and loopback targets keep working.

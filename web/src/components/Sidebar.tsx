@@ -1,6 +1,6 @@
 "use client";
 
-import { Code2, FolderInput, HardDriveDownload, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plug, Plus, RefreshCw, Search, Settings2, Trash2 } from "lucide-react";
+import { Code2, FolderInput, HardDriveDownload, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plug, Plus, RefreshCw, Search, Settings2, Trash2, Workflow } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ChatSession, CodeSession, DesignSession, ImageSession, Project, Session } from "@/lib/session-types";
@@ -206,6 +206,7 @@ export function Sidebar({
             ["code", "Code", Code2, null],
             ["design", "Design", Palette, null],
             ["library", "Library", LibraryBig, galleryCount],
+            ["blueprints", "Blueprints", Workflow, null],
           ] as const
         ).map(([value, label, Icon, count]) => (
           <button
@@ -224,7 +225,7 @@ export function Sidebar({
         ))}
       </nav>
 
-      {mode !== "library" ? (
+      {mode !== "library" && mode !== "blueprints" ? (
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           <div className="flex items-center justify-between px-3 pb-1.5">
             <span className="text-[12px] font-medium text-placeholder">{mode === "chat" ? "Conversations" : mode === "code" ? "Coding sessions" : mode === "design" ? "Design sessions" : "Sessions"}</span>

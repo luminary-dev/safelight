@@ -12,6 +12,7 @@ import { deriveStatus } from "@/lib/system-status";
 import { applyTheme } from "@/lib/theme/apply";
 import type { ThemeColors } from "@/lib/theme/contrast";
 import { chatModelKey } from "./ChatMode";
+import { BlueprintsWorkspace } from "./BlueprintsWorkspace";
 import { ChatWorkspace } from "./ChatWorkspace";
 import { CodeWorkspace } from "./CodeWorkspace";
 import { DesignWorkspace } from "./DesignWorkspace";
@@ -53,7 +54,7 @@ export function Safelight() {
     // ?mode=chat|image deep-links a mode; otherwise the last used mode wins.
     const fromUrl = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("mode");
     const saved = fromUrl ?? loadString("safelight.mode.v1", "image");
-    return saved === "chat" || saved === "library" || saved === "code" || saved === "design" ? saved : "image";
+    return saved === "chat" || saved === "library" || saved === "code" || saved === "design" || saved === "blueprints" ? saved : "image";
   });
   const [keysOpen, setKeysOpen] = useState(false);
   const progress = useComfySocket(clientId, WS_URL);
@@ -368,6 +369,8 @@ export function Safelight() {
           />
         ) : topMode === "library" ? (
           <MLibrary gallery={img.gallery} onUseAsInput={img.useAsInput} onDelete={img.deleteOutput} />
+        ) : topMode === "blueprints" ? (
+          <BlueprintsWorkspace />
         ) : (
           <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[350px_minmax(0,1fr)]">
             <MComposer

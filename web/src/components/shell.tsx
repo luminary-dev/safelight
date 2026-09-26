@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type TopMode = "chat" | "image" | "code" | "design" | "library";
+export type TopMode = "chat" | "image" | "code" | "design" | "library" | "blueprints";
 export type Tone = "ok" | "warn" | "down" | "checking" | "off";
 
 export interface SystemRow {
