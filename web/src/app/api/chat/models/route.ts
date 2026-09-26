@@ -25,6 +25,8 @@ export async function GET() {
     if (m.details?.quantization_level && m.details.quantization_level !== "unknown" && !tags.includes(m.details.quantization_level)) tags.push(m.details.quantization_level);
     const vision = (m.capabilities ?? []).includes("vision");
     if (vision) tags.push("vision");
+    // Code and Design pickers filter local models on this tag; without it no Ollama model qualifies.
+    if ((m.capabilities ?? []).includes("tools")) tags.push("tools");
     return { provider: "ollama", id: m.name, label: f.label, tags, vision };
   });
   const remote: ChatModelEntry[] = cloud.chat.map((m) => ({ provider: m.provider, id: m.id, label: m.label, tags: m.tags, vision: true }));
