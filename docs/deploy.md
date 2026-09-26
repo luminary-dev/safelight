@@ -113,7 +113,7 @@ follow-up: extend `connect-src` (and `NEXT_PUBLIC_COMFY_WS`) for the
 configured LAN host.
 
 Do **not** expose port 3001 to the internet. There is no authentication
-(BUILD-BRIEF §P is future work). If you need remote access, put it behind a
+(future work). If you need remote access, put it behind a
 VPN (Tailscale/WireGuard) and allowlist that hostname.
 
 ## Volumes and backups
