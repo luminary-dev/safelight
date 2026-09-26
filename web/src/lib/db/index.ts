@@ -64,6 +64,17 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       );
     `,
   },
+  {
+    id: 3,
+    sql: `
+      CREATE TABLE search_cache (
+        query_hash TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        results TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 let db: Database.Database | null = null;
