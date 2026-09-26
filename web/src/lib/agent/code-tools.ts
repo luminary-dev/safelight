@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ToolDef } from "./tools";
 
@@ -87,13 +87,19 @@ function within(abs: string, base: string): boolean {
 
 /** Resolves a path against the root; anything beyond root or the approved list pauses to ask the user. Exported for tests. */
 export async function resolvePath(access: CodeAccess, rel: unknown, tool: string): Promise<string> {
-  const normRoot = path.resolve(access.root);
-  const abs = path.resolve(normRoot, typeof rel === "string" && rel ? rel : ".");
-  if (within(abs, normRoot)) return abs;
-  if (access.approved.some((a) => within(abs, a))) return abs;
-  const ok = await access.requestApproval(abs, tool);
-  if (!ok) throw new Error(`The user declined access to ${abs}.`);
-  access.approved.push(abs);
+  const rootRaw = path.resolve(access.root);
+  // The root itself may live behind a symlink (macOS /tmp): canonicalise both sides before judging.
+  const rootReal = await realpath(rootRaw).catch(() => rootRaw);
+  const abs = path.resolve(rootRaw, typeof rel === "string" && rel ? rel : ".");
+  // Judge by where the path really leads, so a symlink cannot smuggle access in either direction.
+  const real = await realpath(abs).catch(() => abs);
+  const approvedReal = await Promise.all(access.approved.map((a) => realpath(a).catch(() => a)));
+  const insideRoots = within(real, rootRaw) || within(real, rootReal);
+  const insideApproved = access.approved.some((a) => within(real, a)) || approvedReal.some((a) => within(real, a));
+  if (insideRoots || insideApproved) return abs;
+  const ok = await access.requestApproval(real, tool);
+  if (!ok) throw new Error(`The user declined access to ${real}.`);
+  access.approved.push(real);
   return abs;
 }
 

@@ -6,6 +6,12 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Security hardening (Workstream P): Host allowlist and cross-origin rejection on every API
+  route (DNS-rebinding and CSRF defense), `/api/code/browse` confined to the home subtree
+  (`SAFELIGHT_BROWSE_ROOTS` to extend) with a SQLite-backed rate limit, a DNS-resolving SSRF
+  guard with per-redirect re-checks for the design agent's fetches, symlink-aware
+  (realpath) workspace confinement in the code tools, a Content-Security-Policy, and a
+  dependency audit step in CI.
 - Key vault (Workstream D): provider keys are encrypted at rest with AES-256-GCM under a key
   held in the macOS Keychain (env `SAFELIGHT_VAULT_KEY` or a mode-600 key file elsewhere).
   A plaintext `keys.json` migrates automatically and is kept as `keys.json.migrated` — rotate

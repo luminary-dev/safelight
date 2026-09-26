@@ -1,4 +1,6 @@
 import "server-only";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { saveTheme } from "@/lib/db/sessions";
 import type { ToolDef } from "./tools";
 
@@ -62,6 +64,45 @@ export function designToolDefs(): ToolDef[] {
   ];
 }
 
+/** True for any address a fetch must never touch: loopback, private, link-local, CGNAT, ULA, metadata. Exported for tests. */
+export function isForbiddenAddress(ip: string): boolean {
+  const kind = isIP(ip);
+  if (kind === 4) {
+    const [a, b] = ip.split(".").map(Number);
+    return (
+      a === 0 ||
+      a === 127 ||
+      a === 10 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254) ||
+      (a === 100 && b >= 64 && b <= 127)
+    );
+  }
+  if (kind === 6) {
+    const low = ip.toLowerCase();
+    if (low === "::1" || low === "::") return true;
+    if (low.startsWith("fc") || low.startsWith("fd")) return true; // ULA fc00::/7
+    if (low.startsWith("fe8") || low.startsWith("fe9") || low.startsWith("fea") || low.startsWith("feb")) return true; // link-local fe80::/10
+    const mapped = low.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isForbiddenAddress(mapped[1]);
+    return false;
+  }
+  return true; // not an IP at all
+}
+
+/** Resolves the hostname and refuses it when any address is forbidden — a name pointing at 127.0.0.1 must not pass. */
+async function assertPublicHost(url: URL): Promise<void> {
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (isIP(host)) {
+    if (isForbiddenAddress(host)) throw new Error("That address is not reachable from Safelight.");
+    return;
+  }
+  const addresses = await lookup(host, { all: true, verbatim: true }).catch(() => []);
+  if (addresses.length === 0) throw new Error("That hostname does not resolve.");
+  if (addresses.some((a) => isForbiddenAddress(a.address))) throw new Error("That hostname resolves to a private or local address.");
+}
+
 /** Refuses URLs that could reach this machine or the local network. Exported for tests. */
 export function guardUrl(raw: unknown): URL {
   let url: URL;
@@ -118,8 +159,22 @@ export async function executeDesignTool(name: string, args: Record<string, unkno
       return { result: { results }, note: `${results.length} results` };
     }
     case "fetch_page": {
-      const url = guardUrl(args.url);
-      const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Safelight design scout)", accept: "text/html,*/*" }, redirect: "follow", signal: AbortSignal.timeout(15000) });
+      let url = guardUrl(args.url);
+      await assertPublicHost(url);
+      let res: Response | null = null;
+      // Follow redirects by hand so every hop is re-checked against the DNS guard.
+      for (let hop = 0; hop < 4; hop++) {
+        res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Safelight design scout)", accept: "text/html,*/*" }, redirect: "manual", signal: AbortSignal.timeout(15000) });
+        const location = res.headers.get("location");
+        if (res.status >= 300 && res.status < 400 && location) {
+          url = guardUrl(new URL(location, url).href);
+          await assertPublicHost(url);
+          continue;
+        }
+        break;
+      }
+      if (!res) throw new Error("The page could not be fetched.");
+      if (res.status >= 300 && res.status < 400) throw new Error("Too many redirects.");
       if (!res.ok) throw new Error(`The page returned ${res.status}.`);
       const type = res.headers.get("content-type") ?? "";
       if (!/text\/html|text\/plain|application\/xhtml/.test(type)) throw new Error(`Not a readable page (${type.split(";")[0]}).`);

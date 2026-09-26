@@ -54,6 +54,16 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       );
     `,
   },
+  {
+    id: 2,
+    sql: `
+      CREATE TABLE rate_limits (
+        key TEXT PRIMARY KEY,
+        tokens REAL NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 let db: Database.Database | null = null;
