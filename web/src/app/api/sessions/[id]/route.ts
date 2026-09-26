@@ -16,6 +16,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/sessio
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return Response.json({ error: "Bad patch." }, { status: 400 });
+  if ("title" in patch && typeof patch.title !== "string") return Response.json({ error: "Bad patch." }, { status: 400 });
+  // id/kind are pinned by the store; the timestamps are server-owned NOT NULL columns.
+  delete patch.createdAt;
+  delete patch.updatedAt;
   const session = await patchSession(id, patch);
   return session ? Response.json({ session }) : Response.json({ error: "Not found." }, { status: 404 });
 }

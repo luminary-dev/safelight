@@ -10,6 +10,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/projec
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return Response.json({ error: "Bad patch." }, { status: 400 });
+  if ("title" in patch && (typeof patch.title !== "string" || !patch.title.trim())) return Response.json({ error: "Bad patch." }, { status: 400 });
   const project = await patchProject(id, patch);
   return project ? Response.json({ project }) : Response.json({ error: "Not found." }, { status: 404 });
 }

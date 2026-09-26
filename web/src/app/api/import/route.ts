@@ -12,6 +12,11 @@ interface ExportShape {
   settings?: { key: string; value: unknown }[];
 }
 
+/** Timestamps in a hostile document may be missing or garbage; the NOT NULL columns need real numbers. */
+function toTime(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 /** Restores a /api/export document. Upserts by id, so importing into an existing install merges. */
 export async function POST(request: NextRequest) {
   let body: ExportShape;
@@ -22,26 +27,31 @@ export async function POST(request: NextRequest) {
   }
   if (body.format !== "safelight-export" || body.version !== 1) return Response.json({ error: "Not a Safelight export file." }, { status: 400 });
 
+  const now = Date.now();
   let projects = 0;
   let sessions = 0;
+  let themes = 0;
   for (const p of body.projects ?? []) {
-    if (p?.id && typeof p.title === "string") {
-      await upsertProject(p);
+    if (p && typeof p.id === "string" && p.id && typeof p.title === "string") {
+      await upsertProject({ ...p, createdAt: toTime(p.createdAt, now), updatedAt: toTime(p.updatedAt, now) });
       projects++;
     }
   }
   for (const s of body.sessions ?? []) {
-    if (s?.id && (s.kind === "chat" || s.kind === "image" || s.kind === "code" || s.kind === "design")) {
-      await upsertSession(s);
+    if (s && typeof s.id === "string" && s.id && typeof s.title === "string" && (s.kind === "chat" || s.kind === "image" || s.kind === "code" || s.kind === "design")) {
+      await upsertSession({ ...s, titled: Boolean(s.titled), createdAt: toTime(s.createdAt, now), updatedAt: toTime(s.updatedAt, now) });
       sessions++;
     }
   }
   for (const t of body.themes ?? []) {
-    if (t?.name) saveTheme(t.name, t.data);
+    if (t && typeof t.name === "string" && t.name) {
+      saveTheme(t.name, t.data);
+      themes++;
+    }
   }
   const setSetting = getDb().prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)");
   for (const s of body.settings ?? []) {
-    if (s?.key) setSetting.run(s.key, JSON.stringify(s.value));
+    if (s && typeof s.key === "string" && s.key) setSetting.run(s.key, JSON.stringify(s.value));
   }
-  return Response.json({ ok: true, projects, sessions, themes: (body.themes ?? []).length });
+  return Response.json({ ok: true, projects, sessions, themes });
 }
