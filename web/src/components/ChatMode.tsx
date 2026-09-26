@@ -484,6 +484,8 @@ export function ChatMode({
             <span className="min-w-0 flex-1 text-[13.5px] leading-snug text-ink">
               {a.tool === "run_command" ? (
                 <>The agent asks to run a command:</>
+              ) : a.tool === "mcp_tool" ? (
+                <>The agent asks to use an MCP tool that can change things:</>
               ) : (
                 <>
                   The agent wants <span className="font-medium">{a.tool.replace(/_/g, " ")}</span> access outside the workspace:
