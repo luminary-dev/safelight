@@ -28,13 +28,18 @@ test("chat session lifecycle: create, rename, delete, all server-backed", async 
   const row = sidebar.getByRole("button", { name: "New chat", exact: true });
   await expect(row).toBeVisible();
 
-  // Rename in place; the reload proves the PATCH persisted.
+  // Rename in place; the reload proves the PATCH persisted. Each step asserts
+  // its own effect so a missed click fails fast instead of a 60s response wait.
   await row.hover();
-  const patched = page.waitForResponse((r) => r.url().includes("/api/sessions/") && r.request().method() === "PATCH" && r.ok());
-  await sidebar.getByRole("button", { name: "Rename" }).click();
+  const rename = sidebar.getByRole("button", { name: "Rename" });
+  await expect(rename).toBeVisible();
+  await rename.click();
   const title = sidebar.getByLabel("Session title");
+  await expect(title).toBeVisible();
+  const patched = page.waitForResponse((r) => r.url().includes("/api/sessions/") && r.request().method() === "PATCH" && r.ok());
   await title.fill("Renamed by e2e");
   await title.press("Enter");
+  await expect(title).toBeHidden(); // the edit closed — Enter actually submitted
   await patched;
   await expect(sidebar.getByRole("button", { name: "Renamed by e2e" })).toBeVisible();
   await gotoChat(page);
