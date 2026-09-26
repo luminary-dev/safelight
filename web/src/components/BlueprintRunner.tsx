@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JobOutput, JobStatus } from "@/lib/comfy/types";
 import type { BlueprintInput, BlueprintListEntry } from "@/lib/blueprints/types";
+import { TruncatedText } from "@/components/ui/truncated-text";
 
 type BlueprintSpec = BlueprintListEntry & { online: boolean };
 
@@ -143,9 +144,9 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
 
   return (
     <section className={`flex min-h-0 flex-col gap-4 ${className}`}>
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-[17px] font-bold tracking-[-0.01em] text-ink">{spec.name}</h2>
-        <span className="rounded-full bg-pill px-2 py-0.5 font-mono text-[10.5px] text-ink-muted">{spec.category}</span>
+      <div className="flex min-w-0 items-baseline justify-between gap-2">
+        <TruncatedText as="h2" text={spec.name} className="font-display text-[17px] font-bold tracking-[-0.01em] text-ink" />
+        <span className="shrink-0 rounded-full bg-pill px-2 py-0.5 font-mono text-[10.5px] text-ink-muted">{spec.category}</span>
       </div>
 
       {missing ? (
@@ -185,13 +186,15 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
             {!input.required ? <span className="ms-1.5 font-mono text-[10.5px] text-placeholder">{t("optional")}</span> : null}
           </span>
           {media[input.key] ? (
-            <div className="flex items-center gap-2.5 rounded-[12px] border border-line bg-paper p-2">
+            // flex-wrap: at narrow widths (§5.14) the filename and remove button
+            // wrap under the preview instead of clipping past the edge.
+            <div className="flex flex-wrap items-center gap-2.5 rounded-[12px] border border-line bg-paper p-2">
               {media[input.key].previewUrl ? (
                 <img src={media[input.key].previewUrl} alt={input.label} className="h-[52px] w-[52px] rounded-[8px] border border-line object-cover" />
               ) : (
                 <span className="flex h-[52px] w-[52px] items-center justify-center rounded-[8px] bg-pill font-mono text-[10px] uppercase text-ink-muted">{input.kind}</span>
               )}
-              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink">{media[input.key].filename}</span>
+              <TruncatedText text={media[input.key].filename} className="flex-1 basis-24 font-mono text-[11px] text-ink" />
               <button
                 type="button"
                 aria-label={t("removeMedia", { label: input.label })}
@@ -242,7 +245,8 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
       ))}
 
       {numbers.length > 0 ? (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+        // Number fields stack in one column below 640 (§5.14).
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2">
           {numbers.map((input) => (
             <label key={input.key} className="flex flex-col gap-1">
               <span className="text-[12px] font-medium text-faint">{input.label}</span>
@@ -288,7 +292,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
                 return /\.(png|jpe?g|webp)$/i.test(out.filename) ? (
                   <img key={out.filename} src={src} alt={out.filename} className="h-[88px] w-[88px] rounded-[10px] border border-line object-cover" />
                 ) : (
-                  <a key={out.filename} href={src} target="_blank" rel="noreferrer" className="rounded-[8px] bg-pill px-2 py-1 font-mono text-[11px] text-ink hover:bg-line">
+                  <a key={out.filename} href={src} target="_blank" rel="noreferrer" className="max-w-full rounded-[8px] bg-pill px-2 py-1 font-mono text-[11px] text-ink [overflow-wrap:anywhere] hover:bg-line">
                     {out.filename}
                   </a>
                 );

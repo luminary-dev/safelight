@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ControlType, ImageCapabilities, ModelCatalog, ModelEntry } from "@/lib/comfy/types";
 import { SIZE_PRESETS, SIZE_SCALES, randomSeed, scaledSize } from "@/lib/presets";
 import { addSweepGroup, toRequest, type Settings } from "@/lib/safelight-state";
+import { ScrollStrip } from "@/components/ui/scroll-strip";
 import { cn } from "@/lib/utils";
 import { InputImages } from "./ImageControls";
 import { ModelPicker, type PickerOption } from "./ModelPicker";
@@ -184,7 +185,7 @@ function PromptsPopover({ prompt, negativePrompt, onApply }: { prompt: string; n
         <BookOpen className="size-3.5" /> Prompts
       </button>
       {open ? (
-        <div className="absolute right-0 z-40 mt-1.5 flex w-[300px] flex-col gap-2 rounded-[14px] border border-line bg-paper-2 p-3 shadow-[var(--shadow-raised)]">
+        <div className="absolute right-0 z-40 mt-1.5 flex w-[min(300px,calc(100vw-48px))] flex-col gap-2 rounded-[14px] border border-line bg-paper-2 p-3 shadow-[var(--shadow-raised)]">
           <div className="flex items-center gap-2">
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title or tag" className="field h-8 flex-1 text-[12px]" aria-label="Search saved prompts" />
             <button type="button" className="btn-quiet h-8 shrink-0 px-2 text-[12px]" onClick={() => void save()} title="Save the current prompt">
@@ -416,7 +417,9 @@ export function Composer({
   };
 
   return (
-    <section className="flex min-h-0 flex-col gap-4 overflow-y-auto border-b border-line p-5 lg:border-b-0 lg:border-r">
+    // At compact (lg, 1024–1279) the column runs tighter paddings so the fixed
+    // grid track in Safelight.tsx squeezes the Stage less; xl restores them.
+    <section className="flex min-h-0 flex-col gap-4 overflow-y-auto border-b border-line p-5 pb-0 lg:gap-3 lg:border-b-0 lg:border-r lg:p-4 lg:pb-0 xl:gap-4 xl:p-5 xl:pb-0">
       <ToggleGroup type="single" value={settings.mode} onValueChange={(v) => v && onChange({ mode: v as Settings["mode"] })} spacing={0} className="grid w-full grid-cols-2 rounded-[12px] bg-paper p-1" aria-label="Generation mode">
         <ToggleGroupItem value="txt2img" className={SEGMENT_ON}>
           From words
@@ -437,9 +440,12 @@ export function Composer({
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-display text-[19px] font-bold tracking-[-0.01em] text-ink">What should we make?</h2>
+      {/* No min-h-0 here: inside the scrolling column this block must never
+          shrink below its content, or the heading and textarea paint over the
+          sections below it (measured at 1024 with More settings open). */}
+      <div className="flex flex-1 flex-col gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="min-w-0 font-display text-[19px] font-bold tracking-[-0.01em] text-ink">What should we make?</h2>
           <div className="flex shrink-0 items-center gap-1.5">
             <PromptsPopover prompt={settings.prompt} negativePrompt={settings.negativePrompt} onApply={onChange} />
             <button type="button" className="btn-quiet h-7 px-2 text-[12px]" onClick={() => void enhance()} disabled={enhanceBusy || !settings.prompt.trim()} title="Expand the prompt with concrete visual detail">
@@ -507,24 +513,35 @@ export function Composer({
               </span>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <ToggleGroup type="single" value={settings.presetId} onValueChange={(v) => v && applyPreset(v, settings.scaleId)} className="flex-wrap gap-1" aria-label="Aspect ratio">
-              {SIZE_PRESETS.map((p) => (
-                <ToggleGroupItem key={p.id} value={p.id} title={p.label} className="h-7 rounded-[9px]! border border-line bg-transparent px-2 font-mono text-[11px] text-ink-muted hover:bg-pill hover:text-ink data-[state=on]:border-ink data-[state=on]:bg-ink data-[state=on]:text-paper-2">
-                  {p.ratio}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-            {!isCloud ? (
-              <ToggleGroup type="single" value={settings.scaleId} onValueChange={(v) => v && applyPreset(settings.presetId, v)} spacing={0} className="rounded-[10px] bg-paper p-[3px]" aria-label="Output size">
-                {SIZE_SCALES.map((sc) => (
-                  <ToggleGroupItem key={sc.id} value={sc.id} className="h-6 rounded-[7px]! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
-                    {sc.label}
+          {/* One deliberate scroll row instead of wrapping/clipping pills (§2, §5.16).
+              min-h-11 below lg keeps the focusable strip at the 44px touch minimum. */}
+          <ScrollStrip label="Aspect ratio and size presets" className="min-h-11 items-center py-0.5 lg:min-h-0">
+            {/* The toggle groups own ArrowLeft/Right for roving focus; keep those
+                key presses from also scrolling the strip underneath them. */}
+            <div
+              className="flex w-max items-center gap-2"
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft" || e.key === "ArrowRight") e.stopPropagation();
+              }}
+            >
+              <ToggleGroup type="single" value={settings.presetId} onValueChange={(v) => v && applyPreset(v, settings.scaleId)} className="flex-nowrap gap-1" aria-label="Aspect ratio">
+                {SIZE_PRESETS.map((p) => (
+                  <ToggleGroupItem key={p.id} value={p.id} title={p.label} className="h-7 shrink-0 rounded-[9px]! border border-line bg-transparent px-2 font-mono text-[11px] text-ink-muted hover:bg-pill hover:text-ink data-[state=on]:border-ink data-[state=on]:bg-ink data-[state=on]:text-paper-2">
+                    {p.ratio}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-            ) : null}
-          </div>
+              {!isCloud ? (
+                <ToggleGroup type="single" value={settings.scaleId} onValueChange={(v) => v && applyPreset(settings.presetId, v)} spacing={0} className="shrink-0 rounded-[10px] bg-paper p-[3px]" aria-label="Output size">
+                  {SIZE_SCALES.map((sc) => (
+                    <ToggleGroupItem key={sc.id} value={sc.id} className="h-6 rounded-[7px]! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
+                      {sc.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              ) : null}
+            </div>
+          </ScrollStrip>
         </div>
       ) : null}
 
@@ -730,8 +747,14 @@ export function Composer({
       {error ? <p className="break-words font-mono text-[11px] leading-relaxed text-danger">{error}</p> : null}
       {sweepError ? <p className="break-words font-mono text-[11px] leading-relaxed text-danger">{sweepError}</p> : null}
 
-      <div className="mt-auto flex items-center gap-3 pt-2">
-        <button id="generate-button" type="button" disabled={!canGenerate || sweepBusy || (sweepActive && !sweepReady)} onClick={generate} className="btn-primary h-[52px] flex-1 rounded-[14px] text-[15px]">
+      {/* Sticky within the scrolling column from lg up (below lg the whole page
+          scrolls and sticky would only dangle past the fold): "More settings"
+          can grow the form, but Generate stays reachable at every width (§5.16).
+          The section keeps pb-0 and the footer carries the bottom padding
+          itself, so the opaque footer reaches the column's bottom edge and
+          scrolled content cannot peek out beneath it. */}
+      <div className="z-10 mt-auto flex items-center gap-3 bg-paper-2 pb-5 pt-2 lg:sticky lg:bottom-0 lg:pb-4 xl:pb-5">
+        <button id="generate-button" type="button" disabled={!canGenerate || sweepBusy || (sweepActive && !sweepReady)} onClick={generate} className="btn-primary h-[52px] min-w-0 flex-1 rounded-[14px] text-[15px]">
           {submitting || sweepBusy ? "Queueing" : sweepActive ? `Create ${sweepPointCount} variations` : settings.batch > 1 ? `Create ${settings.batch} images` : "Create image"}
           <span className="font-mono text-[12px] font-medium opacity-70">⌘⏎</span>
         </button>

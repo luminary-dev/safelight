@@ -9,6 +9,8 @@ import { EXTRACT_EXTENSIONS, isExtractable, MAX_FILE_BYTES } from "@/lib/attachm
 import type { JobOutput } from "@/lib/comfy/types";
 import { viewUrl } from "@/lib/safelight-state";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { TruncatedText } from "@/components/ui/truncated-text";
+import { cn } from "@/lib/utils";
 import { applyTheme, clearTheme, getActiveThemeName, subscribeActiveTheme } from "@/lib/theme/apply";
 import { themeContrast, type ThemeColors } from "@/lib/theme/contrast";
 import ReactMarkdown from "react-markdown";
@@ -213,8 +215,10 @@ function CodeBlock(props: React.HTMLAttributes<HTMLPreElement>) {
     if (timer.current) clearTimeout(timer.current);
   }, []);
   return (
-    <div className="code-block group/code relative">
-      <pre ref={preRef} {...props} />
+    // min-w-0 + max-w-full keep the block inside the message column; the <pre>
+    // scrolls horizontally instead of widening it (UI-RESPONSIVE-BRIEF §5.15).
+    <div className="code-block group/code relative min-w-0 max-w-full">
+      <pre ref={preRef} {...props} className={cn("max-w-full overflow-x-auto", props.className)} />
       <button
         type="button"
         aria-label="Copy code"
@@ -238,7 +242,9 @@ function CodeBlock(props: React.HTMLAttributes<HTMLPreElement>) {
 /** Assistant reply body rendered as markdown (GFM + syntax highlighting). Safe to re-render on streaming patches. */
 const Markdown = memo(function Markdown({ text }: { text: string }) {
   return (
-    <div className="markdown">
+    // overflow-wrap:anywhere gives long unbroken strings (URLs, base64, stack
+    // traces) a break opportunity so they can never widen the column (§5.15).
+    <div className="markdown min-w-0 max-w-full [overflow-wrap:anywhere]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
@@ -690,7 +696,9 @@ export function ChatMode({
               className="float size-[88px] rounded-full shadow-[0_24px_60px_var(--terracotta-wash)]"
               style={{ background: "radial-gradient(circle at 34% 28%, #ffffff 0%, #ecfccb 18%, #a3e635 52%, #34d399 88%)" }}
             />
-            <h1 className="m-0 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.15] tracking-[-0.02em] text-ink [text-wrap:balance]">
+            {/* pb-0.5 absorbs the descender overhang of the tight leading, so the
+                heading never reports clipped content (audit clippedY). */}
+            <h1 className="m-0 pb-0.5 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.15] tracking-[-0.02em] text-ink [text-wrap:balance]">
               {new Date().getHours() < 12 ? "Good morning." : new Date().getHours() < 18 ? "Good afternoon." : "Good evening."}
               <br />
               What are we <span className="text-terracotta">making today?</span>
@@ -736,10 +744,11 @@ export function ChatMode({
               {msg.files && msg.files.length > 0 ? (
                 <div className={`flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"}`}>
                   {msg.files.map((f) => (
-                    <details key={f.name} className="max-w-full rounded-[12px] border border-line bg-paper-2 px-3 py-1.5">
-                      <summary className="flex cursor-pointer list-none items-center gap-1.5 font-mono text-[11px] text-ink-muted">
-                        <FileText className="size-3 shrink-0" /> {f.name}
-                        {f.truncated ? <span className="text-faint">· clipped</span> : null}
+                    <details key={f.name} className="min-w-0 max-w-full rounded-[12px] border border-line bg-paper-2 px-3 py-1.5">
+                      <summary className="flex min-w-0 cursor-pointer list-none items-center gap-1.5 font-mono text-[11px] text-ink-muted">
+                        <FileText className="size-3 shrink-0" />
+                        <TruncatedText text={f.name} className="flex-1" />
+                        {f.truncated ? <span className="shrink-0 text-faint">· clipped</span> : null}
                       </summary>
                       <pre className="mt-1.5 max-h-52 overflow-auto whitespace-pre-wrap rounded-[8px] bg-pill/40 p-2 font-mono text-[11px] leading-relaxed text-ink-muted">{f.text}</pre>
                     </details>
@@ -776,7 +785,7 @@ export function ChatMode({
                 </div>
               ) : msg.text || msg.role === "assistant" ? (
                 <div
-                  className={`min-w-0 text-[15px] leading-[1.6] text-ink [text-wrap:pretty] ${
+                  className={`min-w-0 text-[15px] leading-[1.6] text-ink [overflow-wrap:anywhere] [text-wrap:pretty] ${
                     msg.role === "user" ? "whitespace-pre-wrap rounded-[14px] bg-green-wash px-4 py-2.5" : ""
                   }`}
                 >
@@ -908,7 +917,7 @@ export function ChatMode({
                   The agent wants <span className="font-medium">{a.tool.replace(/_/g, " ")}</span> access outside the workspace:
                 </>
               )}
-              <span className="mt-0.5 block truncate font-mono text-[12px] text-ink-muted" title={a.path}>{a.path}</span>
+              <TruncatedText text={a.path} className="mt-0.5 font-mono text-[12px] text-ink-muted" />
             </span>
             <span className="flex shrink-0 gap-2">
               <button
@@ -958,9 +967,9 @@ export function ChatMode({
           {pendingFiles.length > 0 ? (
             <div className="flex flex-wrap gap-2 px-3.5 pt-3">
               {pendingFiles.map((f) => (
-                <span key={f.name} className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 font-mono text-[11px] text-ink-muted">
+                <span key={f.name} className="inline-flex max-w-[min(240px,100%)] items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 font-mono text-[11px] text-ink-muted">
                   <FileText className="size-3 shrink-0" />
-                  <span className="truncate" title={f.name}>{f.name}</span>
+                  <TruncatedText text={f.name} />
                   {f.truncated ? <span className="shrink-0 text-faint">· clipped</span> : null}
                   <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setPendingFiles((p) => p.filter((x) => x.name !== f.name))} className="grid size-4 shrink-0 place-items-center rounded-full text-ink-muted hover:text-ink">
                     <X className="size-3" />
@@ -999,7 +1008,9 @@ export function ChatMode({
             }}
             rows={1}
             placeholder="Ask anything, or describe an image to make…"
-            className="max-h-40 flex-1 resize-none border-0 bg-transparent py-2 font-sans text-[15px] leading-normal text-ink"
+            // Grows with content (field-sizing) but caps at ~40dvh and scrolls,
+            // so a pasted essay never pushes the send button off-screen (§5.15).
+            className="max-h-[40dvh] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 font-sans text-[15px] leading-normal text-ink"
             style={{ fieldSizing: "content" } as React.CSSProperties}
           />
           {canListen ? (
@@ -1082,6 +1093,7 @@ export function ChatMode({
               size="compact"
               side="top"
               align="start"
+              className="max-w-full"
               value={model || null}
               onChange={onModel}
               onAddKey={onOpenKeys}
@@ -1091,7 +1103,7 @@ export function ChatMode({
             />
             {onPatchSession && !agentLocked ? <TunePopover system={system} params={params} onPatch={onPatchSession} /> : null}
           </div>
-          <span className="flex items-center gap-3">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             {estTokens > 0 ? (
               <span
                 title="Rough estimate — characters ÷ 4 across the conversation, attachments, and draft. Cost uses the input rate for the selected cloud model."
@@ -1172,7 +1184,7 @@ export function TunePopover({ system, params, onPatch }: { system?: string; para
           System prompt &amp; sampling for this chat
         </TooltipContent>
       </Tooltip>
-      <PopoverContent align="start" sideOffset={8} className="w-[340px] rounded-[16px] p-3.5">
+      <PopoverContent align="start" sideOffset={8} collisionPadding={12} className="w-[min(340px,calc(100vw-24px))] rounded-[16px] p-3.5">
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-faint">System prompt — added to the default</span>
@@ -1218,11 +1230,11 @@ function ToolCard({ call, onUseAsInput }: { call: ToolCall; onUseAsInput: (o: Jo
           {call.state === "running" ? <Loader2 className="size-3.5 animate-spin" /> : call.state === "error" ? <TriangleAlert className="size-3.5" /> : call.name === "list_models" || call.name === "list_recent_images" ? <Wrench className="size-3.5" /> : <Check className="size-3.5" />}
         </span>
         <div className="min-w-0 flex-1 leading-snug">
-          <div className="flex flex-wrap items-baseline gap-x-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span className="font-display font-medium text-ink">{call.state === "done" ? doneLabel : label}</span>
-            {call.note ? <span className={`font-mono text-[11px] ${call.state === "error" ? "text-danger" : "text-faint"}`}>{call.note}</span> : null}
+            {call.note ? <span className={`min-w-0 font-mono text-[11px] [overflow-wrap:anywhere] ${call.state === "error" ? "text-danger" : "text-faint"}`}>{call.note}</span> : null}
           </div>
-          {summary ? <p className="mt-0.5 line-clamp-3 text-ink-muted">{summary}</p> : null}
+          {summary ? <p className="mt-0.5 line-clamp-3 text-ink-muted [overflow-wrap:anywhere]">{summary}</p> : null}
         </div>
       </div>
       {call.name === "save_theme" && call.state === "done" ? <ThemeSwatch result={call.result} /> : null}

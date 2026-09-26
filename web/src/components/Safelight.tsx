@@ -391,7 +391,7 @@ export function Safelight() {
         ) : topMode === "blueprints" ? (
           <BlueprintsWorkspace />
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[350px_minmax(0,1fr)]">
+          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[350px_minmax(0,1fr)]">
             <MComposer
               catalog={img.catalog}
               online={img.online}

@@ -78,6 +78,32 @@ describe("BlueprintRunner", () => {
     expect(screen.getByText("Add a image")).toBeInTheDocument();
   });
 
+  it("the widest form stays usable when narrow: number fields stack below sm and filenames stay accessible (§5.14)", async () => {
+    const many: BlueprintInput[] = [seedInput, stepsInput, { key: "cfg", label: "CFG", kind: "number", valueType: "FLOAT", default: 4, required: false, targets: [] }];
+    stubFetch(
+      specRoute(spec({ name: `Blueprint With A ${"Very ".repeat(40)}Long Name`, inputs: [promptInput, imageInput, ...many] })),
+      { method: "POST", url: "/api/upload", reply: { files: [{ ref: "safelight/very-long.png", filename: `${"long-".repeat(40)}photo.png`, subfolder: "safelight", type: "input" }] } },
+    );
+    const user = userEvent.setup();
+    renderApp(<BlueprintRunner id="bp-1" />);
+
+    // The long blueprint name truncates with its full value exposed.
+    const heading = await screen.findByRole("heading", { level: 2 });
+    expect(heading).toHaveAttribute("title", `Blueprint With A ${"Very ".repeat(40)}Long Name`);
+
+    // Number fields live in a grid that is one column below sm, two from sm up.
+    const numberGrid = screen.getByRole("spinbutton", { name: "Seed" }).closest(".grid")!;
+    expect(numberGrid.className).toContain("grid-cols-1");
+    expect(numberGrid.className).toContain("sm:grid-cols-2");
+
+    // The uploaded media row wraps rather than clipping, and the name carries a title.
+    const fileInput = screen.getByText("Add a image").closest("label")!.querySelector("input")!;
+    await user.upload(fileInput, new File(["img"], `${"long-".repeat(40)}photo.png`, { type: "image/png" }));
+    const name = await screen.findByText(`${"long-".repeat(40)}photo.png`);
+    expect(name).toHaveAttribute("title", `${"long-".repeat(40)}photo.png`);
+    expect(name.closest("div")!.className).toContain("flex-wrap");
+  });
+
   it("lists exactly what is missing and refuses to run", async () => {
     stubFetch(
       specRoute(

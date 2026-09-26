@@ -69,7 +69,7 @@ export function CodeWorkspace({
           onAddKey={onOpenKeys}
           placeholder={tw("pickerPlaceholder")}
           emptyHint={ollamaUp ? tw("emptyHintOllamaUp") : tw("emptyHintOllamaDown")}
-          className="w-auto min-w-[220px]"
+          className="w-auto min-w-[min(220px,100%)] max-w-full"
         />
         <label className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] bg-paper px-3 py-2.5">
           <FolderCode className="size-4 shrink-0 text-placeholder" />
@@ -99,7 +99,7 @@ export function CodeWorkspace({
         <div className="flex flex-wrap items-center gap-1.5 px-6 pb-3">
           <span className="text-[12px] font-medium text-faint">{t("alsoAllowed")}</span>
           {approvedPaths.map((p) => (
-            <span key={p} className="inline-flex max-w-[360px] items-center gap-1.5 rounded-full bg-terracotta-wash py-1 ps-2.5 pe-1.5 font-mono text-[11px] text-terracotta">
+            <span key={p} className="inline-flex max-w-[min(360px,100%)] items-center gap-1.5 rounded-full bg-terracotta-wash py-1 ps-2.5 pe-1.5 font-mono text-[11px] text-terracotta">
               <span className="truncate" title={p}>{p}</span>
               <button type="button" aria-label={t("revoke", { path: p })} onClick={() => onRemoveApprovedPath(p)} className="grid size-4 shrink-0 place-items-center rounded-full hover:bg-paper-2/60">
                 <X className="size-3" />

@@ -59,6 +59,18 @@ describe("BlueprintsWorkspace", () => {
     expect(screen.getByText("Nothing matches.")).toBeInTheDocument();
   });
 
+  it("card text truncates accessibly: names and metadata always expose their full value (§5.14, §7)", async () => {
+    const longName = `An Extremely Verbose Blueprint Title ${"Very ".repeat(30)}Long`;
+    stubFetch(catalogRoute([entry({ id: "bp-long", name: longName, category: "image" }), depth()]));
+    renderApp(<BlueprintsWorkspace />);
+
+    const name = await screen.findByText(longName);
+    expect(name).toHaveAttribute("title", longName);
+    // A missing card's metadata line carries the full missing list as its title.
+    const card = screen.getByText("Depth Estimation").closest("button")!;
+    expect(within(card).getByText(/missing: depth_anything_v2\.safetensors/)).toHaveAttribute("title", "depth_anything_v2.safetensors");
+  });
+
   it("shows the server's error when the registry fails to load", async () => {
     stubFetch({ url: "/api/blueprints", reply: () => json({ error: "The registry burned down." }, 500) });
     renderApp(<BlueprintsWorkspace />);

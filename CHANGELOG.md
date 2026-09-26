@@ -6,6 +6,16 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Responsive integrity (UI brief, Tier C): chat bubbles break 300-char words, URLs and
+  base64 instead of widening the column, code blocks scroll sideways, and the chat composer
+  caps at 40dvh; the Image composer's aspect/size pills became a labelled scroll strip and
+  Generate stays sticky and reachable however far "More settings" grows (also fixing a real
+  overlap where the prompt block painted over the Shape row at 1024); the model picker
+  popover never exceeds the viewport and exposes full model names; blueprint cards truncate
+  accessibly (460 unlabeled truncations → 0) with per-width grid columns and forms that
+  stack below 640; the Stage render letterboxes at extreme window ratios instead of pushing
+  the filmstrip out. Audit findings across the chat/image/blueprints/code/design cells fell
+  from 5,080 to 4,229.
 - One-time license mechanism (ADR 0003, accepted): an Ed25519-signed offline license file
   verified locally against a public key compiled into the app — no account, no server
   round-trip, no phone-home. `web/src/lib/license.ts` + `/api/license` (GET status /

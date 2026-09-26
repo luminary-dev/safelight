@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { Lock as LockSimple, LockOpen as LockSimpleOpen, Plus, RefreshCw as ArrowsClockwise, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { ScrollStrip } from "@/components/ui/scroll-strip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ModelCatalog } from "@/lib/comfy/types";
 import { SIZE_PRESETS, SIZE_SCALES, randomSeed, roundTo32, scaledSize } from "@/lib/presets";
@@ -35,25 +36,46 @@ export function Options({ catalog, settings, onChange }: { catalog: ModelCatalog
           ) : null}
           {!sizeLocked ? (
             <>
-              <ToggleGroup type="single" value={settings.presetId} onValueChange={(v) => v && applyPreset(v, settings.scaleId)} className="flex-wrap gap-1.5" aria-label="Aspect ratio">
-                {SIZE_PRESETS.map((p) => {
-                  const w = p.width >= p.height ? 16 : Math.round((16 * p.width) / p.height);
-                  const h = p.height >= p.width ? 16 : Math.round((16 * p.height) / p.width);
-                  return (
-                    <ToggleGroupItem key={p.id} value={p.id} title={p.label} className="h-9 gap-2 rounded-full! border border-line bg-transparent px-3 font-mono text-xs text-ink hover:bg-paper-2 data-[state=on]:border-green data-[state=on]:bg-green data-[state=on]:text-paper-2">
-                      <span className="block rounded-[2px] border border-current" style={{ width: w, height: h }} />
-                      {p.ratio}
-                    </ToggleGroupItem>
-                  );
-                })}
-              </ToggleGroup>
-              <ToggleGroup type="single" value={settings.scaleId} onValueChange={(v) => v && applyPreset(settings.presetId, v)} spacing={0} className="mt-2 rounded-full bg-pill p-[3px]" aria-label="Output size">
-                {SIZE_SCALES.map((sc) => (
-                  <ToggleGroupItem key={sc.id} value={sc.id} className="h-7 rounded-full! px-3 font-mono text-[11px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[0_1px_2px_rgba(35,33,29,0.12)]">
-                    {sc.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              {/* Deliberate scroll rows instead of wrapping/clipping pills (§2, §5.16).
+                  The toggle groups own ArrowLeft/Right for roving focus, so those key
+                  presses must not also scroll the strip. */}
+              <ScrollStrip label="Aspect ratio presets" className="min-h-11 items-center py-0.5 lg:min-h-0">
+                <div
+                  className="flex w-max"
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowLeft" || e.key === "ArrowRight") e.stopPropagation();
+                  }}
+                >
+                  <ToggleGroup type="single" value={settings.presetId} onValueChange={(v) => v && applyPreset(v, settings.scaleId)} className="flex-nowrap gap-1.5" aria-label="Aspect ratio">
+                    {SIZE_PRESETS.map((p) => {
+                      const w = p.width >= p.height ? 16 : Math.round((16 * p.width) / p.height);
+                      const h = p.height >= p.width ? 16 : Math.round((16 * p.height) / p.width);
+                      return (
+                        <ToggleGroupItem key={p.id} value={p.id} title={p.label} className="h-9 shrink-0 gap-2 rounded-full! border border-line bg-transparent px-3 font-mono text-xs text-ink hover:bg-paper-2 data-[state=on]:border-green data-[state=on]:bg-green data-[state=on]:text-paper-2">
+                          <span className="block rounded-[2px] border border-current" style={{ width: w, height: h }} />
+                          {p.ratio}
+                        </ToggleGroupItem>
+                      );
+                    })}
+                  </ToggleGroup>
+                </div>
+              </ScrollStrip>
+              <ScrollStrip label="Output size presets" className="mt-2 min-h-11 items-center py-0.5 lg:min-h-0">
+                <div
+                  className="flex w-max"
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowLeft" || e.key === "ArrowRight") e.stopPropagation();
+                  }}
+                >
+                  <ToggleGroup type="single" value={settings.scaleId} onValueChange={(v) => v && applyPreset(settings.presetId, v)} spacing={0} className="shrink-0 rounded-full bg-pill p-[3px]" aria-label="Output size">
+                    {SIZE_SCALES.map((sc) => (
+                      <ToggleGroupItem key={sc.id} value={sc.id} className="h-7 rounded-full! px-3 font-mono text-[11px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[0_1px_2px_rgba(35,33,29,0.12)]">
+                        {sc.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+              </ScrollStrip>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <input
                   type="number"

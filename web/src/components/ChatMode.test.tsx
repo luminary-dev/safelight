@@ -194,6 +194,64 @@ describe("ChatMode message actions", () => {
   });
 });
 
+describe("ChatMode content stress (UI-RESPONSIVE-BRIEF §7 / §5.15)", () => {
+  const LONG_WORD = "x".repeat(300);
+
+  it("message bubbles give long unbroken strings a break opportunity instead of widening the column", () => {
+    stubFetch(noActiveRun);
+    renderApp(
+      <Chat
+        initialMessages={[
+          { role: "user", text: LONG_WORD },
+          { role: "assistant", text: `See ${LONG_WORD}` },
+        ]}
+      />,
+    );
+
+    // The user bubble carries overflow-wrap:anywhere…
+    const userBubble = screen.getByText(LONG_WORD, { selector: "div" });
+    expect(userBubble.className).toContain("[overflow-wrap:anywhere]");
+    // …and so does the markdown container that renders assistant replies.
+    const markdown = document.querySelector(".markdown")!;
+    expect(markdown.className).toContain("[overflow-wrap:anywhere]");
+    expect(markdown.className).toContain("min-w-0");
+  });
+
+  it("fenced code blocks scroll horizontally instead of widening the message column", () => {
+    stubFetch(noActiveRun);
+    renderApp(<Chat initialMessages={[{ role: "user", text: "code please" }, { role: "assistant", text: "```js\nconst veryLongLine = 1;\n```" }]} />);
+
+    const block = document.querySelector(".code-block");
+    expect(block).not.toBeNull();
+    const pre = block!.querySelector("pre")!;
+    expect(pre.className).toContain("overflow-x-auto");
+    expect(pre.className).toContain("max-w-full");
+    expect(block!.className).toContain("max-w-full");
+  });
+
+  it("the composer textarea grows but caps at ~40dvh and scrolls", () => {
+    stubFetch(noActiveRun);
+    renderApp(<Chat />);
+    const box = composer();
+    expect(box.className).toContain("max-h-[40dvh]");
+    expect(box.className).toContain("overflow-y-auto");
+  });
+
+  it("the approval prompt exposes the full path accessibly while it truncates", async () => {
+    const stream = ndjsonStream();
+    stubFetch(noActiveRun, { method: "POST", url: "/api/agent", reply: () => stream.response });
+    const longPath = `/outside/${"deep/".repeat(40)}secret.txt`;
+    const user = userEvent.setup();
+    renderApp(<Chat agent />);
+
+    await user.type(composer(), "read my file{Enter}");
+    stream.push({ type: "approval", id: "appr-long", path: longPath, tool: "read_file" });
+    const path = await screen.findByText(longPath);
+    expect(path).toHaveAttribute("title", longPath);
+    stream.close();
+  });
+});
+
 describe("ChatMode agent streaming", () => {
   function agentSetup(extra: FetchRoute[] = []) {
     const stream = ndjsonStream();

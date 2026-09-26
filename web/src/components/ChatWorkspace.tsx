@@ -51,7 +51,8 @@ export function ChatWorkspace({
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* The soft lime glow behind an empty conversation. */}
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 bg-[radial-gradient(closest-side,var(--terracotta-wash),transparent_70%)]" />
+      {/* Width-capped so the decorative glow never widens the section's scroll extent. */}
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[min(900px,100%)] -translate-x-1/2 bg-[radial-gradient(closest-side,var(--terracotta-wash),transparent_70%)]" />
       <div className="relative flex flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ModelPicker
@@ -61,7 +62,7 @@ export function ChatWorkspace({
             onAddKey={onOpenKeys}
             placeholder="Pick a chat model"
             emptyHint={ollamaUp ? "No chat models yet. Pull one with ollama pull, or add an API key." : "Ollama is offline. Start it with ollama serve, or add an API key."}
-            className="w-auto min-w-[220px]"
+            className="w-auto min-w-[min(220px,100%)] max-w-full"
           />
           {onPatchSession && active ? <TunePopover key={active.id} system={active.system} params={active.params} onPatch={onPatchSession} /> : null}
         </div>

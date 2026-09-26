@@ -510,7 +510,10 @@ export function Stage({
         {selected && !activeJob ? <ActionBar label="Image actions" actions={barActions} /> : null}
       </div>
 
-      <div className={`relative flex min-h-[320px] flex-1 items-center justify-center overflow-hidden rounded-[10px] border border-line shadow-[var(--shadow-hairline)] ${activeJob ? "safelight-wash" : "easel"}`}>
+      {/* The render card letterboxes at extreme viewport ratios: the image is
+          capped by the region's own height (max-h-full below), so a very wide/
+          short window shrinks the picture instead of pushing the filmstrip out. */}
+      <div className={`relative flex min-h-[200px] flex-1 items-center justify-center overflow-hidden rounded-[10px] border border-line shadow-[var(--shadow-hairline)] ${activeJob ? "safelight-wash" : "easel"}`}>
         <AnimatePresence mode="wait">
           {activeJob ? (
             <RenderingState key={activeJob.id} job={activeJob} progress={progress} onInterrupt={onInterrupt} />
@@ -531,7 +534,10 @@ export function Stage({
               className="flex h-full w-full items-center justify-center p-3"
               aria-label="Open full size"
             >
-              <img src={viewUrl(selected)} alt={selectedJob?.prompt || selected.filename} className="develop max-h-[min(70vh,900px)] max-w-full rounded-[6px] object-contain" />
+              {/* Stacked (<lg): the column scrolls, so cap against the viewport.
+                  Side-by-side (lg+): the region's height is definite — letterbox
+                  inside it so the filmstrip below always stays on screen. */}
+              <img src={viewUrl(selected)} alt={selectedJob?.prompt || selected.filename} className="develop max-h-[min(70dvh,900px)] max-w-full rounded-[6px] object-contain lg:max-h-full" />
             </motion.button>
           ) : (
             <motion.div key="empty" initial={false} className="max-w-sm p-8 text-center">

@@ -156,6 +156,29 @@ describe("Stage", () => {
     expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ filename: item.filename }));
   });
 
+  it("the selected render letterboxes inside the stage region at extreme viewport ratios (§5.1 leftover)", () => {
+    const done = aJob({ state: "done" });
+    stubFetch(capsRoute());
+    renderApp(<Stage {...stageProps({ gallery: [galleryItem(done)], jobs: [done] })} />);
+
+    const img = screen.getByRole("button", { name: "Open full size" }).querySelector("img")!;
+    // Side-by-side (lg+) the region's height is definite: the image is capped by
+    // it, so a very short window shrinks the picture, never the filmstrip.
+    expect(img.className).toContain("lg:max-h-full");
+    expect(img.className).toContain("object-contain");
+    // Stacked (<lg) the column scrolls, so the cap is viewport-relative instead.
+    expect(img.className).toContain("max-h-[min(70dvh,900px)]");
+  });
+
+  it("the progress advice line is a reserved fixed-height slot that cannot reflow the card", () => {
+    stubFetch(capsRoute());
+    const job = aJob({ id: "p-live", state: "running", nodes: { "3": "KSampler" } });
+    const { container } = renderApp(<Stage {...stageProps({ jobs: [job] })} progress={progress({ activePromptId: "p-live" })} />);
+    const advice = container.querySelector('p[aria-live="polite"]')!;
+    expect(advice.className).toContain("h-10");
+    expect(advice.className).toContain("overflow-hidden");
+  });
+
   it("clicking the image opens the full-size viewer and Escape closes it", async () => {
     const done = aJob({ state: "done" });
     stubFetch(capsRoute());

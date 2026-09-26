@@ -49,6 +49,28 @@ describe("ModelPicker", () => {
     expect(screen.getByText("Nothing matches.")).toBeInTheDocument();
   });
 
+  it("long model names truncate with the full value in a title, and the popover never exceeds the viewport (§5.17)", async () => {
+    stubFetch();
+    const longName = "Qwen-Image-2.1-Uncensored-Q4_K_M.gguf";
+    const longLocal: PickerOption = { key: "local:qwen-long", label: longName, provider: "local", hint: `unet_gguf/${longName}` };
+    const user = userEvent.setup();
+    renderApp(<ModelPicker options={[longLocal]} value={longLocal.key} onChange={() => {}} />);
+
+    // The closed trigger exposes the full name even when it visually truncates.
+    const trigger = screen.getByRole("combobox", { name: "Choose a model" });
+    expect(within(trigger).getByText(longName)).toHaveAttribute("title", longName);
+
+    await user.click(trigger);
+    // The row label and hint carry the full values too.
+    const option = await screen.findByRole("option");
+    expect(within(option).getByText(longName)).toHaveAttribute("title", longName);
+    expect(within(option).getByText(`unet_gguf/${longName}`)).toHaveAttribute("title", `unet_gguf/${longName}`);
+    // Width is viewport-capped and height defers to the space Radix reports.
+    const content = document.querySelector('[data-slot="popover-content"]')!;
+    expect(content.className).toContain("w-[min(380px,calc(100vw-24px))]");
+    expect(content.className).toContain("max-h-[min(560px,var(--radix-popover-content-available-height))]");
+  });
+
   it("with no models at all it shows the empty hint and offers to add a key", async () => {
     stubFetch();
     const onAddKey = vi.fn();

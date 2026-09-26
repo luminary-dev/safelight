@@ -120,7 +120,7 @@ export function ModelPicker({
         >
           {selected ? <ProviderMark provider={selected.provider} className={size === "compact" ? "size-6 rounded-full text-[9px] [&_svg]:size-3" : undefined} /> : <span className="grid size-8 place-items-center rounded-[9px] border border-dashed border-line text-faint"><Search className="size-4" /></span>}
           <span className="flex min-w-0 flex-1 flex-col leading-tight">
-            <span className={cn("truncate font-display font-medium text-ink", size === "compact" ? "text-[13px]" : "text-sm")}>{selected?.label ?? placeholder}</span>
+            <span title={selected?.label ?? undefined} className={cn("truncate font-display font-medium text-ink", size === "compact" ? "text-[13px]" : "text-sm")}>{selected?.label ?? placeholder}</span>
             {size !== "compact" ? (
               <span className="truncate font-mono text-[11px] text-ink-muted">
                 {selected ? [PROVIDER_META[selected.provider].short, ...(selected.tags ?? [])].join(" · ") : options.length ? `${options.length} available` : "No models yet"}
@@ -130,12 +130,15 @@ export function ModelPicker({
           <ChevronDown className={cn("size-4 shrink-0 text-faint transition-transform", open && "rotate-180")} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align={align} side={side} sideOffset={8} collisionPadding={12} className="glass w-[380px] gap-0 rounded-2xl p-0 ring-0">
-        <Command className="rounded-2xl bg-transparent p-0" filter={(v, search, keywords) => ((v + " " + (keywords ?? []).join(" ")).toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
-          <div className="border-b border-line p-2">
+      {/* Collision-aware (§5.17): the content never exceeds the viewport — width is
+          viewport-capped, Radix flips/shifts it near edges, and the grouped list
+          scrolls internally within the available height Radix reports. */}
+      <PopoverContent align={align} side={side} sideOffset={8} collisionPadding={12} avoidCollisions className="glass w-[min(380px,calc(100vw-24px))] max-h-[min(560px,var(--radix-popover-content-available-height))] gap-0 overflow-hidden rounded-2xl p-0 ring-0">
+        <Command className="flex min-h-0 flex-col rounded-2xl bg-transparent p-0" filter={(v, search, keywords) => ((v + " " + (keywords ?? []).join(" ")).toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
+          <div className="shrink-0 border-b border-line p-2">
             <CommandInput placeholder="Search models" className="font-sans" />
           </div>
-          <CommandList className="max-h-[360px] p-1.5">
+          <CommandList className="max-h-[360px] min-h-0 flex-1 p-1.5">
             <CommandEmpty className="py-8 text-center text-sm text-ink-muted">{options.length === 0 ? emptyHint ?? "No models available." : "Nothing matches."}</CommandEmpty>
             {groups.map(([group, list], i) => (
               <div key={group}>
@@ -159,7 +162,7 @@ export function ModelPicker({
                         <ProviderMark provider={o.provider} />
                         <span className="flex min-w-0 flex-1 flex-col gap-1 leading-tight">
                           <span className="flex items-center gap-2">
-                            <span className="truncate font-display text-sm font-medium text-ink">{o.label}</span>
+                            <span title={o.label} className="truncate font-display text-sm font-medium text-ink">{o.label}</span>
                             {o.provider !== "local" && o.provider !== "ollama" ? (
                               <Badge variant="outline" className="h-[18px] rounded-full border-line px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-muted">
                                 <Cloud className="size-3" /> {PROVIDER_META[o.provider].short}
@@ -173,7 +176,7 @@ export function ModelPicker({
                                   {t}
                                 </Badge>
                               ))}
-                              {o.hint ? <span className="truncate font-mono text-[10.5px] text-faint">{o.hint}</span> : null}
+                              {o.hint ? <span title={o.hint} className="truncate font-mono text-[10.5px] text-faint">{o.hint}</span> : null}
                             </span>
                           ) : null}
                         </span>
@@ -188,7 +191,7 @@ export function ModelPicker({
             ))}
           </CommandList>
           {onAddKey ? (
-            <div className="border-t border-line p-1.5">
+            <div className="shrink-0 border-t border-line p-1.5">
               <button
                 type="button"
                 onClick={() => {

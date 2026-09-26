@@ -167,6 +167,45 @@ describe("Composer", () => {
     expect(screen.getByText(/ComfyUI is offline\. Local models need it/)).toBeInTheDocument();
   });
 
+  it("the aspect and size pills live in one labelled, keyboard-reachable scroll strip (§2)", async () => {
+    stubFetch(preflightRoute());
+    const user = userEvent.setup();
+    renderApp(<Harness />);
+
+    const strip = screen.getByRole("region", { name: "Aspect ratio and size presets" });
+    expect(strip).toHaveAttribute("data-scroll-strip");
+    expect(strip).toHaveAttribute("tabindex", "0");
+    // The pills inside the strip still work end to end.
+    const wide = SIZE_PRESETS.find((p) => p.id === "landscape-16-9")!;
+    await user.click(screen.getByRole("radio", { name: "16:9" }));
+    expect(screen.getByText(`${wide.width} × ${wide.height}`)).toBeInTheDocument();
+  });
+
+  it("Generate stays reachable when More settings expands: the footer is sticky within the scrolling column (§5.16)", async () => {
+    stubFetch(preflightRoute());
+    const user = userEvent.setup();
+    renderApp(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: "More settings" }));
+    const generate = screen.getByRole("button", { name: /create image/i });
+    expect(generate).toBeVisible();
+    const footer = generate.parentElement!;
+    // Sticky from lg up, where the composer column is the scroll container;
+    // below lg the page itself scrolls, so sticky would only dangle past the fold.
+    expect(footer.className).toContain("lg:sticky");
+    expect(footer.className).toContain("lg:bottom-0");
+    // Opaque over the scrolling form, so content cannot show through beneath it.
+    expect(footer.className).toContain("bg-paper-2");
+  });
+
+  it("holds a 4,000-character prompt without losing the Generate button (§7)", () => {
+    stubFetch(preflightRoute());
+    const prompt = "p".repeat(4000);
+    renderApp(<Harness initial={{ prompt }} />);
+    expect(screen.getByPlaceholderText("Describe what you want to see")).toHaveValue(prompt);
+    expect(screen.getByRole("button", { name: /create image/i })).toBeEnabled();
+  });
+
   it("Cmd+Enter in the prompt box generates", async () => {
     stubFetch(preflightRoute());
     const onGenerate = vi.fn();
