@@ -18,6 +18,22 @@ local models (cloud image models still work).
 - *"Up · live progress reconnecting"* means HTTP works but the WebSocket does not — usually
   transient; renders still finish via polling.
 
+## A Qwen-Image 2.1 GGUF won't load
+
+Upstream ComfyUI-GGUF (as of its Jan 2026 commit) does not recognise Qwen-Image 2.1 GGUF
+files that ship without `general.architecture` metadata. Safelight's setup carries a small
+local patch in `comfyui/custom_nodes/ComfyUI-GGUF/tools/convert.py` adding
+`ModelQwenImage21` (it detects `img_in.weight`, `txt_in.text_norm.weight`,
+`modulation.1.weight`). **Re-apply it if you re-clone the GGUF node**, or Qwen-Image 2.1
+GGUF loading silently breaks. Models in other families (SD 1.5, SDXL, Flux) are unaffected.
+
+## Models in ~/models are not seen
+
+The wiring file `comfyui/extra_model_paths.yaml` maps the shared `~/models` tree into the
+engine. `pnpm comfy` (or `pnpm dev`) generates it on first run if missing; if you started
+ComfyUI some other way, copy the block from `scripts/comfy.sh` or create the file by hand,
+then restart the engine and press the re-check button in the status card.
+
 ## Ollama offline / no local chat models
 
 Symptom: *"Ollama · Offline · run ollama serve"* or *"Up · no models pulled"*.
