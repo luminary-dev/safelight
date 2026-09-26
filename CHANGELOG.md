@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Documentation matches the product (Workstream S): root README rewritten around all five
+  modes with a capability matrix and verified setup and data-layout details, web/README
+  refreshed, repo-level AGENTS.md conventions, and a docs/ set covering getting started, each
+  mode, providers & keys, agents & tools, privacy & security, troubleshooting, and
+  architecture.
 - Agent runtime v2 (Workstream G, scoped): a turn's tool calls now execute in parallel,
   transient provider failures (429/5xx) retry with backoff and a visible status, and the hard
   8-round cap became a configurable budget (24 default; 60 for coding runs, 32 for design)
@@ -49,6 +54,12 @@ All notable changes to Safelight are documented here. The format follows
   the left rail is the only mode switcher.
 
 ### Fixed
+- Ollama models that report the `tools` capability are now tagged with it, so tool-capable
+  local models appear in the Code and Design model pickers (found during the docs
+  verification pass).
+- The key vault no longer rotates the keychain entry on a transient read failure; adds are
+  non-destructive and a stuck-but-present entry fails loudly instead of orphaning the
+  encrypted key store.
 - `safeJoin` refused legitimate folder names beginning with `..` (e.g. `..a`) because it
   matched `..` as a string prefix rather than a path segment. Found by the new test suite.
 
