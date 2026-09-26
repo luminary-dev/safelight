@@ -1,7 +1,10 @@
 [extend]
 useDefault = true
 
-# The log-redaction test plants a FAKE sk- style key precisely to assert it gets
-# scrubbed; it is fixture data, not a credential.
-[[allowlists]]
-paths = ['''web/src/lib/log\.test\.ts''']
+# The log-redaction test plants a FAKE sk-style key precisely to assert it gets
+# scrubbed; fixture data, not a credential.
+[allowlist]
+paths = [
+  '''web/src/lib/log\.test\.ts''',
+  '''web/src/lib/secrets/vault\.test\.ts''',
+]
