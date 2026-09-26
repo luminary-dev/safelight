@@ -5,6 +5,16 @@ All notable changes to Safelight are documented here. The format follows
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-09-26
+
+First tagged release: the complete product surface — six modes (Chat, Image, Code, Design,
+Library, Blueprints), the macOS desktop app, the encrypted key vault with eleven cloud
+providers, the Local-only switch, the offline license mechanism, and 1,481 tests behind
+ratcheting coverage gates. The macOS app is unsigned and requires system Node 22+; local
+image generation requires a ComfyUI install (see README).
+
 ### Added
 - Responsive integrity (UI brief, Tier B): every floating primitive (dialog, alert, sheet,
   popover, select, tooltip, command) now gets viewport-aware max sizes and collision
