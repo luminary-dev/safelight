@@ -75,6 +75,61 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Persisted agent runs: the run row plus its ordered NDJSON events, so a reload can
+    // restore a run in progress and old runs stay inspectable.
+    id: 4,
+    sql: `
+      CREATE TABLE agent_runs (
+        id TEXT PRIMARY KEY,
+        client_id TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        finished_at INTEGER,
+        status TEXT NOT NULL DEFAULT 'running',
+        error TEXT
+      );
+      CREATE INDEX agent_runs_started ON agent_runs (started_at DESC);
+      CREATE TABLE agent_events (
+        run_id TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+        seq INTEGER NOT NULL,
+        ts INTEGER NOT NULL,
+        data TEXT NOT NULL,
+        PRIMARY KEY (run_id, seq)
+      );
+    `,
+  },
+  {
+    // Library index: one row per file under outputs/, enriched from metadata sidecars,
+    // with tags and prompt full-text search.
+    id: 5,
+    sql: `
+      CREATE TABLE library_items (
+        path TEXT PRIMARY KEY,
+        mtime INTEGER NOT NULL,
+        size INTEGER NOT NULL,
+        width INTEGER,
+        height INTEGER,
+        model TEXT,
+        seed INTEGER,
+        prompt TEXT,
+        meta TEXT,
+        phash TEXT,
+        favorite INTEGER NOT NULL DEFAULT 0,
+        indexed_at INTEGER NOT NULL
+      );
+      CREATE INDEX library_items_mtime ON library_items (mtime DESC);
+      CREATE INDEX library_items_model ON library_items (model);
+      CREATE TABLE library_tags (
+        path TEXT NOT NULL REFERENCES library_items(path) ON DELETE CASCADE,
+        tag TEXT NOT NULL,
+        PRIMARY KEY (path, tag)
+      );
+      CREATE VIRTUAL TABLE library_fts USING fts5(path UNINDEXED, prompt, model);
+    `,
+  },
 ];
 
 let db: Database.Database | null = null;
