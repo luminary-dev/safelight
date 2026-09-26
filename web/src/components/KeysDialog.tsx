@@ -9,7 +9,8 @@ export interface KeyStatus {
   label: string;
   configured: boolean;
   hint?: string;
-  source?: "file" | "env";
+  source?: "vault" | "env";
+  baseUrl?: string;
   chat: boolean;
   images: boolean;
 }
@@ -30,6 +31,27 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checked, setChecked] = useState<{ provider: string; ok: boolean; message: string } | null>(null);
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [urlOpen, setUrlOpen] = useState<Record<string, boolean>>({});
+
+  /** Base-URL-only update: key null + baseUrl set keeps the stored key and changes the endpoint. */
+  const saveUrl = async (provider: string) => {
+    setBusy(provider);
+    setError(null);
+    try {
+      const res = await fetch("/api/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, key: null, baseUrl: urls[provider] ?? "" }) });
+      const data = (await res.json()) as { keys?: KeyStatus[]; error?: string };
+      if (!res.ok || !data.keys) throw new Error(data.error ?? "Failed to save URL");
+      setKeys(data.keys);
+      setUrlOpen((o) => ({ ...o, [provider]: false }));
+      setUrls((u) => ({ ...u, [provider]: "" }));
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save URL");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -43,11 +65,13 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
   }, [open, onClose]);
 
   const submit = async (provider: string, key: string | null) => {
+    // A saved custom base URL must survive a key replacement.
+    const keptUrl = key ? keys.find((k) => k.provider === provider)?.baseUrl : undefined;
     setBusy(provider);
     setError(null);
     setChecked(null);
     try {
-      const res = await fetch("/api/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, key }) });
+      const res = await fetch("/api/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, key, ...(keptUrl ? { baseUrl: keptUrl } : {}) }) });
       const data = (await res.json()) as { keys?: KeyStatus[]; error?: string; validation?: { ok: boolean; message: string } };
       if (!res.ok || !data.keys) throw new Error(data.error ?? "Failed to save");
       setKeys(data.keys);
@@ -147,19 +171,39 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                     >
                       <Check size={14} /> Save
                     </button>
-                    {k.configured && k.source === "file" ? (
+                    {k.configured && k.source === "vault" ? (
                       <button type="button" className="btn-quiet px-2.5" title="Remove key" disabled={busy === k.provider} onClick={() => void submit(k.provider, null)}>
                         <Trash size={14} />
                       </button>
                     ) : null}
                   </div>
+                  {urlOpen[k.provider] ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={urls[k.provider] ?? k.baseUrl ?? ""}
+                        onChange={(e) => setUrls((u) => ({ ...u, [k.provider]: e.target.value }))}
+                        placeholder="Default endpoint — set a proxy or gateway URL to override"
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="field flex-1 font-mono text-xs"
+                        aria-label={`${k.label} base URL`}
+                      />
+                      <button type="button" className="btn-ink" disabled={busy === k.provider || !k.configured || k.source !== "vault"} onClick={() => void saveUrl(k.provider)}>
+                        Save URL
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" className="self-start font-mono text-[11px] text-faint hover:text-ink" onClick={() => setUrlOpen((o) => ({ ...o, [k.provider]: true }))}>
+                      {k.baseUrl ? `custom URL: ${k.baseUrl}` : "custom base URL…"}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
             {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
             {checked ? <p className={`mt-3 font-mono text-xs ${checked.ok ? "text-green" : "text-danger"}`}>{checked.message}</p> : null}
             <p className="mt-4 text-[13px] leading-relaxed text-faint">
-              OpenAI and Gemini add image models to Image mode. All three add chat models. Local models keep working without any key.
+              OpenAI and Gemini add image models to Image mode. All five providers add chat models. Local models keep working without any key.
             </p>
           </motion.div>
         </motion.div>
