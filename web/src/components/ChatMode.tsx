@@ -6,14 +6,16 @@ import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { JobOutput } from "@/lib/comfy/types";
 import { viewUrl } from "@/lib/safelight-state";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { applyTheme, clearTheme, getActiveThemeName, subscribeActiveTheme } from "@/lib/theme/apply";
+import { themeContrast, type ThemeColors } from "@/lib/theme/contrast";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { ModelPicker } from "./ModelPicker";
 
 export interface ChatModelInfo {
-  provider: "ollama" | "openai" | "anthropic" | "gemini";
+  provider: "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq";
   id: string;
   label: string;
   tags: string[];
@@ -25,6 +27,8 @@ export const PROVIDER_LABEL: Record<ChatModelInfo["provider"], string> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
   gemini: "Gemini",
+  openrouter: "OpenRouter",
+  groq: "Groq",
 };
 
 /** Stable key for a chat model across providers. */
@@ -695,13 +699,44 @@ interface SavedTheme {
   description: string;
   colors: Record<string, string>;
   fonts: { display: string; body: string; mono?: string };
+  contrast?: { textOnBg: number; textOnSurface: number; accentTextOnAccent: number };
 }
 
 /** A saved theme rendered as a small live preview: swatch row plus a card in the theme's own colors. */
 function ThemeSwatch({ result }: { result: unknown }) {
   const theme = (result as { theme?: SavedTheme } | undefined)?.theme;
+  const activeName = useSyncExternalStore(subscribeActiveTheme, getActiveThemeName, () => null);
+  const [busy, setBusy] = useState(false);
   if (!theme?.colors) return null;
   const c = theme.colors;
+  const isActive = activeName === theme.name;
+  // New saves carry server-computed ratios; older themes get them recomputed here.
+  let contrast = theme.contrast ?? null;
+  if (!contrast) {
+    try {
+      contrast = themeContrast(c as unknown as ThemeColors);
+    } catch {
+      contrast = null;
+    }
+  }
+  const applyThis = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/themes/${encodeURIComponent(theme.name)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "apply" }) });
+      if (res.ok) applyTheme(theme.name, c as unknown as ThemeColors);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const resetThis = async () => {
+    setBusy(true);
+    try {
+      await fetch(`/api/themes/${encodeURIComponent(theme.name)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "clear" }) }).catch(() => undefined);
+      clearTheme();
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div className="border-t border-line p-3">
       <div className="flex flex-col gap-2.5 rounded-[14px] border border-line p-3.5" style={{ background: c.bg, color: c.text }}>
@@ -729,6 +764,31 @@ function ThemeSwatch({ result }: { result: unknown }) {
             ))}
           </span>
         </div>
+      </div>
+      {contrast ? (
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10.5px] text-faint">
+          <span title="WCAG contrast, text on bg">text/bg {contrast.textOnBg.toFixed(2)}:1</span>
+          <span title="WCAG contrast, text on surface">text/surface {contrast.textOnSurface.toFixed(2)}:1</span>
+          <span title="WCAG contrast, accentText on accent">accent {contrast.accentTextOnAccent.toFixed(2)}:1</span>
+        </div>
+      ) : null}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {isActive ? (
+          <button type="button" onClick={resetThis} disabled={busy} className="btn-quiet h-7 px-3 text-[12px]">
+            Reset
+          </button>
+        ) : (
+          <button type="button" onClick={applyThis} disabled={busy} className="btn-quiet h-7 px-3 text-[12px]">
+            Apply
+          </button>
+        )}
+        <span className="font-mono text-[10.5px] text-faint">Export:</span>
+        {(["css", "tailwind", "tokens"] as const).map((format) => (
+          <a key={format} href={`/api/themes/${encodeURIComponent(theme.name)}?format=${format}`} download className="font-mono text-[10.5px] text-terracotta underline underline-offset-2 hover:text-terracotta-deep">
+            {format}
+          </a>
+        ))}
+        <span className="ml-auto font-mono text-[10.5px] text-faint">{isActive ? "Applied — replaces both light and dark until cleared" : "Apply replaces both light and dark themes until cleared"}</span>
       </div>
     </div>
   );

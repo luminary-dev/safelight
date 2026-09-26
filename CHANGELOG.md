@@ -6,6 +6,10 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Design themes (Workstream I): saved themes now enforce WCAG AA contrast at save time
+  (failing pairs are rejected with their ratios named), can be applied live from the swatch
+  card — persisted, restored on boot, with a Reset control — and export as CSS variables, a
+  Tailwind v4 `@theme` block, or DTCG design-tokens JSON.
 - Providers (Workstream E): OpenRouter and Groq join as chat providers — full model catalogs
   in the picker (OpenRouter labels straight from its API, Groq via friendly names), streaming
   chat and agent-mode tool calling over the OpenAI-compatible wire format, key validation on

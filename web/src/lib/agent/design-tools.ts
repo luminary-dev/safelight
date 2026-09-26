@@ -3,6 +3,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { saveTheme } from "@/lib/db/sessions";
 import { searchWeb } from "@/lib/search/chain";
+import { AA_TEXT, failingPairs, PAIR_LABEL, themeContrast, type ThemeColors } from "@/lib/theme/contrast";
 import type { ToolDef } from "./tools";
 
 const MAX_PAGE_CHARS = 8000;
@@ -184,15 +185,24 @@ export async function executeDesignTool(name: string, args: Record<string, unkno
         if (!HEX_OK.test(String(colors[k] ?? ""))) throw new Error(`colors.${k} must be a 6-digit hex like #84cc16.`);
       }
       const fonts = (args.fonts ?? {}) as Record<string, string>;
+      const normalized = Object.fromEntries(["bg", "surface", "text", "muted", "accent", "accentText"].map((k) => [k, String(colors[k]).toLowerCase()])) as unknown as ThemeColors;
+      // WCAG AA gate, enforced in code: a theme that fails is never stored.
+      const contrast = themeContrast(normalized);
+      const fails = failingPairs(contrast);
+      if (fails.length > 0) {
+        const detail = fails.map((f) => `${PAIR_LABEL[f.pair]} is ${f.ratio.toFixed(2)}:1`).join(", ");
+        throw new Error(`Contrast too low (WCAG AA needs ${AA_TEXT}:1 for text): ${detail}. Adjust the colors and save again.`);
+      }
       const theme = {
         name,
         description: String(args.description ?? "").slice(0, 200),
-        colors: Object.fromEntries(["bg", "surface", "text", "muted", "accent", "accentText"].map((k) => [k, String(colors[k]).toLowerCase()])),
+        colors: normalized,
         fonts: { display: String(fonts.display ?? ""), body: String(fonts.body ?? ""), mono: String(fonts.mono ?? "") },
+        contrast,
         savedAt: Date.now(),
       };
       saveTheme(name, theme);
-      return { result: { theme }, note: `saved ${name}` };
+      return { result: { theme }, note: `saved ${name} · contrast ${Math.min(contrast.textOnBg, contrast.textOnSurface, contrast.accentTextOnAccent).toFixed(2)}:1 min` };
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

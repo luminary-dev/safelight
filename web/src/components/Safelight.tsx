@@ -7,6 +7,8 @@ import { teCompatible, type GalleryItem, type JobOutput, type JobStatus, type Mo
 import { randomSeed } from "@/lib/presets";
 import { autoTitle, newProject, newSession, type ChatAttachment, type ChatMessage, type ChatSession, type CodeSession, type DesignSession, type ImageSession, type Project, type Session, type SessionKind } from "@/lib/session-types";
 import { DEFAULT_SETTINGS, defaultsForModel, toRequest, viewUrl, type Job, type Settings, type UploadedImage } from "@/lib/safelight-state";
+import { applyTheme } from "@/lib/theme/apply";
+import type { ThemeColors } from "@/lib/theme/contrast";
 import { chatModelKey, type ChatModelInfo, type PromptHandoff } from "./ChatMode";
 import { ChatWorkspace } from "./ChatWorkspace";
 import { CodeWorkspace } from "./CodeWorkspace";
@@ -201,6 +203,21 @@ export function Safelight() {
     () => (sessions.find((s) => s.kind === "design" && s.id === activeIds.design && inProject(s)) ?? sessions.find((s) => s.kind === "design" && inProject(s)) ?? null) as DesignSession | null,
     [sessions, activeIds.design, inProject],
   );
+
+  // Boot: fetch the active saved theme once and apply it (inline vars override both light and dark until cleared).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetch("/api/themes").catch(() => null);
+      if (cancelled || !res?.ok) return;
+      const body = (await res.json().catch(() => null)) as { themes?: { name: string; data?: { colors?: ThemeColors } }[]; active?: string | null } | null;
+      const active = body?.active ? body.themes?.find((t) => t.name === body.active) : null;
+      if (active?.data?.colors) applyTheme(active.name, active.data.colors);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load sessions once; migrate the old single chat from localStorage if present.
   useEffect(() => {
