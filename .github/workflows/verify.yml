@@ -19,3 +19,24 @@ jobs:
       - run: pnpm --dir web install --frozen-lockfile
       - run: pnpm verify
       - run: pnpm --dir web audit --prod --audit-level high
+  # Non-blocking e2e smoke (quality gate 3, in progress): boots its own dev
+  # server against a throwaway data dir with ComfyUI/Ollama unreachable on
+  # purpose. Not in the required `verify` job yet; failures don't block merges.
+  e2e:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: ./node_modules/.bin/playwright install --with-deps chromium
+        working-directory: web
+      - run: ./node_modules/.bin/playwright test
+        working-directory: web

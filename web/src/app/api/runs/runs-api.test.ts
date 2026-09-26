@@ -63,7 +63,7 @@ async function untilDone(id: string, ms = 3000): Promise<void> {
 /** Ollama stub whose reply the test releases when it chooses. */
 function deferredOllama(): { release: (content: string) => void } {
   let release!: (r: Response) => void;
-  vi.stubGlobal("fetch", (_url: unknown) => new Promise<Response>((res) => (release = res)));
+  vi.stubGlobal("fetch", () => new Promise<Response>((res) => (release = res)));
   return {
     release: (content: string) => release(new Response(JSON.stringify({ message: { role: "assistant", content } }), { status: 200, headers: { "content-type": "application/json" } })),
   };

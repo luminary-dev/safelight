@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Quality gates measured (Workstream Y): lib/ unit coverage is enforced at ≥70% lines
+  (measured 75.45%) and now gates every `pnpm verify` run, and a 16-test Playwright e2e
+  suite covers all six modes, server-backed sessions, settings persistence, dialog
+  accessibility, Library, and Blueprints against an isolated dev server with both backends
+  deliberately down — plus a non-blocking e2e job in CI.
 - Providers, round three (Workstream E): Cerebras and Vercel AI Gateway join through the
   generic OpenAI-compatible adapter — eleven providers total. And applied themes now carry
   their fonts: the theme's families go first in the stack with the stock fallbacks, so an

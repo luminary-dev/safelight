@@ -268,7 +268,7 @@ describe("startDetachedRun", () => {
 
   it("late subscribers can join mid-run and route-published approvals persist under the same sequence", async () => {
     let release!: (r: Response) => void;
-    vi.stubGlobal("fetch", (_url: unknown) => new Promise<Response>((res) => (release = res)));
+    vi.stubGlobal("fetch", () => new Promise<Response>((res) => (release = res)));
     const id = startDetachedRun("ollama", "m", TURNS, { clientId: "c" });
     await new Promise((r) => setTimeout(r, 10));
     // What a route does for an approval question: publish through the registry.

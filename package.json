@@ -5,6 +5,6 @@
     "comfy": "./scripts/comfy.sh",
     "web": "pnpm --dir web dev",
     "dev": "./scripts/dev.sh",
-    "verify": "pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web test && pnpm --dir web build"
+    "verify": "pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web coverage && pnpm --dir web build"
   }
 }
