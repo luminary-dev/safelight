@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { ArrowRight, ArrowUp, Bot, Check, Copy, FileText, GitBranch, Image as ImageSquare, ImagePlus, Loader2, Mic, Paperclip, Pencil, RefreshCw, SlidersHorizontal, TriangleAlert, Volume2, VolumeX, Wrench, X } from "lucide-react";
+import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -691,10 +692,16 @@ export function ChatMode({
       <div ref={threadRef} className="flex flex-col gap-[22px] overflow-y-auto py-2 pr-1">
         {empty ? (
           <div className="my-auto flex flex-col items-center gap-7 text-center">
-            <span
+            {/* The greeting lamp: a generated safelight sculpture (public/greeting-lamp.png,
+                transparent PNG) in place of the old flat gradient orb. */}
+            <Image
               aria-hidden
-              className="float size-[88px] rounded-full shadow-[0_24px_60px_var(--terracotta-wash)]"
-              style={{ background: "radial-gradient(circle at 34% 28%, #ffffff 0%, #ecfccb 18%, #a3e635 52%, #34d399 88%)" }}
+              alt=""
+              src="/greeting-lamp.png"
+              width={128}
+              height={128}
+              className="float size-[128px] select-none drop-shadow-[0_24px_45px_var(--terracotta-wash)]"
+              draggable={false}
             />
             {/* pb-0.5 absorbs the descender overhang of the tight leading, so the
                 heading never reports clipped content (audit clippedY). */}
