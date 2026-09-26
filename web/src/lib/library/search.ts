@@ -207,7 +207,11 @@ export function duplicateGroups(threshold = 6): DuplicateGroup[] {
     const items = list
       .map((i) => rows[i])
       .sort((a, b) => b.mtime - a.mtime)
-      .map(({ phash: _phash, ...rest }) => rest);
+      .map((row) => {
+        const { phash: _phash, ...rest } = row;
+        void _phash;
+        return rest;
+      });
     out.push({ items, spread });
   }
   return out.sort((a, b) => b.items.length - a.items.length || b.items[0].mtime - a.items[0].mtime);

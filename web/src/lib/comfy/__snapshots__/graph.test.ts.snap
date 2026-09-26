@@ -419,3 +419,105 @@ exports[`buildGraph > qwen-image txt2img 1`] = `
   },
 }
 `;
+
+exports[`buildRemoveBackgroundGraph > matches the BiRefNet blueprint: mask inverted before JoinImageWithAlpha 1`] = `
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "safelight/render.png [output]",
+    },
+  },
+  "2": {
+    "class_type": "LoadBackgroundRemovalModel",
+    "inputs": {
+      "bg_removal_name": "birefnet.safetensors",
+    },
+  },
+  "3": {
+    "class_type": "RemoveBackground",
+    "inputs": {
+      "bg_removal_model": [
+        "2",
+        0,
+      ],
+      "image": [
+        "1",
+        0,
+      ],
+    },
+  },
+  "4": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "5": {
+    "class_type": "JoinImageWithAlpha",
+    "inputs": {
+      "alpha": [
+        "4",
+        0,
+      ],
+      "image": [
+        "1",
+        0,
+      ],
+    },
+  },
+  "6": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "safelight/rmbg",
+      "images": [
+        "5",
+        0,
+      ],
+    },
+  },
+}
+`;
+
+exports[`buildUpscaleGraph > LoadImage → UpscaleModelLoader → ImageUpscaleWithModel → SaveImage 1`] = `
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "safelight/render.png [output]",
+    },
+  },
+  "2": {
+    "class_type": "UpscaleModelLoader",
+    "inputs": {
+      "model_name": "4x-UltraSharp.pth",
+    },
+  },
+  "3": {
+    "class_type": "ImageUpscaleWithModel",
+    "inputs": {
+      "image": [
+        "1",
+        0,
+      ],
+      "upscale_model": [
+        "2",
+        0,
+      ],
+    },
+  },
+  "4": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "safelight/upscale",
+      "images": [
+        "3",
+        0,
+      ],
+    },
+  },
+}
+`;

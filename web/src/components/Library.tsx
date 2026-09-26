@@ -107,7 +107,8 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
   );
 
   useEffect(() => {
-    void load(0);
+    const t = setTimeout(() => void load(0), 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   // New renders land via Safelight's gallery refresh — use it as an invalidation signal.

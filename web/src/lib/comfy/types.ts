@@ -78,6 +78,24 @@ export interface GenerateRequest {
   matchInputSize: boolean;
 }
 
+/** One-click image actions that run through their own small graphs rather than a render. */
+export type ImageActionMode = "upscale" | "rmbg";
+
+export interface ImageActionRequest {
+  mode: ImageActionMode;
+  /** ComfyUI-style image reference, e.g. "safelight/x.png [output]". */
+  image: string;
+  /** Upscale only: file name inside the upscale_models folder. Defaults to the first installed. */
+  upscaleModel?: string;
+}
+
+/** What the connected ComfyUI can do for Stage actions right now. */
+export interface ImageCapabilities {
+  online: boolean;
+  upscaleModels: string[];
+  removeBackground: { node: boolean; models: string[] };
+}
+
 export interface JobOutput {
   filename: string;
   subfolder: string;

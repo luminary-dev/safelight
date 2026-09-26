@@ -12,6 +12,11 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Image pipeline depth (Workstream J): every render — local and cloud — now writes a JSON
+  metadata sidecar beside its image, powering one-click Recreate and Vary on the Stage; new
+  Upscale 4× (ESRGAN) and Remove background (BiRefNet) actions gated honestly on what the
+  render engine actually has installed; and the queue gains per-job Cancel, Run next
+  (promoted to the front under the same id), and Clear queued.
 - Library (Workstream L): rebuilt as a real asset manager — outputs indexed into SQLite with
   FTS5 prompt search, model/tag/favorite/date filters with facet counts, index-time webp
   thumbnails, a hand-rolled virtualized grid, a metadata inspector fed by render sidecars, a

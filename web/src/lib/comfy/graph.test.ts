@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GenerateRequest } from "./types";
-import { buildGraph } from "./graph";
+import { buildGraph, buildRemoveBackgroundGraph, buildUpscaleGraph } from "./graph";
 
 function req(overrides: Partial<GenerateRequest>): GenerateRequest {
   return {
@@ -91,5 +91,27 @@ describe("buildGraph", () => {
 
   it("rejects img2img without input images", () => {
     expect(() => buildGraph(req({ mode: "img2img", images: [] }))).toThrow(/needs at least one input image/i);
+  });
+});
+
+describe("buildUpscaleGraph", () => {
+  it("LoadImage → UpscaleModelLoader → ImageUpscaleWithModel → SaveImage", () => {
+    expect(buildUpscaleGraph({ image: "safelight/render.png [output]", upscaleModel: "4x-UltraSharp.pth" })).toMatchSnapshot();
+  });
+
+  it("rejects a missing image or model", () => {
+    expect(() => buildUpscaleGraph({ image: "", upscaleModel: "x.pth" })).toThrow(/needs an input image/i);
+    expect(() => buildUpscaleGraph({ image: "a.png", upscaleModel: "" })).toThrow(/needs an upscale model/i);
+  });
+});
+
+describe("buildRemoveBackgroundGraph", () => {
+  it("matches the BiRefNet blueprint: mask inverted before JoinImageWithAlpha", () => {
+    expect(buildRemoveBackgroundGraph({ image: "safelight/render.png [output]", model: "birefnet.safetensors" })).toMatchSnapshot();
+  });
+
+  it("rejects a missing image or model", () => {
+    expect(() => buildRemoveBackgroundGraph({ image: "", model: "birefnet.safetensors" })).toThrow(/needs an input image/i);
+    expect(() => buildRemoveBackgroundGraph({ image: "a.png", model: "" })).toThrow(/needs a birefnet model/i);
   });
 });

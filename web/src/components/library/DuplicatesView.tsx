@@ -26,7 +26,7 @@ export function DuplicatesView({
 
   useEffect(() => {
     let stale = false;
-    setGroups(null);
+    Promise.resolve().then(() => !stale && setGroups(null));
     fetch("/api/library/duplicates")
       .then((r) => (r.ok ? (r.json() as Promise<{ groups: DuplicateGroup[] }>) : Promise.reject(new Error())))
       .then((d) => !stale && setGroups(d.groups))

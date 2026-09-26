@@ -71,12 +71,12 @@ export interface QueueResult {
   node_errors: Record<string, unknown>;
 }
 
-export async function queuePrompt(graph: Record<string, unknown>, clientId: string): Promise<QueueResult> {
+export async function queuePrompt(graph: Record<string, unknown>, clientId: string, opts: { front?: boolean; promptId?: string } = {}): Promise<QueueResult> {
   try {
     return await comfyFetch<QueueResult>("/prompt", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt: graph, client_id: clientId }),
+      body: JSON.stringify({ prompt: graph, client_id: clientId, ...(opts.front ? { front: true } : {}), ...(opts.promptId ? { prompt_id: opts.promptId } : {}) }),
     });
   } catch (err) {
     if (err instanceof ComfyError && err.body && typeof err.body === "object") {
@@ -101,17 +101,77 @@ export async function getHistory(promptId: string): Promise<HistoryEntry | undef
   return history[promptId];
 }
 
+/** ComfyUI queue entries are tuples: [number, prompt_id, prompt graph, extra_data, outputs_to_execute]. */
+export type QueueEntryTuple = [number, string, ...unknown[]];
+
 export interface QueueSnapshot {
-  queue_running: [number, string][];
-  queue_pending: [number, string][];
+  queue_running: QueueEntryTuple[];
+  queue_pending: QueueEntryTuple[];
 }
 
 export async function getQueue(): Promise<QueueSnapshot> {
   return comfyFetch<QueueSnapshot>("/queue");
 }
 
-export async function interrupt(): Promise<void> {
-  await fetch(`${COMFY_URL}/interrupt`, { method: "POST" });
+/** Interrupts the running job. With a prompt id, ComfyUI only interrupts when that job is the one running. */
+export async function interrupt(promptId?: string): Promise<void> {
+  await fetch(`${COMFY_URL}/interrupt`, {
+    method: "POST",
+    ...(promptId ? { headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt_id: promptId }) } : {}),
+  });
+}
+
+/** Removes pending jobs from ComfyUI's queue. Running jobs are unaffected (use interrupt for those). */
+export async function deleteQueued(promptIds: string[]): Promise<void> {
+  const res = await fetch(`${COMFY_URL}/queue`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ delete: promptIds }),
+  });
+  if (!res.ok) throw new ComfyError(`ComfyUI /queue delete failed with ${res.status}`, res.status);
+}
+
+/** Wipes every pending (not running) job from ComfyUI's queue. */
+export async function clearPendingQueue(): Promise<void> {
+  const res = await fetch(`${COMFY_URL}/queue`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ clear: true }),
+  });
+  if (!res.ok) throw new ComfyError(`ComfyUI /queue clear failed with ${res.status}`, res.status);
+}
+
+/** Cancels one job whatever its state: interrupt when running, dequeue when pending, no-op otherwise. */
+export async function cancelJob(promptId: string): Promise<"interrupted" | "dequeued" | "noop"> {
+  const queue = await getQueue();
+  if (queue.queue_running.some((e) => e[1] === promptId)) {
+    await interrupt(promptId);
+    return "interrupted";
+  }
+  if (queue.queue_pending.some((e) => e[1] === promptId)) {
+    await deleteQueued([promptId]);
+    return "dequeued";
+  }
+  return "noop";
+}
+
+/**
+ * Moves a pending job to the front of the queue by re-queuing its graph with front: true
+ * under the same prompt id, so existing polls and progress keep working.
+ * Returns false when the job is not pending any more (already running or finished).
+ */
+export async function promoteQueued(promptId: string): Promise<boolean> {
+  const queue = await getQueue();
+  const entry = queue.queue_pending.find((e) => e[1] === promptId);
+  const graph = entry?.[2] as Record<string, unknown> | undefined;
+  if (!graph) return false;
+  const extra = (entry?.[3] ?? {}) as { client_id?: string };
+  await deleteQueued([promptId]);
+  // The job may have started running between the snapshot and the delete; re-queuing it then would run it twice.
+  const after = await getQueue();
+  if (after.queue_running.some((e) => e[1] === promptId) || after.queue_pending.some((e) => e[1] === promptId)) return false;
+  await queuePrompt(graph, extra.client_id ?? "safelight", { front: true, promptId });
+  return true;
 }
 
 export async function uploadImage(file: File, subfolder = "safelight"): Promise<JobOutput> {

@@ -185,6 +185,35 @@ function buildUnetGraph(req: GenerateRequest, family: ModelFamily): Graph {
   return g.build();
 }
 
+/** LoadImage → UpscaleModelLoader → ImageUpscaleWithModel → SaveImage. ESRGAN-style model upscale. */
+export function buildUpscaleGraph(req: { image: string; upscaleModel: string }): Graph {
+  if (!req.image) throw new Error("Upscale needs an input image.");
+  if (!req.upscaleModel) throw new Error("Upscale needs an upscale model.");
+  const g = new GraphBuilder();
+  const image = g.ref(g.add("LoadImage", { image: req.image }), 0);
+  const model = g.ref(g.add("UpscaleModelLoader", { model_name: req.upscaleModel }), 0);
+  const upscaled = g.add("ImageUpscaleWithModel", { upscale_model: model, image });
+  g.add("SaveImage", { images: g.ref(upscaled, 0), filename_prefix: "safelight/upscale" });
+  return g.build();
+}
+
+/**
+ * BiRefNet background removal, shaped after comfyui/blueprints/"Remove Background (BiRefNet)":
+ * the foreground mask is inverted before JoinImageWithAlpha because that node inverts alpha internally.
+ */
+export function buildRemoveBackgroundGraph(req: { image: string; model: string }): Graph {
+  if (!req.image) throw new Error("Background removal needs an input image.");
+  if (!req.model) throw new Error("Background removal needs a BiRefNet model file.");
+  const g = new GraphBuilder();
+  const image = g.ref(g.add("LoadImage", { image: req.image }), 0);
+  const bgModel = g.ref(g.add("LoadBackgroundRemovalModel", { bg_removal_name: req.model }), 0);
+  const mask = g.ref(g.add("RemoveBackground", { bg_removal_model: bgModel, image }), 0);
+  const inverted = g.ref(g.add("InvertMask", { mask }), 0);
+  const joined = g.add("JoinImageWithAlpha", { image, alpha: inverted });
+  g.add("SaveImage", { images: g.ref(joined, 0), filename_prefix: "safelight/rmbg" });
+  return g.build();
+}
+
 function buildCheckpointGraph(req: GenerateRequest): Graph {
   const g = new GraphBuilder();
   const ckpt = g.add("CheckpointLoaderSimple", { ckpt_name: req.model.name });

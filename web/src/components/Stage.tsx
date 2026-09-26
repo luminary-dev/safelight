@@ -1,23 +1,46 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { Download, ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import { Download, Eraser, ExternalLink, Pencil, RefreshCw, Shuffle, Trash2, X, ZoomIn } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { GalleryItem, JobOutput } from "@/lib/comfy/types";
-import { stageLabel, viewUrl, type Job } from "@/lib/safelight-state";
+import type { GalleryItem, ImageCapabilities, JobOutput, JobStatus } from "@/lib/comfy/types";
+import { viewUrl, type Job } from "@/lib/safelight-state";
 import type { ProgressState } from "@/hooks/useComfySocket";
 import { ConfirmDelete } from "./ConfirmDelete";
+import { liveStage, RunQueue, type QueueEntry } from "./RunQueue";
+
+export { liveStage, type QueueEntry };
 
 function same(a: JobOutput, b: JobOutput) {
   return a.filename === b.filename && a.subfolder === b.subfolder;
 }
 
-/** Right column: the latest (or selected) render large, actions, and a filmstrip of earlier ones. */
-export interface QueueEntry {
-  job: Job;
-  sessionTitle: string;
+function itemKey(o: JobOutput) {
+  return `${o.subfolder}/${o.filename}`;
+}
+
+/** The ComfyUI-style reference for a gallery item, e.g. "safelight/x.png [output]". */
+function imageRef(o: JobOutput): string {
+  const rel = o.subfolder ? `${o.subfolder}/${o.filename}` : o.filename;
+  return (o.type ?? "output") === "output" ? `${rel} [output]` : rel;
+}
+
+function browserClientId(): string {
+  try {
+    return localStorage.getItem("safelight.clientId.v1") ?? "safelight";
+  } catch {
+    return "safelight";
+  }
+}
+
+/** A one-click Stage action (recreate, vary, upscale, background removal) being tracked locally. */
+interface StageAction {
+  id: string;
+  label: string;
+  state: "queued" | "running" | "done" | "error";
+  error?: string;
 }
 
 export function Stage({
@@ -55,10 +78,160 @@ export function Stage({
   // Only surface a failure when it is the most recent thing that happened in this session.
   const failedJob = !activeJob && jobs[0]?.state === "error" ? jobs[0] : null;
   const jobFor = (item: GalleryItem) => jobs.find((j) => j.outputs.some((o) => same(o, item)));
-  const items = useMemo(() => (filter === "session" ? gallery.filter((g) => Boolean(jobFor(g))) : gallery), [gallery, filter, jobs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Outputs of Stage actions (upscale, recreate…) belong to this session's view even though no Safelight job owns them.
+  const [actionOutputKeys, setActionOutputKeys] = useState<Set<string>>(new Set());
+  // Fresh gallery items fetched right after a Stage action finishes, merged until the app reloads the gallery itself.
+  const [extraItems, setExtraItems] = useState<GalleryItem[]>([]);
+  const mergedGallery = useMemo(() => {
+    if (extraItems.length === 0) return gallery;
+    const seen = new Set(gallery.map(itemKey));
+    const extras = extraItems.filter((g) => !seen.has(itemKey(g)));
+    return extras.length === 0 ? gallery : [...gallery, ...extras].sort((a, b) => b.mtime - a.mtime);
+  }, [gallery, extraItems]);
+
+  const items = useMemo(
+    () => (filter === "session" ? mergedGallery.filter((g) => Boolean(jobFor(g)) || actionOutputKeys.has(itemKey(g))) : mergedGallery),
+    [mergedGallery, filter, jobs, actionOutputKeys], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const selected = items.find((i) => `${i.subfolder}/${i.filename}` === selectedKey) ?? items[0] ?? null;
+  const selected = items.find((i) => itemKey(i) === selectedKey) ?? items[0] ?? null;
   const [viewer, setViewer] = useState(false);
+
+  // ---------- one-click actions on the selected image ----------
+  const [caps, setCaps] = useState<ImageCapabilities | null>(null);
+  useEffect(() => {
+    let stale = false;
+    fetch("/api/generate")
+      .then((r) => (r.ok ? (r.json() as Promise<ImageCapabilities>) : null))
+      .then((c) => !stale && c && setCaps(c))
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, []);
+
+  // Whether the selected image has a metadata sidecar (enables Recreate/Vary).
+  const selectedRef = selected ? imageRef(selected) : null;
+  const [sidecarByRef, setSidecarByRef] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!selectedRef || selectedRef in sidecarByRef) return;
+    let stale = false;
+    fetch(`/api/generate?sidecar=${encodeURIComponent(selectedRef)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ sidecar: unknown }>) : null))
+      .then((d) => !stale && d && setSidecarByRef((m) => ({ ...m, [selectedRef]: Boolean(d.sidecar) })))
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [selectedRef, sidecarByRef]);
+  const hasSidecar = selectedRef ? sidecarByRef[selectedRef] === true : false;
+
+  const [actions, setActions] = useState<StageAction[]>([]);
+  const actionTimers = useRef(new Map<string, ReturnType<typeof setInterval>>());
+  useEffect(() => {
+    const timers = actionTimers.current;
+    return () => timers.forEach((t) => clearInterval(t));
+  }, []);
+
+  const updateAction = useCallback((id: string, patch: Partial<StageAction>) => {
+    setActions((list) => list.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  }, []);
+
+  const finishAction = useCallback(
+    async (id: string, status: JobStatus) => {
+      const timer = actionTimers.current.get(id);
+      if (timer) {
+        clearInterval(timer);
+        actionTimers.current.delete(id);
+      }
+      if (status.state === "error") {
+        updateAction(id, { state: "error", error: status.error ?? "The job failed." });
+        return;
+      }
+      updateAction(id, { state: "done" });
+      const keys = status.outputs.map(itemKey);
+      setActionOutputKeys((s) => new Set([...s, ...keys]));
+      // The app only reloads the gallery for jobs it queued itself, so fetch the fresh items here.
+      try {
+        const res = await fetch("/api/gallery");
+        if (res.ok) {
+          const data = (await res.json()) as { items: GalleryItem[] };
+          const fresh = data.items.filter((g) => keys.includes(itemKey(g)));
+          setExtraItems((prev) => [...prev.filter((p) => !fresh.some((f) => itemKey(f) === itemKey(p))), ...fresh]);
+        }
+      } catch {
+        // The result still lands on the next gallery reload.
+      }
+      if (keys[0]) setSelectedKey(keys[0]);
+      // A new render carries a new sidecar; forget any cached "absent" answer.
+      setSidecarByRef((m) => {
+        const next = { ...m };
+        for (const out of status.outputs) delete next[imageRef(out)];
+        return next;
+      });
+      // Drop finished rows after a moment so the strip stays small.
+      setTimeout(() => setActions((list) => list.filter((a) => a.id !== id)), 4000);
+    },
+    [updateAction],
+  );
+
+  const pollAction = useCallback(
+    (id: string) => {
+      const tick = async () => {
+        const res = await fetch(`/api/jobs/${id}`).catch(() => null);
+        if (!res?.ok) return;
+        const status = (await res.json()) as JobStatus;
+        if (status.state === "done" || status.state === "error") void finishAction(id, status);
+        else updateAction(id, { state: status.state });
+      };
+      actionTimers.current.set(id, setInterval(tick, 1500));
+      void tick();
+    },
+    [finishAction, updateAction],
+  );
+
+  const runAction = useCallback(
+    async (label: string, body: Record<string, unknown>) => {
+      const tempId = `pending-${crypto.randomUUID()}`;
+      setActions((list) => [...list, { id: tempId, label, state: "queued" }]);
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ...body, clientId: browserClientId() }),
+        });
+        const data = (await res.json()) as { id?: string; error?: string };
+        if (!res.ok || !data.id) throw new Error(data.error ?? "Failed to queue.");
+        setActions((list) => list.map((a) => (a.id === tempId ? { ...a, id: data.id! } : a)));
+        pollAction(data.id);
+      } catch (err) {
+        updateAction(tempId, { state: "error", error: err instanceof Error ? err.message : "Failed to queue." });
+      }
+    },
+    [pollAction, updateAction],
+  );
+
+  const dismissAction = useCallback((id: string) => {
+    const timer = actionTimers.current.get(id);
+    if (timer) {
+      clearInterval(timer);
+      actionTimers.current.delete(id);
+    }
+    setActions((list) => list.filter((a) => a.id !== id));
+  }, []);
+
+  const upscaleReason = !caps ? "Checking what ComfyUI has installed…" : !caps.online ? "ComfyUI is offline." : caps.upscaleModels.length === 0 ? 'No upscale model installed — add an ESRGAN file to ComfyUI\'s "upscale_models" folder.' : null;
+  const rmbgReason = !caps
+    ? "Checking what ComfyUI has installed…"
+    : !caps.online
+      ? "ComfyUI is offline."
+      : !caps.removeBackground.node
+        ? "Requires the BiRefNet custom node (RemoveBackground) in ComfyUI."
+        : caps.removeBackground.models.length === 0
+          ? 'No BiRefNet model installed — add birefnet.safetensors to ComfyUI\'s "background_removal" folder.'
+          : null;
+  const recreateReason = selectedRef && selectedRef in sidecarByRef ? (hasSidecar ? null : "This image has no render settings sidecar.") : "Checking for this image's render settings…";
 
   useEffect(() => {
     if (!viewer) return;
@@ -88,6 +261,42 @@ export function Stage({
         </div>
         {selected && !activeJob ? (
           <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className="btn-quiet"
+              disabled={Boolean(recreateReason)}
+              title={recreateReason ?? "Render this image again with the exact same settings and seed"}
+              onClick={() => void runAction("Recreate", { fromSidecar: selectedRef })}
+            >
+              <RefreshCw className="size-3.5" /> Recreate
+            </button>
+            <button
+              type="button"
+              className="btn-quiet"
+              disabled={Boolean(recreateReason)}
+              title={recreateReason ?? "Render a variation: same settings, new random seed"}
+              onClick={() => void runAction("Vary", { fromSidecar: selectedRef, vary: true })}
+            >
+              <Shuffle className="size-3.5" /> Vary
+            </button>
+            <button
+              type="button"
+              className="btn-quiet"
+              disabled={Boolean(upscaleReason)}
+              title={upscaleReason ?? `Upscale with ${caps?.upscaleModels[0]}`}
+              onClick={() => void runAction("Upscale 4×", { mode: "upscale", image: selectedRef })}
+            >
+              <ZoomIn className="size-3.5" /> Upscale 4×
+            </button>
+            <button
+              type="button"
+              className="btn-quiet"
+              disabled={Boolean(rmbgReason)}
+              title={rmbgReason ?? "Remove the background with BiRefNet"}
+              onClick={() => void runAction("Remove background", { mode: "rmbg", image: selectedRef })}
+            >
+              <Eraser className="size-3.5" /> Remove BG
+            </button>
             <button type="button" className="btn-quiet" onClick={() => onUseAsInput(selected)}>
               <Pencil className="size-3.5" /> Edit
             </button>
@@ -142,33 +351,38 @@ export function Stage({
         </AnimatePresence>
       </div>
 
-      {queue.length > 1 || (queue.length === 1 && queue[0].job.id !== activeJob?.id) ? (
-        <div className="card flex flex-col gap-2.5 p-3.5">
-          <span className="form-label">
-            Rendering queue <span className="text-placeholder">{queue.length}</span>
-          </span>
-          {queue.map(({ job, sessionTitle }) => {
-            const live = progress.activePromptId === job.id;
-            const { label, pct } = liveStage(job, progress);
-            return (
-              <div key={job.id} className="develop flex items-center gap-3">
-                <span className={`size-1.5 shrink-0 rounded-full ${live ? "bg-terracotta pulse" : "bg-line-strong"}`} />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-muted" title={job.prompt}>
-                  <span className="font-medium text-ink">{job.settings.model}</span> · {job.prompt || sessionTitle}
-                </span>
-                <div className="h-1 w-24 shrink-0 overflow-hidden rounded-full bg-line">
-                  {live && pct === null ? (
-                    <div className="progress-sweep h-full rounded-full bg-terracotta/60" />
-                  ) : (
-                    <div className="h-full rounded-full bg-terracotta transition-[width] duration-300" style={{ width: live && pct !== null ? `${Math.max(4, pct)}%` : "0%" }} />
-                  )}
-                </div>
-                <span className="w-28 shrink-0 truncate text-right font-mono text-[10.5px] text-faint">{live ? label : "queued"}</span>
-              </div>
-            );
-          })}
+      {actions.length > 0 ? (
+        <div className="card flex flex-col gap-2 p-3">
+          {actions.map((a) => (
+            <div key={a.id} className="flex items-center gap-3 text-[12.5px]">
+              <span className={`size-1.5 shrink-0 rounded-full ${a.state === "error" ? "bg-danger" : a.state === "done" ? "bg-line-strong" : "bg-terracotta pulse"}`} />
+              <span className="min-w-0 flex-1 truncate text-ink-muted">
+                <span className="font-medium text-ink">{a.label}</span>
+                {a.state === "error" ? <span className="text-danger"> — {a.error}</span> : a.state === "done" ? " — done" : a.state === "running" ? " — working…" : " — queued"}
+              </span>
+              {a.state === "queued" || a.state === "running" ? (
+                <button
+                  type="button"
+                  className="btn-quiet h-6 shrink-0 px-1.5 hover:border-danger/40 hover:text-danger"
+                  aria-label={`Cancel ${a.label}`}
+                  title="Cancel"
+                  onClick={() => {
+                    if (!a.id.startsWith("pending-")) void fetch(`/api/jobs/${a.id}`, { method: "DELETE" }).catch(() => undefined);
+                  }}
+                >
+                  <X className="size-3.5" />
+                </button>
+              ) : (
+                <button type="button" className="btn-quiet h-6 shrink-0 px-1.5" aria-label="Dismiss" title="Dismiss" onClick={() => dismissAction(a.id)}>
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       ) : null}
+
+      {queue.length > 1 || (queue.length === 1 && queue[0].job.id !== activeJob?.id) ? <RunQueue queue={queue} progress={progress} /> : null}
 
       {items.length > 0 ? (
         <div className="flex items-center justify-between gap-3">
@@ -178,7 +392,7 @@ export function Stage({
               This session
             </ToggleGroupItem>
             <ToggleGroupItem value="all" className="h-6 rounded-full! px-2.5 font-mono text-[10.5px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]">
-              Everything <span className="text-faint">{gallery.length}</span>
+              Everything <span className="text-faint">{mergedGallery.length}</span>
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
@@ -229,17 +443,6 @@ export function Stage({
       </AnimatePresence>
     </section>
   );
-}
-
-/** What the active job is truly doing right now, from the executing node and its progress counters. */
-export function liveStage(job: Job, progress: ProgressState): { label: string; pct: number | null } {
-  const isActive = progress.activePromptId === job.id;
-  if (!isActive) return { label: job.state === "queued" ? "Queued" : "Rendering", pct: null };
-  const currentClass = progress.nodeLabel ? job.nodes?.[progress.nodeLabel] : undefined;
-  const hasCounter = progress.totalSteps > 0;
-  if (currentClass === "KSampler") return { label: hasCounter ? `Step ${progress.step} of ${progress.totalSteps}` : "Rendering", pct: hasCounter ? Math.round(progress.progress * 100) : null };
-  if (currentClass) return { label: stageLabel(currentClass), pct: hasCounter ? Math.round(progress.progress * 100) : null };
-  return { label: "Starting", pct: null };
 }
 
 function RenderingState({ job, progress, onInterrupt }: { job: Job; progress: ProgressState; onInterrupt: () => void }) {
