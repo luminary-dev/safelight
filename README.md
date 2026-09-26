@@ -5,8 +5,8 @@ against your own models on your own machine, with cloud models available when yo
 and nothing leaving the machine that you did not send.
 
 The promise is **privacy plus range**: local-first inference (ComfyUI for images, Ollama for
-text), with OpenAI, Anthropic, and Gemini as opt-in accelerants behind an encrypted key
-vault. Everything you make lands as normal files in folders you own.
+text), with OpenAI, Anthropic, Gemini, OpenRouter, and Groq as opt-in accelerants behind an
+encrypted key vault. Everything you make lands as normal files in folders you own.
 
 Safelight is a Luminary product, source-available under the **Business Source License 1.1**
 (see [LICENSE](LICENSE) and [docs/adr/0002](docs/adr/0002-license-bsl-1.1.md)).
@@ -32,12 +32,14 @@ searchable with ⌘K, and groupable into projects.
 - **Code** — point a session at an absolute folder path (typed or picked with the built-in
   folder browser) and a tool-capable model can explore, grep, glob, read, and edit files
   inside it — and nowhere else. Any path outside the workspace pauses the run for an explicit
-  Allow/Deny, and approved paths show as revocable "Also allowed" chips. It cannot run
-  commands.
+  Allow/Deny, and approved paths show as revocable "Also allowed" chips. `run_command`
+  executes one shell command in the workspace, but only after you approve that exact command.
 - **Design** — a design scout agent that searches the live web (Brave → Tavily → DuckDuckGo
   fallback chain), fetches pages behind a DNS-resolving SSRF guard, extracts the colors and
   fonts it finds, and saves finished themes to the database, rendered in the reply as live
-  swatch cards.
+  swatch cards. Saving enforces WCAG AA contrast in code (failing pairs are rejected with
+  their ratios named); a saved theme can be applied live to Safelight itself and exported as
+  CSS variables, a Tailwind v4 `@theme` block, or DTCG design-tokens JSON.
 - **Library** — everything ever rendered (local and cloud) as a grid read from `outputs/`,
   with a full-size viewer, download, delete, and an "Edit in Image" shortcut that reopens any
   render as an img2img input.
@@ -46,12 +48,13 @@ searchable with ⌘K, and groupable into projects.
 
 | Capability | Local | Cloud | Notes |
 |---|---|---|---|
-| Chat | Ollama | OpenAI, Anthropic, Gemini | streaming, markdown, vision with capable models |
+| Chat | Ollama | OpenAI, Anthropic, Gemini, OpenRouter, Groq | streaming, markdown, vision with capable models |
 | Image generation | ComfyUI (Qwen-Image, Flux, SDXL, SD 1.5) | OpenAI, Gemini | txt2img + img2img/reference edit |
 | Image editing | Qwen-Image references | providers flagged `edit` | "Edit in Image" from any render |
-| Coding agent | any tool-capable model | any tool-capable model | file tools only, no command execution |
-| Design research | any tool-capable model | any tool-capable model | web search, page fetch, theme cards |
-| Agent tool loop | Ollama (tool-capable models) | all three providers | NDJSON stream, approvals, retries |
+| Coding agent | any tool-capable model | any tool-capable model | file tools + `run_command` behind per-command approval |
+| Design research | any tool-capable model | any tool-capable model | web search, page fetch, WCAG-AA-gated themes that apply and export |
+| Agent tool loop | Ollama (tool-capable models) | all five providers | NDJSON stream, approvals, retries |
+| MCP tools | user-added servers (stdio) | user-added servers (HTTP) | plug icon in the sidebar; non-read-only tools ask Allow/Deny before every call |
 | Data portability | `/api/export` / `/api/import` | — | full JSON dump, never includes keys |
 
 ## Setup from scratch
@@ -135,11 +138,11 @@ JSON document (never keys); `POST /api/import` merges it back by id.
 Sidebar → key icon. Keys are validated with one cheap authenticated call on save ("Key
 works" / "The provider rejected this key"), stored only in the encrypted vault, and only
 ever used server-side — the API returns at most a `…abcd` hint. Environment variables
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` work as fallbacks, and each provider
-accepts a custom base URL (Azure OpenAI, vLLM, LiteLLM gateways) via
-`SAFELIGHT_<PROVIDER>_BASE_URL`. OpenAI and Gemini add image models; all three add chat
-models. Cloud renders are saved to `outputs/cloud/` so they appear in the Library like local
-ones. See [docs/providers-and-keys.md](docs/providers-and-keys.md).
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and
+`GROQ_API_KEY` work as fallbacks, and each provider accepts a custom base URL (Azure OpenAI,
+vLLM, LiteLLM gateways) via `SAFELIGHT_<PROVIDER>_BASE_URL`. OpenAI and Gemini add image
+models; all five add chat models. Cloud renders are saved to `outputs/cloud/` so they appear
+in the Library like local ones. See [docs/providers-and-keys.md](docs/providers-and-keys.md).
 
 ## Memory on a 26 GB Mac
 

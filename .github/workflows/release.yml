@@ -1,0 +1,52 @@
+# Runs on every vX.Y.Z tag: re-verify the tagged commit, then publish a GitHub Release
+# whose body is the matching CHANGELOG.md section plus GitHub's generated notes.
+#
+# No signing and no artifact uploads yet: the app is not packaged (build brief
+# Workstream Q is open). When Q lands, installer builds, signing, and the auto-update
+# feed attach here. Process: see RELEASING.md.
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  verify:
+    # Same steps as verify.yml, run against the tagged commit.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm verify
+      - run: pnpm --dir web audit --prod --audit-level high
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract this version's CHANGELOG section
+        run: |
+          set -eu
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error::CHANGELOG.md has no \"## [$VERSION]\" section — cut one before tagging (RELEASING.md, step 2)."
+            exit 1
+          fi
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          generate_release_notes: true

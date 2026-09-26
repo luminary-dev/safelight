@@ -23,18 +23,25 @@ Component: `web/src/components/DesignWorkspace.tsx` → `ChatMode.tsx` with
 - **`save_theme`** — stores a finished theme in the database (`themes` table in
   `data/safelight.db`): a kebab-case name, one-line description, six hex colors (`bg`,
   `surface`, `text`, `muted`, `accent`, `accentText`) and font choices (display, body,
-  mono). Colors are validated as 6-digit hex server-side.
+  mono). Colors are validated as 6-digit hex server-side, and **WCAG AA contrast is
+  enforced in code** (`lib/theme/contrast.ts`): a theme whose text-on-background,
+  text-on-surface, or accent-text-on-accent pair falls below 4.5:1 is rejected with the
+  failing ratios named, never stored.
 
 ## Theme cards
 
 A saved theme renders in the conversation as a live swatch card in the theme's own colors —
 name, font pairing, description, a sample button and card, and the six swatches. The system
-prompt asks the model to cite what inspired each choice and to keep text-on-background and
-accent pairs readable (contrast is prompt-guided, not yet enforced in code).
+prompt asks the model to cite what inspired each choice; contrast is enforced at save time
+(above), so every card you see already passes AA.
 
-Saved themes are included in `/api/export` and imported by `/api/import`. Applying a theme
-to Safelight itself, exporting to Tailwind/CSS tokens, and computed WCAG contrast checks are
-planned (build brief Workstream I) but not yet implemented.
+From the card a theme can be **applied live to Safelight itself** — persisted, restored on
+boot, with a Reset control to return to the stock themes (`POST /api/themes/<name>` with
+`{action:"apply"|"clear"}`, `lib/theme/apply.ts`) — and **exported** as plain CSS custom
+properties, a Tailwind v4 `@theme` block, or W3C DTCG design-tokens JSON
+(`GET /api/themes/<name>?format=css|tailwind|tokens`).
+
+Saved themes are included in `/api/export` and imported by `/api/import`.
 
 ## Sessions
 

@@ -30,9 +30,11 @@ confinement:
 | `multi_edit` | a batch of exact replacements, possibly across files, validated first and applied all-or-nothing | — |
 | `write_file` | create or overwrite, parents created | 512 KB |
 | `delete_file` / `move_file` | remove or relocate one file | — |
+| `run_command` | one shell command (`/bin/sh -c`) with the workspace as cwd; returns exit code, stdout, stderr | **every call pauses for your approval of the exact command**; scrubbed child environment; timeout 60 s default, 300 s max |
 
-**No command execution.** The empty state says so plainly: the model can list, read, and
-edit files inside the folder; it cannot run commands.
+**Command execution is approval-gated, always.** There is no allowlist and no "remember
+this command": each `run_command` call shows the exact command in an Allow/Deny card
+before anything runs.
 
 ## The approval flow
 

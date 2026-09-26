@@ -62,7 +62,8 @@ at Q4_K_M plus its int8 text encoder needs roughly 15 GB.
 
 ## Optional: cloud keys
 
-Sidebar → key icon → paste an OpenAI, Anthropic, or Gemini key. It is validated immediately
+Sidebar → key icon → paste an OpenAI, Anthropic, Gemini, OpenRouter, or Groq key. It is
+validated immediately
 and stored encrypted (vault key in the macOS Keychain). See
 [providers-and-keys.md](providers-and-keys.md).
 

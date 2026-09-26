@@ -6,8 +6,9 @@ toolset + shared types), `code-tools.ts`, `design-tools.ts`, `approvals.ts`.
 
 ## The runtime
 
-`runAgent(provider, model, turns, ctx)` picks an adapter — OpenAI, Anthropic, Gemini, or
-Ollama (`/api/chat` with `tools`) — and runs a rounds-bounded loop: send the conversation
+`runAgent(provider, model, turns, ctx)` picks an adapter — OpenAI, Anthropic, Gemini,
+OpenRouter and Groq (over the OpenAI-compatible wire format), or Ollama (`/api/chat` with
+`tools`) — and runs a rounds-bounded loop: send the conversation
 with the tool definitions, execute any tool calls the model makes, feed results back, repeat
 until the model answers in plain text.
 
@@ -31,7 +32,7 @@ Agent routes (`/api/agent`, `/api/code`, `/api/design`) respond with
 |---|---|---|
 | `text` | `text` | a model reply segment |
 | `tool` | `id`, `name`, `args`, `state: running\|done\|error`, `result?`, `images?`, `note?` | tool lifecycle; re-emitted as state changes (e.g. render tick notes like "Rendering · 41s") |
-| `approval` | `id`, `path`, `tool` | the run is paused waiting for the user (Code mode) |
+| `approval` | `id`, `path`, `tool` | the run is paused waiting for the user — an out-of-workspace path, a `run_command` command, or a non-read-only MCP tool call |
 | `status` | `text` | progress narration (retries, budget) |
 | `error` | `text` | the run failed |
 | `done` | — | always the last line |
@@ -52,19 +53,28 @@ default via `preferredModel`.
 
 **Code** (`/api/code`): `list_files`, `glob`, `grep`, `read_file`, `edit_file`,
 `multi_edit`, `write_file`, `delete_file`, `move_file` — all root-scoped with
-symlink-resolved confinement. No command execution. Details and limits:
+symlink-resolved confinement — plus `run_command`, which executes one shell command in the
+workspace only after the user approves that exact command. Details and limits:
 [modes/code.md](modes/code.md).
 
 **Design** (`/api/design`): `search_web` (Brave → Tavily → DuckDuckGo chain with a 1-hour
-SQLite cache), `fetch_page` (SSRF-guarded), `save_theme`. Details:
+SQLite cache), `fetch_page` (SSRF-guarded), `save_theme` (WCAG-AA-gated in code — a theme
+whose text pairs fail contrast is rejected, never stored). Details:
 [modes/design.md](modes/design.md).
+
+**MCP servers** (`lib/agent/mcp.ts`): user-configured Model Context Protocol servers —
+added from the plug icon in the sidebar, stdio or HTTP transport — contribute their tools
+to every agent mode under the name `mcp__<server>__<tool>`. Stdio servers run with a
+scrubbed environment; a tool the server does not mark read-only shows an Allow/Deny card
+in the conversation before **every** call. Dead servers are skipped, connections are
+pooled and reaped after five minutes idle.
 
 ## Approvals
 
-Code-mode path approvals live in a module-level map on the server
-(`lib/agent/approvals.ts`): the run parks on a promise, the UI answers through
-`POST /api/code/approve { id, allow }`, and an unanswered question resolves to **deny after
-180 seconds**. Grants the user makes are persisted on the session as `approvedPaths` and
+All approvals — Code-mode paths, exact `run_command` commands, and non-read-only MCP tool
+calls — live in a module-level map on the server (`lib/agent/approvals.ts`): the run parks
+on a promise, the UI answers through `POST /api/code/approve { id, allow }`, and an
+unanswered question resolves to **deny after 180 seconds**. Grants the user makes are persisted on the session as `approvedPaths` and
 sent with subsequent runs; they are visible and revocable in the Code workspace. This
 ask-before-acting flow is the repo's model for any future destructive capability
 (see [AGENTS.md](../AGENTS.md)).

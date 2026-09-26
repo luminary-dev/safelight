@@ -12,6 +12,12 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Release engineering (Workstreams W, X, Y): ADR 0003 proposes the business model — a
+  one-time license with a signed offline license file (PROPOSED, awaiting the owner's
+  sign-off; nothing is built) — RELEASING.md documents the semver/checklist/tag/rollback
+  path, a tag-triggered workflow re-verifies and publishes a GitHub Release from the matching
+  CHANGELOG section, and docs/quality-gates.md restates the 1.0 bar with honest statuses.
+  Docs caught up with OpenRouter/Groq, the MCP client, theme apply/export, and run_command.
 - Runtime observability (Workstreams G + N): agent runs persist with their full event history
   (`GET /api/runs`, capped at 200, restore-ready), every cloud provider call lands in a cost
   ledger with a maintained pricing table (`GET /api/usage` — by day, provider, mode; unpriced

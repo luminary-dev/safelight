@@ -8,18 +8,21 @@ is checkable in the code paths named.
 
 | Action | What goes out | Where |
 |---|---|---|
-| Chat / agent run on a **cloud model** | your messages, attached images, and tool results | the provider you picked (OpenAI / Anthropic / Gemini), or your custom base URL |
+| Chat / agent run on a **cloud model** | your messages, attached images, and tool results | the provider you picked (OpenAI / Anthropic / Gemini / OpenRouter / Groq), or your custom base URL |
 | Chat / agent run on an **Ollama model** | nothing — `127.0.0.1:11434` | — |
 | **Local render** | nothing — `127.0.0.1:8188` | — |
 | **Cloud render** | the prompt (and reference images in edit mode) | OpenAI or Gemini |
 | **Key save** | one authenticated validation call | that key's own provider |
 | Design **`search_web`** | the search query | Brave or Tavily when their key is set, else DuckDuckGo's HTML endpoint |
 | Design **`fetch_page`** | a GET request | the public URL the agent chose (SSRF-guarded, below) |
+| **MCP tool call** on a server you added | the tool's arguments (which can include conversation content the model chose to pass) | that server — a local process for stdio servers, the URL you configured for HTTP servers |
 
 There is no telemetry, no analytics, no update check, and no other outbound call. With zero
-keys configured, everything runs against localhost — the DuckDuckGo search fallback and page
-fetches in Design mode are the only keyless features that touch the internet, and only when
-you use that mode.
+keys configured and no MCP servers added, everything runs against localhost — the DuckDuckGo
+search fallback and page fetches in Design mode are the only keyless features that touch the
+internet, and only when you use that mode. MCP servers exist only if you add them (plug icon
+in the sidebar); stdio servers are started with a scrubbed environment, and tools a server
+does not mark read-only require your Allow in the conversation before every call.
 
 Keys never leave the machine except to their own provider, are never logged, and are never
 returned over HTTP (the API exposes a `…abcd` hint at most). At rest they are AES-256-GCM
@@ -72,9 +75,10 @@ encrypted with a key held in the macOS Keychain — see
 ## Model output is untrusted
 
 A model that has read a web page or a repo file can be carrying a prompt injection. The
-mitigations in place: file writes outside the workspace require the visible approval prompt
-with the exact path, the code agent cannot execute commands at all, design fetches cannot
-reach private networks, and tool arguments are shown on the tool cards. Treat agent output
+mitigations in place: file access outside the workspace requires the visible approval prompt
+with the exact path, every `run_command` call requires approval of the exact command (no
+allowlist, no memory), non-read-only MCP tools require approval before every call, design
+fetches cannot reach private networks, and tool arguments are shown on the tool cards. Treat agent output
 with the same scepticism you would any untrusted text.
 
 ## Known limitations (honest list)

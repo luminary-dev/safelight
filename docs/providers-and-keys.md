@@ -1,9 +1,10 @@
 # Providers and keys
 
 Safelight is fully functional with zero API keys: ComfyUI renders images, Ollama serves chat
-models. OpenAI, Anthropic, and Gemini are opt-in accelerants — all three add chat models,
-OpenAI and Gemini add image models. Code: `web/src/lib/providers/` and
-`web/src/lib/secrets/vault.ts`.
+models. OpenAI, Anthropic, Gemini, OpenRouter, and Groq are opt-in accelerants — all five
+add chat models (with streaming and agent-mode tool calling; OpenRouter and Groq speak the
+OpenAI-compatible wire format), OpenAI and Gemini add image models. Code:
+`web/src/lib/providers/` and `web/src/lib/secrets/vault.ts`.
 
 ## The key vault
 
@@ -36,16 +37,20 @@ Environment variables work as fallbacks when no vault entry exists:
 | OpenAI | `OPENAI_API_KEY` | chat + image models |
 | Anthropic | `ANTHROPIC_API_KEY` | chat models |
 | Gemini | `GEMINI_API_KEY` | chat + image models |
+| OpenRouter | `OPENROUTER_API_KEY` | chat models (full catalog, labels from its API) |
+| Groq | `GROQ_API_KEY` | chat models |
 
 ## Custom base URLs
 
 Each provider accepts a custom endpoint for Azure OpenAI, self-hosted vLLM, LiteLLM proxies,
-and similar gateways. Resolution order: `SAFELIGHT_OPENAI_BASE_URL` /
-`SAFELIGHT_ANTHROPIC_BASE_URL` / `SAFELIGHT_GEMINI_BASE_URL` env var first, then a `baseUrl`
+and similar gateways. Resolution order: the `SAFELIGHT_<PROVIDER>_BASE_URL` env var first
+(`SAFELIGHT_OPENAI_BASE_URL`, `SAFELIGHT_ANTHROPIC_BASE_URL`, `SAFELIGHT_GEMINI_BASE_URL`,
+`SAFELIGHT_OPENROUTER_BASE_URL`, `SAFELIGHT_GROQ_BASE_URL`), then a `baseUrl`
 stored alongside the key in the vault (settable through `POST /api/keys` with
 `{ provider, key, baseUrl }`; the Keys dialog does not expose a field for it yet). Defaults:
 `https://api.openai.com/v1`, `https://api.anthropic.com`,
-`https://generativelanguage.googleapis.com`.
+`https://generativelanguage.googleapis.com`, `https://openrouter.ai/api/v1`,
+`https://api.groq.com/openai/v1`.
 
 ## Local backends
 
@@ -71,7 +76,7 @@ stored alongside the key in the vault (settable through `POST /api/keys` with
 | `SAFELIGHT_ALLOWED_HOSTS` | extra hostnames allowed to reach the API (comma-separated) | localhost only |
 | `SAFELIGHT_BROWSE_ROOTS` | extra folder-browser roots (colon-separated absolute paths) | home directory |
 | `SAFELIGHT_OPENAI_BASE_URL` etc. | per-provider gateway URLs | provider defaults |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | key fallbacks | — |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENROUTER_API_KEY` / `GROQ_API_KEY` | key fallbacks | — |
 | `BRAVE_SEARCH_API_KEY` / `TAVILY_API_KEY` | search providers | DDG fallback |
 | `COMFY_URL` / `NEXT_PUBLIC_COMFY_WS` / `COMFY_PORT` | ComfyUI endpoints | `127.0.0.1:8188` |
 | `COMFY_OUTPUT_DIR` / `COMFY_INPUT_DIR` | render and upload folders | `<repo>/outputs`, `<repo>/inputs` |

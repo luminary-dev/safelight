@@ -9,7 +9,8 @@ Agent is on.
 
 ## Models
 
-The picker groups models by source: **Local (Ollama)**, OpenAI, Anthropic, Gemini. Ollama
+The picker groups models by source: **Local (Ollama)**, OpenAI, Anthropic, Gemini,
+OpenRouter, Groq. Ollama
 models are listed with tags for parameter size, quantisation, and `vision` (reported by
 Ollama's `/api/show`); cloud models appear once their key is configured. Each chat session
 remembers its own model.
@@ -39,7 +40,9 @@ Hover a reply for:
 ## Agent mode
 
 Toggle **Agent** next to the model picker. The model gains the studio toolset
-(`generate_image`, `edit_image`, `list_models`, `list_recent_images`) and its tool activity
+(`generate_image`, `edit_image`, `list_models`, `list_recent_images`), plus the tools of
+any MCP servers you have added (plug icon in the sidebar; non-read-only tools ask
+Allow/Deny before every call), and its tool activity
 renders as cards in the reply with the resulting images; each image has an "Edit in Image"
 shortcut. It renders with the model currently selected in Image mode unless it picks another.
 Local renders block the agent until ComfyUI finishes — the card shows elapsed time, and

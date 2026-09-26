@@ -18,7 +18,8 @@ background and the web dev server in the foreground.
 │  src/lib/            agent runtime · providers · search · comfy ·   │
 │                      db · secrets                                   │
 └─────────────────────────────────────────────────────────────────────┘
-      Ollama :11434 (optional)      OpenAI / Anthropic / Gemini (opt-in keys)
+      Ollama :11434 (optional)      OpenAI / Anthropic / Gemini / OpenRouter / Groq (opt-in keys)
+                                    MCP servers (user-added: stdio or HTTP)
 ```
 
 Rules the code follows: the UI never talks to a provider directly — always through a route;
@@ -40,18 +41,21 @@ anything touching disk or keys is `server-only`; ComfyUI is supervised, never ve
 - **`ChatWorkspace` / `CodeWorkspace` / `DesignWorkspace`** — thin mode wrappers around
   `ChatMode` (Code adds the folder bar, browser, and "Also allowed" chips).
 - **`Composer.tsx` + `ImageControls.tsx` + `Stage.tsx`** — Image mode's split.
-- **`Library.tsx`**, **`ModelPicker.tsx`**, **`KeysDialog.tsx`**, **`ProjectSwitcher.tsx`**,
-  **`FolderBrowser.tsx`**, `ui/` (shadcn primitives).
+- **`Library.tsx`**, **`ModelPicker.tsx`**, **`KeysDialog.tsx`**, **`McpDialog.tsx`** (the
+  sidebar plug icon's server manager), **`ProjectSwitcher.tsx`**, **`FolderBrowser.tsx`**,
+  `ui/` (shadcn primitives).
 
 ## Libraries (`web/src/lib/`)
 
 | Module | Role |
 |---|---|
-| `agent/run.ts` | provider-neutral tool loop: OpenAI/Anthropic/Gemini/Ollama adapters, rounds budget (24 default, 60 for code), parallel tool calls, retries with backoff, NDJSON `AgentEvent`s |
+| `agent/run.ts` | provider-neutral tool loop: OpenAI/Anthropic/Gemini/Ollama adapters (OpenRouter and Groq ride the OpenAI-compatible one), rounds budget (24 default, 60 for code), parallel tool calls, retries with backoff, NDJSON `AgentEvent`s |
 | `agent/tools.ts` | studio toolset (generate/edit image, list models/recents) + `ToolDef`/`ToolContext`/`AgentEvent` types |
 | `agent/code-tools.ts` | workspace file tools with realpath confinement and per-path approvals |
 | `agent/design-tools.ts` | web search, SSRF-guarded page fetch, theme saving |
-| `agent/approvals.ts` | in-flight Allow/Deny questions (180 s timeout to deny) |
+| `agent/approvals.ts` | in-flight Allow/Deny questions — paths, exact commands, MCP tool calls (180 s timeout to deny) |
+| `agent/mcp.ts` | MCP client: user-configured stdio/HTTP servers, tools namespaced `mcp__<server>__<tool>` into every agent mode, per-call approval for non-read-only tools, pooled connections reaped after 5 min idle |
+| `theme/` | WCAG 2.2 contrast math (gates `save_theme`), live apply/clear of a saved theme, export generators (CSS variables, Tailwind v4 `@theme`, DTCG tokens JSON) |
 | `search/` | `SearchProvider` interface, Brave / Tavily / DuckDuckGo adapters, failover chain with a 1 h SQLite cache |
 | `providers/` | keys + vault access, per-provider chat/image adapters, cloud model catalog, key validation |
 | `secrets/vault.ts` | AES-256-GCM envelope; key from env / macOS Keychain / mode-600 file |
@@ -77,6 +81,8 @@ anything touching disk or keys is `server-only`; ComfyUI is supervised, never ve
 | `upload`, `view` | put files into `inputs/`, serve images from either folder |
 | `sessions`, `sessions/[id]`, `projects`, `projects/[id]` | persistence CRUD |
 | `keys` | key status/set/validate (never returns a key) |
+| `mcp` | list/save/delete MCP server configs, list their tools |
+| `themes`, `themes/[name]` | list saved themes; apply/clear one, download it as css/tailwind/tokens |
 | `export`, `import` | full data portability, keys excluded |
 | `health` | ComfyUI reachability + `/system_stats` |
 
@@ -103,3 +109,4 @@ theme is applied pre-paint by an inline script in `layout.tsx`; deep links `?mod
 
 - [adr/0001 — ComfyUI is supervised over HTTP, never redistributed](adr/0001-comfyui-is-supervised-not-vendored.md)
 - [adr/0002 — Source-available under BSL 1.1](adr/0002-license-bsl-1.1.md)
+- [adr/0003 — Business model: one-time license, signed offline license file (PROPOSED — awaiting the owner's decision)](adr/0003-business-model.md)
