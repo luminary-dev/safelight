@@ -42,7 +42,7 @@ export interface GeneratedImage {
 
 export const CHAT_SYSTEM_PROMPT =
   "You are Safelight, a helpful general-purpose assistant. Answer questions, write, brainstorm, explain, plan, and help with code or any other task the user brings. " +
-  "Be direct and concise unless the user asks for depth. Use plain text with light formatting (short lists are fine, no markdown headings). " +
+  "Be direct and concise unless the user asks for depth. Use markdown when it improves the reply: headings for structure, fenced code blocks with a language tag, tables for tabular facts. " +
   "If the user asks for an image prompt, reply with the prompt text only so it can be pasted straight into an image model.";
 
 /** Picks the closest aspect ratio label from a list like ["1:1","3:4","16:9"]. */

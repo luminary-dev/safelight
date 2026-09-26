@@ -6,6 +6,17 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Agent runtime v2 (Workstream G, scoped): a turn's tool calls now execute in parallel,
+  transient provider failures (429/5xx) retry with backoff and a visible status, and the hard
+  8-round cap became a configurable budget (24 default; 60 for coding runs, 32 for design)
+  that announces when it is reached.
+- Code mode (Workstream H): grep (regex, binary- and size-aware), glob, atomic multi_edit,
+  delete_file, move_file — all inside the workspace approval model — and run_command, which
+  executes one shell command in the workspace only after the user approves that exact command,
+  with a scrubbed child environment, timeout, and captured exit/stdout/stderr.
+- Chat (Workstream M): assistant replies render as markdown (GFM tables, syntax-highlighted
+  code blocks with hover copy buttons, both themes), a Regenerate action on the last reply,
+  and approval cards that read correctly for commands; the system prompt now invites markdown.
 - Security hardening (Workstream P): Host allowlist and cross-origin rejection on every API
   route (DNS-rebinding and CSRF defense), `/api/code/browse` confined to the home subtree
   (`SAFELIGHT_BROWSE_ROOTS` to extend) with a SQLite-backed rate limit, a DNS-resolving SSRF

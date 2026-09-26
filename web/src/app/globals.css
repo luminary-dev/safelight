@@ -401,3 +401,194 @@ input[type="range"]:focus-visible,
     @apply font-sans;
   }
 }
+
+/* ==========================================================================
+   .markdown — assistant chat replies rendered by react-markdown (ChatMode).
+   Uses only semantic tokens so both themes work; hljs token colors are
+   derived from tokens with color-mix so they read on var(--paper) in
+   light and dark.
+   ========================================================================== */
+.markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote,
+.markdown table {
+  margin: 0.65em 0;
+}
+
+/* Headings: modest scale, never shouty. */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 1.1em 0 0.45em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.markdown h1 {
+  font-size: 1.25em;
+}
+.markdown h2 {
+  font-size: 1.15em;
+}
+.markdown h3 {
+  font-size: 1.05em;
+}
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-size: 1em;
+}
+
+/* Lists */
+.markdown ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.markdown ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.markdown li {
+  margin: 0.25em 0;
+}
+.markdown li > ul,
+.markdown li > ol {
+  margin: 0.25em 0;
+}
+
+/* Blockquote: left accent border */
+.markdown blockquote {
+  border-left: 3px solid var(--terracotta);
+  padding: 0.1em 0 0.1em 1em;
+  color: var(--ink-muted);
+}
+
+/* Links */
+.markdown a {
+  color: var(--terracotta);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.markdown a:hover {
+  color: var(--terracotta-deep);
+}
+
+.markdown hr {
+  margin: 1.2em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.markdown img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+/* Tables: hairline borders, pill header row, scroll when wide */
+.markdown table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid var(--line-strong);
+  padding: 0.4em 0.75em;
+  text-align: left;
+  vertical-align: top;
+}
+.markdown thead th {
+  background: var(--pill);
+  font-weight: 600;
+}
+
+/* Inline code: pill chip */
+.markdown :not(pre) > code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--pill);
+  padding: 0.1em 0.35em;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+/* Fenced code blocks (the copy button lives in .code-block, styled in TSX) */
+.markdown .code-block {
+  position: relative;
+  margin: 0.65em 0;
+}
+.markdown pre {
+  margin: 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  padding: 12px 14px;
+}
+.markdown pre code {
+  display: block;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+/* highlight.js token palette: token-derived so it reads on var(--paper)
+   in both themes (--ink flips with the theme, keeping contrast). */
+.markdown pre code .hljs-comment,
+.markdown pre code .hljs-quote {
+  color: var(--faint);
+  font-style: italic;
+}
+.markdown pre code .hljs-keyword,
+.markdown pre code .hljs-selector-tag,
+.markdown pre code .hljs-doctag,
+.markdown pre code .hljs-meta {
+  color: color-mix(in srgb, var(--terracotta) 80%, var(--ink));
+}
+.markdown pre code .hljs-string,
+.markdown pre code .hljs-regexp,
+.markdown pre code .hljs-addition {
+  color: color-mix(in srgb, var(--green) 65%, var(--ink));
+}
+.markdown pre code .hljs-number,
+.markdown pre code .hljs-literal,
+.markdown pre code .hljs-deletion {
+  color: color-mix(in srgb, var(--danger) 70%, var(--ink));
+}
+.markdown pre code .hljs-title,
+.markdown pre code .hljs-name,
+.markdown pre code .hljs-section {
+  color: var(--ink);
+  font-weight: 600;
+}
+.markdown pre code .hljs-attr,
+.markdown pre code .hljs-attribute,
+.markdown pre code .hljs-variable,
+.markdown pre code .hljs-template-variable,
+.markdown pre code .hljs-type,
+.markdown pre code .hljs-built_in,
+.markdown pre code .hljs-symbol {
+  color: color-mix(in srgb, var(--terracotta) 45%, var(--ink));
+}

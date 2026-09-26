@@ -1,12 +1,15 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { ArrowRight, ArrowUp, Bot, Check, Copy, Image as ImageSquare, ImagePlus, Loader2, Paperclip, Pencil, TriangleAlert, Wrench, X } from "lucide-react";
+import { ArrowRight, ArrowUp, Bot, Check, Copy, Image as ImageSquare, ImagePlus, Loader2, Paperclip, Pencil, RefreshCw, TriangleAlert, Wrench, X } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { JobOutput } from "@/lib/comfy/types";
 import { viewUrl } from "@/lib/safelight-state";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
 import { ModelPicker } from "./ModelPicker";
 
 export interface ChatModelInfo {
@@ -72,6 +75,55 @@ async function copyToClipboard(text: string): Promise<boolean> {
     return false;
   }
 }
+
+/** A fenced code block with hover copy button; used as the markdown `pre` renderer. */
+function CodeBlock(props: React.HTMLAttributes<HTMLPreElement>) {
+  const preRef = useRef<HTMLPreElement>(null);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+  return (
+    <div className="code-block group/code relative">
+      <pre ref={preRef} {...props} />
+      <button
+        type="button"
+        aria-label="Copy code"
+        onClick={() => {
+          void copyToClipboard(preRef.current?.innerText ?? "").then((ok) => {
+            setCopied(ok);
+            if (timer.current) clearTimeout(timer.current);
+            timer.current = setTimeout(() => setCopied(false), 1600);
+          });
+        }}
+        className={`absolute right-2 top-2 grid size-7 place-items-center rounded-[8px] border border-line bg-paper-2/90 transition-opacity focus-visible:opacity-100 ${
+          copied ? "text-green opacity-100" : "text-ink-muted opacity-0 hover:text-ink group-hover/code:opacity-100"
+        }`}
+      >
+        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      </button>
+    </div>
+  );
+}
+
+/** Assistant reply body rendered as markdown (GFM + syntax highlighting). Safe to re-render on streaming patches. */
+const Markdown = memo(function Markdown({ text }: { text: string }) {
+  return (
+    <div className="markdown">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          pre: CodeBlock,
+          a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+});
 
 export function ChatMode({
   models,
@@ -180,15 +232,19 @@ export function ChatMode({
     return () => abortRef.current?.abort();
   }, [sessionId]);
 
-  const send = useCallback(async () => {
+  /** Sends the composer content, or — when `historyOverride` is given (regenerate) — re-runs that exact history without touching the composer. */
+  const send = useCallback(async (historyOverride?: Message[]) => {
     const text = input.trim();
-    if ((!text && pending.length === 0) || thinking || !selected) return;
+    if (thinking || !selected) return;
+    if (!historyOverride && !text && pending.length === 0) return;
     setError(null);
-    const attachments = pending;
-    const history: Message[] = [...messages, { role: "user", text: text || "Write a prompt for this image.", images: attachments.length ? attachments : undefined }];
+    const attachments = historyOverride ? [] : pending;
+    const history: Message[] = historyOverride ?? [...messages, { role: "user", text: text || "Write a prompt for this image.", images: attachments.length ? attachments : undefined }];
     setMessages(() => [...history, { role: "assistant", text: "" }]);
-    setInput("");
-    setPending([]);
+    if (!historyOverride) {
+      setInput("");
+      setPending([]);
+    }
     setThinking(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -285,8 +341,16 @@ export function ChatMode({
     }
   }, [input, pending, thinking, selected, messages, setMessages, agent, preferredModel, clientId, agentEndpoint, agentBody]);
 
+  /** Drops the last assistant message and re-sends the user message before it through the normal send path. */
+  const regenerate = useCallback(() => {
+    const base = messages.slice(0, -1);
+    if (thinking || messages[messages.length - 1]?.role !== "assistant" || base[base.length - 1]?.role !== "user") return;
+    void send(base);
+  }, [messages, thinking, send]);
+
   const stop = () => abortRef.current?.abort();
   const empty = messages.length === 0 && !thinking;
+  const canRegenerate = !thinking && messages.length > 1 && messages[messages.length - 1]?.role === "assistant" && messages[messages.length - 2]?.role === "user";
 
   return (
     <main className="mx-auto grid h-full w-full max-w-[860px] min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] px-0">
@@ -324,7 +388,7 @@ export function ChatMode({
         ) : null}
         {messages.map((msg, i) => (
           <div key={i} className={`develop group flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className="flex max-w-[82%] flex-col gap-2">
+            <div className="flex min-w-0 max-w-[82%] flex-col gap-2">
               {msg.tools && msg.tools.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {msg.tools.map((t) => (
@@ -342,11 +406,15 @@ export function ChatMode({
                 </div>
               ) : null}
               <div
-                className={`whitespace-pre-wrap text-[15px] leading-[1.6] text-ink [text-wrap:pretty] ${
-                  msg.role === "user" ? "rounded-[14px] bg-green-wash px-4 py-2.5" : ""
+                className={`min-w-0 text-[15px] leading-[1.6] text-ink [text-wrap:pretty] ${
+                  msg.role === "user" ? "whitespace-pre-wrap rounded-[14px] bg-green-wash px-4 py-2.5" : ""
                 }`}
               >
-                {msg.text || (thinking && i === messages.length - 1 && !msg.tools?.length ? <span className="pulse text-ink-muted">…</span> : "")}
+                {msg.role === "assistant" && msg.text ? (
+                  <Markdown text={msg.text} />
+                ) : (
+                  msg.text || (thinking && i === messages.length - 1 && !msg.tools?.length ? <span className="pulse text-ink-muted">…</span> : "")
+                )}
               </div>
               {msg.role === "assistant" && msg.text && !(thinking && i === messages.length - 1) ? (
                 <div className="flex flex-wrap items-center gap-4 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
@@ -368,6 +436,15 @@ export function ChatMode({
                       </>
                     )}
                   </button>
+                  {i === messages.length - 1 && canRegenerate ? (
+                    <button
+                      type="button"
+                      onClick={regenerate}
+                      className="inline-flex w-fit items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint transition-colors hover:text-ink"
+                    >
+                      <RefreshCw size={13} /> Regenerate
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => onUseAsPrompt(parsePromptReply(msg.text))}
@@ -401,7 +478,13 @@ export function ChatMode({
         {approvals.map((a) => (
           <div key={a.id} className="develop mb-2.5 flex flex-wrap items-center gap-3 rounded-[16px] border border-terracotta/30 bg-terracotta-wash px-4 py-3">
             <span className="min-w-0 flex-1 text-[13.5px] leading-snug text-ink">
-              The agent wants <span className="font-medium">{a.tool.replace(/_/g, " ")}</span> access outside the workspace:
+              {a.tool === "run_command" ? (
+                <>The agent asks to run a command:</>
+              ) : (
+                <>
+                  The agent wants <span className="font-medium">{a.tool.replace(/_/g, " ")}</span> access outside the workspace:
+                </>
+              )}
               <span className="mt-0.5 block truncate font-mono text-[12px] text-ink-muted" title={a.path}>{a.path}</span>
             </span>
             <span className="flex shrink-0 gap-2">
