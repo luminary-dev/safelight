@@ -1,11 +1,12 @@
 "use client";
 
-import { Code2, FolderInput, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Code2, FolderInput, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plug, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ChatSession, CodeSession, DesignSession, ImageSession, Project, Session } from "@/lib/session-types";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "./ConfirmDelete";
+import { McpDialog } from "./McpDialog";
 import { SafelightMark, type SystemRow, type Tone, type TopMode } from "./shell";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
@@ -91,6 +92,7 @@ export function Sidebar({
   const [statusOpen, setStatusOpen] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [ram, setRam] = useState<{ total: number; free: number } | null>(null);
+  const [mcpOpen, setMcpOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ⌘K focuses search.
@@ -144,7 +146,11 @@ export function Sidebar({
           <button type="button" aria-label="API keys" onClick={onKeys} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
             <KeyRound className="size-3.5" />
           </button>
+          <button type="button" aria-label="MCP servers" onClick={() => setMcpOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
+            <Plug className="size-3.5" />
+          </button>
         </span>
+        <McpDialog open={mcpOpen} onClose={() => setMcpOpen(false)} />
       </div>
 
       <label className="flex items-center gap-2.5 rounded-[12px] bg-paper-2 px-3 py-2.5 shadow-[var(--shadow-hairline)]">

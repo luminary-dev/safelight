@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- MCP client (Workstream G): add Model Context Protocol servers (stdio or HTTP) from the new
+  plug icon in the sidebar and their tools join Chat, Code, and Design as
+  `mcp__<server>__<tool>`. Stdio servers run with a scrubbed environment; tools the server
+  does not mark read-only show an Allow / Deny card in the conversation before every call.
+  Dead servers are skipped, connections are pooled and reaped after five minutes idle.
 - Design themes (Workstream I): saved themes now enforce WCAG AA contrast at save time
   (failing pairs are rejected with their ratios named), can be applied live from the swatch
   card — persisted, restored on boot, with a Reset control — and export as CSS variables, a

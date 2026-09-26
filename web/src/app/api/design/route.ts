@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
+import { waitForApproval } from "@/lib/agent/approvals";
 import { DESIGN_SYSTEM_PROMPT, designToolDefs, executeDesignTool } from "@/lib/agent/design-tools";
+import { withMcpTools } from "@/lib/agent/mcp";
 import { runAgent } from "@/lib/agent/run";
 import type { AgentEvent } from "@/lib/agent/tools";
 import { toTurns, type WireMessage } from "@/lib/chat-images";
@@ -22,14 +24,20 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (e: AgentEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+      const requestApproval = (label: string, tool: string) => {
+        const id = crypto.randomUUID();
+        emit({ type: "approval", id, path: label, tool });
+        return waitForApproval(id);
+      };
       try {
+        const toolset = await withMcpTools({ defs: designToolDefs(), execute: (name, args) => executeDesignTool(name, args) }, requestApproval);
         await runAgent(provider as ProviderId | "ollama", body.model!, turns, {
           clientId: body.clientId ?? "design",
           emit,
           signal: request.signal,
           systemPrompt: DESIGN_SYSTEM_PROMPT,
           budget: { maxRounds: 32 },
-          toolset: { defs: designToolDefs(), execute: (name, args) => executeDesignTool(name, args) },
+          toolset,
         });
       } catch (err) {
         if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "The design scout failed." });

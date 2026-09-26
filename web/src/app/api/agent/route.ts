@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
+import { waitForApproval } from "@/lib/agent/approvals";
+import { withMcpTools } from "@/lib/agent/mcp";
 import { runAgent } from "@/lib/agent/run";
-import type { AgentEvent } from "@/lib/agent/tools";
+import { executeTool, TOOLS, type AgentEvent } from "@/lib/agent/tools";
 import { toTurns, type WireMessage } from "@/lib/chat-images";
 import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 
@@ -21,12 +23,19 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (e: AgentEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+      const requestApproval = (label: string, tool: string) => {
+        const id = crypto.randomUUID();
+        emit({ type: "approval", id, path: label, tool });
+        return waitForApproval(id);
+      };
       try {
+        const toolset = await withMcpTools({ defs: TOOLS, execute: executeTool }, requestApproval);
         await runAgent(provider as ProviderId | "ollama", body.model!, turns, {
           clientId: body.clientId ?? "agent",
           preferredModel: body.preferredModel,
           emit,
           signal: request.signal,
+          toolset,
         });
       } catch (err) {
         if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "Agent failed." });

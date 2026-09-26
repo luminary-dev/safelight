@@ -3,6 +3,7 @@ import path from "node:path";
 import type { NextRequest } from "next/server";
 import { waitForApproval } from "@/lib/agent/approvals";
 import { codeSystemPrompt, codeToolDefs, executeCodeTool, type CodeAccess } from "@/lib/agent/code-tools";
+import { withMcpTools } from "@/lib/agent/mcp";
 import { runAgent } from "@/lib/agent/run";
 import type { AgentEvent } from "@/lib/agent/tools";
 import { toTurns, type WireMessage } from "@/lib/chat-images";
@@ -42,13 +43,17 @@ export async function POST(request: NextRequest) {
         },
       };
       try {
+        const toolset = await withMcpTools(
+          { defs: codeToolDefs(), execute: (name, args) => executeCodeTool(name, args, access) },
+          (label, tool) => access.requestApproval(label, tool),
+        );
         await runAgent(provider as ProviderId | "ollama", body.model!, turns, {
           clientId: body.clientId ?? "code",
           emit,
           signal: request.signal,
           systemPrompt: codeSystemPrompt(root),
           budget: { maxRounds: 60 },
-          toolset: { defs: codeToolDefs(), execute: (name, args) => executeCodeTool(name, args, access) },
+          toolset,
         });
       } catch (err) {
         if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "The coding agent failed." });
