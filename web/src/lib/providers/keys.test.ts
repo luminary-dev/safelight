@@ -38,6 +38,45 @@ describe("PROVIDER_META", () => {
       images: false,
       defaultBaseUrl: "https://api.groq.com/openai/v1",
     });
+    expect(PROVIDER_META.mistral).toEqual({
+      label: "Mistral",
+      envVar: "MISTRAL_API_KEY",
+      placeholder: "…",
+      chat: true,
+      images: false,
+      defaultBaseUrl: "https://api.mistral.ai/v1",
+    });
+    expect(PROVIDER_META.deepseek).toEqual({
+      label: "DeepSeek",
+      envVar: "DEEPSEEK_API_KEY",
+      placeholder: "sk-…",
+      chat: true,
+      images: false,
+      defaultBaseUrl: "https://api.deepseek.com/v1",
+    });
+    expect(PROVIDER_META.xai).toEqual({
+      label: "xAI",
+      envVar: "XAI_API_KEY",
+      placeholder: "xai-…",
+      chat: true,
+      images: false,
+      defaultBaseUrl: "https://api.x.ai/v1",
+    });
+    expect(PROVIDER_META.together).toEqual({
+      label: "Together",
+      envVar: "TOGETHER_API_KEY",
+      placeholder: "…",
+      chat: true,
+      images: false,
+      defaultBaseUrl: "https://api.together.xyz/v1",
+    });
+  });
+
+  it("marks every chat-only provider images: false", () => {
+    for (const p of ["openrouter", "groq", "mistral", "deepseek", "xai", "together"] as const) {
+      expect(PROVIDER_META[p].chat, `chat for ${p}`).toBe(true);
+      expect(PROVIDER_META[p].images, `images for ${p}`).toBe(false);
+    }
   });
 });
 
@@ -49,6 +88,10 @@ describe("validateKey for OpenAI-compatible providers", () => {
   it.each<[ProviderId, string]>([
     ["openrouter", "https://openrouter.ai/api/v1/models"],
     ["groq", "https://api.groq.com/openai/v1/models"],
+    ["mistral", "https://api.mistral.ai/v1/models"],
+    ["deepseek", "https://api.deepseek.com/v1/models"],
+    ["xai", "https://api.x.ai/v1/models"],
+    ["together", "https://api.together.xyz/v1/models"],
   ])("checks %s with GET {base}/models and a Bearer header", async (provider, expectedUrl) => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

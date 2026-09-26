@@ -6,6 +6,7 @@ import { generateGeminiImages, listGeminiModels, streamGeminiChat } from "./gemi
 import { listGroqModels, streamGroqChat } from "./groq";
 import { getProviderConfig, PROVIDER_META, PROVIDERS, type ProviderId } from "./keys";
 import { generateOpenAIImages, listOpenAIModels, streamOpenAIChat } from "./openai";
+import { listCompatModels, streamCompatChat } from "./openai-compat";
 import { listOpenRouterModels, streamOpenRouterChat } from "./openrouter";
 import type { ChatTurn, CloudChatModel, CloudImageModel, CloudImageRequest, GeneratedImage } from "./types";
 
@@ -41,6 +42,12 @@ async function listFor(provider: ProviderId, key: string, baseUrl?: string) {
     case "groq":
       value = await listGroqModels(key, baseUrl);
       break;
+    case "mistral":
+    case "deepseek":
+    case "xai":
+    case "together":
+      value = await listCompatModels(provider, key, baseUrl);
+      break;
   }
   cache.set(provider, { at: Date.now(), value });
   return value;
@@ -58,8 +65,8 @@ export async function cloudCatalog(): Promise<CloudCatalog> {
       if (!key) return;
       try {
         const { chat, images } = await listFor(provider, key, baseUrl);
-        // Anthropic and OpenRouter return curated display names; other providers only return ids, so derive readable labels.
-        const curated = provider === "anthropic" || provider === "openrouter";
+        // Anthropic, OpenRouter, and Together return curated display names; other providers only return ids, so derive readable labels.
+        const curated = provider === "anthropic" || provider === "openrouter" || provider === "together";
         out.chat.push(...chat.map((m) => ({ ...m, ...friendlyName(m.id), label: curated && m.label ? m.label : friendlyName(m.id).label })));
         // Safe narrowing: the openai/gemini adapters only ever emit their own provider id, and the rest return no image models.
         out.images.push(...images.map((m) => ({ ...m, provider: m.provider as CloudImageProvider, ...friendlyName(m.id), label: friendlyName(m.id).label })));
@@ -89,6 +96,11 @@ export async function streamCloudChat(provider: ProviderId, model: string, turns
       return streamOpenRouterChat(key, model, turns, signal, system, baseUrl);
     case "groq":
       return streamGroqChat(key, model, turns, signal, system, baseUrl);
+    case "mistral":
+    case "deepseek":
+    case "xai":
+    case "together":
+      return streamCompatChat(provider, key, model, turns, signal, system, baseUrl);
   }
 }
 
@@ -102,10 +114,12 @@ export async function generateCloudImages(provider: ProviderId, model: string, r
     case "gemini":
       return generateGeminiImages(key, model, req, baseUrl);
     case "anthropic":
-      throw new Error("Anthropic models do not generate images. Use them in Chat.");
     case "openrouter":
-      throw new Error("OpenRouter models do not generate images here. Use them in Chat.");
     case "groq":
-      throw new Error("Groq models do not generate images. Use them in Chat.");
+    case "mistral":
+    case "deepseek":
+    case "xai":
+    case "together":
+      throw new Error(`${PROVIDER_META[provider].label} models do not generate images. Use them in Chat.`);
   }
 }

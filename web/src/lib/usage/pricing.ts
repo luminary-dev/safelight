@@ -47,6 +47,27 @@ const TOKEN_PRICES: Record<string, TokenPrice> = {
   "llama-3-3-70b-versatile": { input: 0.59, output: 0.79 },
   "llama-3-1-8b-instant": { input: 0.05, output: 0.08 },
   "qwen-2-5-72b": { input: 0.9, output: 0.9 },
+  // Mistral (la plateforme list prices)
+  "mistral-large": { input: 2, output: 6 },
+  "mistral-medium": { input: 0.4, output: 2 },
+  "mistral-small": { input: 0.1, output: 0.3 },
+  "magistral-medium": { input: 2, output: 5 },
+  codestral: { input: 0.3, output: 0.9 },
+  "ministral-8b": { input: 0.1, output: 0.1 },
+  // DeepSeek (flat post-V3.2 pricing, cache-miss rate)
+  "deepseek-chat": { input: 0.28, output: 0.42 },
+  "deepseek-reasoner": { input: 0.28, output: 0.42 },
+  // xAI
+  "grok-4-fast": { input: 0.2, output: 0.5 },
+  "grok-4": { input: 3, output: 15 },
+  "grok-3-mini": { input: 0.3, output: 0.5 },
+  "grok-code-fast": { input: 0.2, output: 1.5 },
+  // Together serverless (vendor prefixes are stripped by the normalizer)
+  "llama-3-3-70b-instruct-turbo": { input: 0.88, output: 0.88 },
+  "llama-4-maverick": { input: 0.27, output: 0.85 },
+  "deepseek-v3": { input: 1.25, output: 1.25 },
+  "deepseek-r1": { input: 3, output: 7 },
+  "qwen2-5-72b-instruct-turbo": { input: 1.2, output: 1.2 },
 };
 
 /** Cloud image models, USD per image; local renders are free. */

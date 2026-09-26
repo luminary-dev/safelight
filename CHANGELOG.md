@@ -12,6 +12,10 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Providers (Workstream E, round two): Mistral, DeepSeek, xAI (Grok), and Together join
+  through one generic OpenAI-compatible adapter — key validation, live model catalogs,
+  streaming chat, agent tool calling, and custom base URLs. Nine providers total, and the
+  pricing table covers their common models so the cost ledger keeps working.
 - Image pipeline depth (Workstream J): every render — local and cloud — now writes a JSON
   metadata sidecar beside its image, powering one-click Recreate and Vary on the Stage; new
   Upscale 4× (ESRGAN) and Remove background (BiRefNet) actions gated honestly on what the

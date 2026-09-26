@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
 export interface KeyStatus {
-  provider: "openai" | "anthropic" | "gemini" | "openrouter" | "groq";
+  provider: "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together";
   label: string;
   configured: boolean;
   hint?: string;
@@ -21,6 +21,10 @@ const HELP: Record<KeyStatus["provider"], { placeholder: string; url: string }> 
   gemini: { placeholder: "AIza…", url: "https://aistudio.google.com/apikey" },
   openrouter: { placeholder: "sk-or-…", url: "https://openrouter.ai/settings/keys" },
   groq: { placeholder: "gsk_…", url: "https://console.groq.com/keys" },
+  mistral: { placeholder: "…", url: "https://console.mistral.ai/api-keys" },
+  deepseek: { placeholder: "sk-…", url: "https://platform.deepseek.com/api_keys" },
+  xai: { placeholder: "xai-…", url: "https://console.x.ai" },
+  together: { placeholder: "…", url: "https://api.together.ai/settings/api-keys" },
 };
 
 export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged: () => void }) {
@@ -203,7 +207,7 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
             {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
             {checked ? <p className={`mt-3 font-mono text-xs ${checked.ok ? "text-green" : "text-danger"}`}>{checked.message}</p> : null}
             <p className="mt-4 text-[13px] leading-relaxed text-faint">
-              OpenAI and Gemini add image models to Image mode. All five providers add chat models. Local models keep working without any key.
+              OpenAI and Gemini add image models to Image mode. Every provider adds chat models. Local models keep working without any key.
             </p>
           </motion.div>
         </motion.div>
