@@ -234,3 +234,14 @@ describe("keychain key source", () => {
     expect(keychainCalls()).toEqual(["find-generic-password"]);
   });
 });
+
+describe("GCM tag length is pinned", () => {
+  it("refuses a truncated authentication tag instead of accepting weakened forgery resistance", async () => {
+    process.env.SAFELIGHT_VAULT_KEY = "ab".repeat(32);
+    resetVaultForTests();
+    const raw = await encryptJson({ hello: "world" });
+    const envelope = JSON.parse(raw) as { tag: string };
+    envelope.tag = Buffer.from(envelope.tag, "base64").subarray(0, 4).toString("base64");
+    await expect(decryptJson(JSON.stringify(envelope))).rejects.toThrow("Unknown vault format.");
+  });
+});

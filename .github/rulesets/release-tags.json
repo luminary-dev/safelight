@@ -1,0 +1,9 @@
+{
+  "//": "Apply with: gh api repos/luminary-dev/safelight/rulesets -X POST --input .github/rulesets/release-tags.json",
+  "name": "release tags",
+  "target": "tag",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/tags/v*"], "exclude": [] } },
+  "bypass_actors": [],
+  "rules": [{ "type": "deletion" }, { "type": "non_fast_forward" }, { "type": "update" }]
+}

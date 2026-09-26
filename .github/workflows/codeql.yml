@@ -1,0 +1,29 @@
+# CodeQL without GitHub Advanced Security: private repos on the free plan cannot
+# upload to code scanning, so results are checked in-job instead of in the
+# Security tab. Nightly + on demand (TEST-BRIEF §19); Semgrep covers PR-time.
+name: codeql
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@v3
+        with:
+          upload: never
+          output: codeql-results
+      - name: fail on findings
+        run: |
+          COUNT=$(jq '[.runs[].results[]] | length' codeql-results/*.sarif)
+          echo "CodeQL findings: $COUNT"
+          jq -r '.runs[].results[] | "\(.ruleId): \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine // 0)"' codeql-results/*.sarif || true
+          test "$COUNT" -eq 0

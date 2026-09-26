@@ -28,6 +28,8 @@ All notable changes to Safelight are documented here. The format follows
   e2e; coverage over the full surface 38 % → **77.7 % lines**, floors ratcheted to 75/72/62/63.
 
 ### Fixed
+- Vault hardening (found by the new Semgrep gate): the GCM authentication-tag length is now
+  pinned to 16 bytes — Node otherwise accepts truncated tags, weakening forgery resistance.
 - Deleting a render from the gallery now removes its metadata sidecar too (orphaned
   `.json` files no longer accumulate beside deleted images).
 - Privacy: "Local only" now also gates the cloud provider catalog — with the switch on,
