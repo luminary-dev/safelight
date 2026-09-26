@@ -22,12 +22,13 @@ async function keychainGet(): Promise<Buffer | null> {
   }
 }
 
-async function keychainSet(key: Buffer): Promise<boolean> {
+/** Adds without -U: an existing entry must never be clobbered, or its ciphertext is orphaned. */
+async function keychainAdd(key: Buffer): Promise<"added" | "exists" | "failed"> {
   try {
-    await exec("security", ["add-generic-password", "-s", KEYCHAIN_SERVICE, "-a", KEYCHAIN_ACCOUNT, "-w", key.toString("hex"), "-U"]);
-    return true;
-  } catch {
-    return false;
+    await exec("security", ["add-generic-password", "-s", KEYCHAIN_SERVICE, "-a", KEYCHAIN_ACCOUNT, "-w", key.toString("hex")]);
+    return "added";
+  } catch (err) {
+    return /already exists/i.test(String((err as { stderr?: string }).stderr ?? err)) ? "exists" : "failed";
   }
 }
 
@@ -65,9 +66,19 @@ export async function vaultKey(): Promise<Buffer> {
       return cached;
     }
     const fresh = randomBytes(32);
-    if (await keychainSet(fresh)) {
+    const outcome = await keychainAdd(fresh);
+    if (outcome === "added") {
       cached = fresh;
       return cached;
+    }
+    if (outcome === "exists") {
+      // The read failed transiently but an entry is there; retry rather than rotate it away.
+      const retry = await keychainGet();
+      if (retry) {
+        cached = retry;
+        return cached;
+      }
+      throw new Error("The Safelight vault key exists in the keychain but cannot be read. Unlock the keychain and try again.");
     }
   }
   cached = fileKey();
