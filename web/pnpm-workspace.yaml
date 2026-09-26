@@ -3,6 +3,7 @@ allowBuilds:
   '@parcel/watcher': false
   '@swc/core': false
   better-sqlite3: true
+  msw: false
   protobufjs: false
   sharp: true
   unrs-resolver: false

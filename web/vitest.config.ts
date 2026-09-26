@@ -14,24 +14,32 @@ export default defineConfig({
     environment: "node",
     coverage: {
       provider: "v8",
-      include: ["src/lib/**/*.ts"],
+      // The FULL shipped surface — routes, components, middleware included. The old
+      // lib/-only denominator hid ~half the code from the number that gates CI
+      // (TEST-BRIEF §2).
+      include: ["src/**/*.{ts,tsx}"],
       exclude: [
-        "src/lib/**/*.test.ts",
-        "src/lib/**/fixtures/**",
-        "src/lib/**/__snapshots__/**",
-        // Type-only module: no executable statements.
+        "src/**/*.test.{ts,tsx}",
+        "src/**/fixtures/**",
+        "src/**/__snapshots__/**",
+        "src/test/**",
+        // Type-only modules: no executable statements.
         "src/lib/search/types.ts",
+        "src/lib/blueprints/types.ts",
+        "src/lib/models/types.ts",
+        "src/components/library/types.ts",
       ],
       reporter: ["text-summary", "json-summary"],
-      // Measured 2026-09-26: lines 75.45 %, statements 72.76 %, functions 73.17 %,
-      // branches 64.21 %. Lines enforces the brief's 1.0 bar (70 %); the rest are
-      // honest floors (floor(measured) - 2) to catch regressions — raise them as
-      // lib/ tests land.
+      // Thresholds are set from the measured baseline over the widened denominator
+      // (floor(measured) - 2) and ratchet up, never down. TEST-BRIEF §20 has the
+      // per-area targets this is climbing toward.
+      // Measured 2026-09-26 over the full surface: lines 38.08 %, statements 36.71 %,
+      // functions 26.77 %, branches 29.42 % (was 75.45 % lines over lib/ alone).
       thresholds: {
-        lines: 70,
-        statements: 70,
-        functions: 71,
-        branches: 62,
+        lines: 36,
+        statements: 34,
+        functions: 24,
+        branches: 27,
       },
     },
   },
