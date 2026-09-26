@@ -1,0 +1,54 @@
+{
+  "items": [
+    {
+      "id": 133005,
+      "name": "Juggernaut XL",
+      "description": "<p>Photoreal <strong>SDXL</strong> checkpoint &amp; more.</p>",
+      "type": "Checkpoint",
+      "nsfw": false,
+      "modelVersions": [
+        {
+          "name": "V9",
+          "files": [
+            {
+              "name": "juggernautXL_v9.safetensors",
+              "sizeKB": 6775430.1,
+              "downloadUrl": "https://civitai.com/api/download/models/348913",
+              "type": "Model",
+              "hashes": { "SHA256": "C9E3E68F89B8E38689E1097D4BE4573CFC4C25FA5AB05D6F13E7C17D60CDB584" }
+            },
+            {
+              "name": "sdxl_vae_fixed.safetensors",
+              "sizeKB": 326789.2,
+              "downloadUrl": "https://civitai.com/api/download/models/348914",
+              "type": "VAE",
+              "hashes": { "SHA256": "1598F3D24932BCFE6634E8B618EA1E30AB1D57F5AAB13003C2A05958AB16F3AB" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 443821,
+      "name": "Detail Tweaker LoRA",
+      "description": "<p>Adds detail.</p>",
+      "type": "LORA",
+      "nsfw": true,
+      "modelVersions": [
+        {
+          "name": "v1",
+          "files": [
+            {
+              "name": "add_detail_xl.safetensors",
+              "sizeKB": 223345.6,
+              "downloadUrl": "https://civitai.com/api/download/models/512345",
+              "type": "Model",
+              "hashes": { "SHA256": "A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F90" }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": { "nextCursor": null }
+}

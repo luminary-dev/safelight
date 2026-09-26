@@ -5,6 +5,16 @@ All notable changes to Safelight are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Tier 0 test harness (TEST-BRIEF §5): Vitest split into unit/db/api/agent/subsystems/
+  component projects; in-process fakes for ComfyUI (HTTP + RFC 6455 progress socket,
+  restartable with counter reset), Ollama (NDJSON incl. mid-stream error and truncation), a
+  search + page server, HF/Civitai search and download (checksum, truncation, 416), and MCP
+  (stdio child + HTTP: invalid schema, dies mid-call, destructive-without-hint); MSW provider
+  handlers with recorded wire fixtures; sandboxed tmpdir/DB fixtures with a stray-write
+  guard; typed domain factories; determinism helpers; five custom matchers — 110 hermetic
+  self-tests in under three seconds.
+
 ### Fixed
 - Security (TEST-BRIEF phase 2): a symlink planted inside `outputs/` could read files
   anywhere on disk through `/api/view` and delete files anywhere through the gallery DELETE —

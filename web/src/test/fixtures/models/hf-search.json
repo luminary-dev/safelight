@@ -1,0 +1,16 @@
+[
+  {
+    "id": "city96/Qwen-Image-gguf",
+    "pipeline_tag": "text-to-image",
+    "tags": ["gguf", "text-to-image"],
+    "downloads": 152340,
+    "likes": 412
+  },
+  {
+    "id": "grimulkan/flux-nsfw",
+    "pipeline_tag": "text-to-image",
+    "tags": ["gguf", "not-for-all-audiences"],
+    "downloads": 900,
+    "likes": 12
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "id": "anthropic/claude-sonnet-4.5",
+      "name": "Anthropic: Claude Sonnet 4.5",
+      "created": 1759101599,
+      "context_length": 1000000,
+      "pricing": { "prompt": "0.000003", "completion": "0.000015" }
+    },
+    {
+      "id": "meta-llama/llama-3.3-70b-instruct",
+      "name": "Meta: Llama 3.3 70B Instruct",
+      "created": 1733506137,
+      "context_length": 131072,
+      "pricing": { "prompt": "0.00000012", "completion": "0.0000003" }
+    }
+  ]
+}

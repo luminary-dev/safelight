@@ -1,0 +1,37 @@
+{
+  "models": [
+    {
+      "name": "models/gemini-2.5-pro",
+      "displayName": "Gemini 2.5 Pro",
+      "description": "Fake fixture model",
+      "version": "2.5",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 65536,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    },
+    {
+      "name": "models/gemini-2.5-flash-image",
+      "displayName": "Gemini 2.5 Flash Image",
+      "description": "Fake fixture image model",
+      "version": "2.5",
+      "inputTokenLimit": 32768,
+      "outputTokenLimit": 32768,
+      "supportedGenerationMethods": ["generateContent"]
+    },
+    {
+      "name": "models/gemini-2.5-flash-native-audio",
+      "displayName": "Gemini 2.5 Flash Native Audio",
+      "supportedGenerationMethods": ["generateContent"]
+    },
+    {
+      "name": "models/gemini-embedding-001",
+      "displayName": "Gemini Embedding 001",
+      "supportedGenerationMethods": ["embedContent"]
+    },
+    {
+      "name": "models/imagen-4.0-generate",
+      "displayName": "Imagen 4",
+      "supportedGenerationMethods": ["predict"]
+    }
+  ]
+}

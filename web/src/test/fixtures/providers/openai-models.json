@@ -1,0 +1,15 @@
+{
+  "object": "list",
+  "data": [
+    { "id": "gpt-4.1", "object": "model", "created": 1744316542, "owned_by": "openai" },
+    { "id": "gpt-4o", "object": "model", "created": 1715367049, "owned_by": "openai" },
+    { "id": "o3", "object": "model", "created": 1744225308, "owned_by": "openai" },
+    { "id": "gpt-4o-2024-05-13", "object": "model", "created": 1715368132, "owned_by": "openai" },
+    { "id": "gpt-4o-audio-preview", "object": "model", "created": 1727389042, "owned_by": "openai" },
+    { "id": "gpt-3.5-turbo", "object": "model", "created": 1677610602, "owned_by": "openai" },
+    { "id": "text-embedding-3-small", "object": "model", "created": 1705948997, "owned_by": "openai" },
+    { "id": "gpt-image-1", "object": "model", "created": 1745517030, "owned_by": "openai" },
+    { "id": "dall-e-3", "object": "model", "created": 1698785189, "owned_by": "openai" },
+    { "id": "dall-e-2", "object": "model", "created": 1698798177, "owned_by": "openai" }
+  ]
+}

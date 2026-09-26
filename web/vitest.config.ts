@@ -1,5 +1,24 @@
 import path from "node:path";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
+
+/**
+ * Vitest projects per TEST-BRIEF §4: unit, db, api, agent, subsystems (node)
+ * and component (jsdom), each runnable alone (`vitest run --project api`).
+ * The includes partition the old single glob (src/**\/*.test.ts) exactly —
+ * every existing test keeps running, under the project that owns its tier.
+ */
+
+/** Directories owned by a non-unit project; the unit catch-all excludes them. */
+const DB_TESTS = "src/lib/db/**/*.test.ts";
+const AGENT_TESTS = "src/lib/agent/**/*.test.ts";
+const API_TESTS = "src/app/**/*.test.ts";
+const SUBSYSTEM_TESTS = [
+  "src/lib/blueprints/**/*.test.ts",
+  "src/lib/library/**/*.test.ts",
+  "src/lib/models/**/*.test.ts",
+  "src/lib/usage/**/*.test.ts",
+  "src/lib/theme/**/*.test.ts",
+];
 
 export default defineConfig({
   resolve: {
@@ -10,8 +29,31 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts"],
     environment: "node",
+    setupFiles: ["src/test/setup.matchers.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["src/**/*.test.ts"],
+          exclude: [...configDefaults.exclude, DB_TESTS, AGENT_TESTS, API_TESTS, ...SUBSYSTEM_TESTS],
+        },
+      },
+      { extends: true, test: { name: "db", include: [DB_TESTS] } },
+      { extends: true, test: { name: "api", include: [API_TESTS] } },
+      { extends: true, test: { name: "agent", include: [AGENT_TESTS] } },
+      { extends: true, test: { name: "subsystems", include: SUBSYSTEM_TESTS } },
+      {
+        extends: true,
+        test: {
+          name: "component",
+          environment: "jsdom",
+          include: ["src/**/*.test.tsx"],
+          setupFiles: ["src/test/setup.matchers.ts", "src/test/setup.component.ts"],
+        },
+      },
+    ],
     coverage: {
       provider: "v8",
       // The FULL shipped surface — routes, components, middleware included. The old

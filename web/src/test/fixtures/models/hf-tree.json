@@ -1,0 +1,16 @@
+[
+  { "type": "file", "path": "README.md", "size": 4210 },
+  {
+    "type": "file",
+    "path": "qwen-image-Q4_K_M.gguf",
+    "size": 134,
+    "lfs": { "oid": "9c56cc51b374c3ba189210d5b6d4bf57790d351c96c47c02190ecf1e430635ab", "size": 12884901888 }
+  },
+  { "type": "directory", "path": "vae" },
+  {
+    "type": "file",
+    "path": "vae/qwen_image_vae.safetensors",
+    "size": 134,
+    "lfs": { "oid": "60303ae22b998861bce3b28f33eec1be758a213c86c93c076dbe9f558c11c752", "size": 253829120 }
+  }
+]
