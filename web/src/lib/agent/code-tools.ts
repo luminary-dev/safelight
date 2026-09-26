@@ -13,7 +13,7 @@ export function codeSystemPrompt(root: string): string {
   return (
     `You are Safelight's coding assistant, working in the folder ${root} on the user's machine. ` +
     "You have tools: list_files to explore, read_file to look at code, edit_file for exact string replacements, and write_file to create or overwrite a file. " +
-    "Always read a file before editing it, and make the smallest change that does the job. old_string must match the file exactly, including indentation. " +
+    "Paths outside the workspace are allowed only after the user approves each one, so prefer staying inside it. Always read a file before editing it, and make the smallest change that does the job. old_string must match the file exactly, including indentation. " +
     "After changing files, summarise briefly what you changed and where. If a request needs running commands or leaving the folder, say you cannot do that."
   );
 }
@@ -73,11 +73,27 @@ export function codeToolDefs(): ToolDef[] {
   ];
 }
 
-/** Resolves a workspace-relative path and refuses anything that escapes the root. */
-function resolveInRoot(root: string, rel: unknown): string {
-  const normRoot = path.resolve(String(root));
+export interface CodeAccess {
+  root: string;
+  /** Absolute paths (files, or folder subtrees) the user has already allowed beyond the root. */
+  approved: string[];
+  /** Pauses the run and asks the user; resolves true only on an explicit Allow. */
+  requestApproval: (absPath: string, tool: string) => Promise<boolean>;
+}
+
+function within(abs: string, base: string): boolean {
+  return abs === base || abs.startsWith(base + path.sep);
+}
+
+/** Resolves a path against the root; anything beyond root or the approved list pauses to ask the user. */
+async function resolvePath(access: CodeAccess, rel: unknown, tool: string): Promise<string> {
+  const normRoot = path.resolve(access.root);
   const abs = path.resolve(normRoot, typeof rel === "string" && rel ? rel : ".");
-  if (abs !== normRoot && !abs.startsWith(normRoot + path.sep)) throw new Error("That path is outside the workspace folder.");
+  if (within(abs, normRoot)) return abs;
+  if (access.approved.some((a) => within(abs, a))) return abs;
+  const ok = await access.requestApproval(abs, tool);
+  if (!ok) throw new Error(`The user declined access to ${abs}.`);
+  access.approved.push(abs);
   return abs;
 }
 
@@ -98,18 +114,18 @@ async function walk(dir: string, root: string, out: string[], depth: number): Pr
   }
 }
 
-export async function executeCodeTool(name: string, args: Record<string, unknown>, root: string): Promise<{ result: unknown; note?: string }> {
+export async function executeCodeTool(name: string, args: Record<string, unknown>, access: CodeAccess): Promise<{ result: unknown; note?: string }> {
   switch (name) {
     case "list_files": {
-      const dir = resolveInRoot(root, args.path);
+      const dir = await resolvePath(access, args.path, name);
       const all: string[] = [];
-      await walk(dir, path.resolve(root), all, 0);
+      await walk(dir, dir, all, 0);
       const pattern = typeof args.pattern === "string" ? args.pattern.toLowerCase() : "";
       const files = pattern ? all.filter((f) => f.toLowerCase().includes(pattern)) : all;
       return { result: { files, truncated: all.length >= MAX_ENTRIES }, note: `${files.length} entr${files.length === 1 ? "y" : "ies"}` };
     }
     case "read_file": {
-      const file = resolveInRoot(root, args.path);
+      const file = await resolvePath(access, args.path, name);
       const info = await stat(file);
       if (!info.isFile()) throw new Error("Not a file.");
       if (info.size > MAX_READ_BYTES) throw new Error(`File is ${Math.round(info.size / 1024)} KB; only files up to ${MAX_READ_BYTES / 1024} KB can be read.`);
@@ -123,7 +139,7 @@ export async function executeCodeTool(name: string, args: Record<string, unknown
       return { result: { path: String(args.path), totalLines: lines.length, content: numbered }, note: `${slice.length} lines` };
     }
     case "edit_file": {
-      const file = resolveInRoot(root, args.path);
+      const file = await resolvePath(access, args.path, name);
       const oldStr = String(args.old_string ?? "");
       const newStr = String(args.new_string ?? "");
       if (!oldStr) throw new Error("old_string is empty.");
@@ -136,7 +152,7 @@ export async function executeCodeTool(name: string, args: Record<string, unknown
       return { result: { path: String(args.path), replacements: args.replace_all ? count : 1 }, note: `${args.replace_all ? count : 1} replacement${(args.replace_all ? count : 1) === 1 ? "" : "s"}` };
     }
     case "write_file": {
-      const file = resolveInRoot(root, args.path);
+      const file = await resolvePath(access, args.path, name);
       const content = String(args.content ?? "");
       if (Buffer.byteLength(content) > MAX_WRITE_BYTES) throw new Error(`Content is larger than ${MAX_WRITE_BYTES / 1024} KB.`);
       await mkdir(path.dirname(file), { recursive: true });

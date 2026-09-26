@@ -92,6 +92,7 @@ export function ChatMode({
   agentEndpoint = "/api/agent",
   agentBody,
   agentLocked = false,
+  onApprovePath,
   onUpload,
 }: {
   models: ChatModelInfo[];
@@ -120,6 +121,8 @@ export function ChatMode({
   agentBody?: Record<string, unknown>;
   /** Hides the agent toggle chip for workspaces where the agent is always on. */
   agentLocked?: boolean;
+  /** Called when the user allows the agent a path beyond the workspace, so the session can remember it. */
+  onApprovePath?: (path: string) => void;
   /** Uploads files into the studio input folder and returns references usable by both chat and Image mode. */
   onUpload: (files: File[]) => Promise<ChatAttachment[]>;
 }) {
@@ -149,6 +152,7 @@ export function ChatMode({
   );
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [approvals, setApprovals] = useState<{ id: string; path: string; tool: string }[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -213,7 +217,7 @@ export function ChatMode({
         let agentError: string | null = null;
         const handle = (line: string) => {
           if (!line.trim()) return;
-          let ev: { type: string; text?: string; id?: string; name?: string; args?: Record<string, unknown>; state?: ToolCall["state"]; note?: string; images?: JobOutput[] };
+          let ev: { type: string; text?: string; id?: string; name?: string; args?: Record<string, unknown>; state?: ToolCall["state"]; note?: string; images?: JobOutput[]; result?: unknown; path?: string; tool?: string };
           try {
             ev = JSON.parse(line);
           } catch {
@@ -223,12 +227,15 @@ export function ChatMode({
             text = text ? `${text}\n\n${ev.text}` : ev.text;
             patchLast((m) => ({ ...m, text }));
           } else if (ev.type === "tool" && ev.id && ev.name) {
-            const call: ToolCall = { id: ev.id, name: ev.name, args: ev.args ?? {}, state: ev.state ?? "running", note: ev.note, images: ev.images };
+            const call: ToolCall = { id: ev.id, name: ev.name, args: ev.args ?? {}, state: ev.state ?? "running", note: ev.note, images: ev.images, result: ev.result };
             patchLast((m) => {
               const tools = m.tools ?? [];
               const i = tools.findIndex((t) => t.id === call.id);
               return { ...m, tools: i === -1 ? [...tools, call] : tools.map((t, j) => (j === i ? { ...t, ...call, images: call.images ?? t.images } : t)) };
             });
+          } else if (ev.type === "approval" && ev.id && ev.path) {
+            const req = { id: ev.id, path: ev.path, tool: ev.tool ?? "access" };
+            setApprovals((list) => (list.some((a) => a.id === req.id) ? list : [...list, req]));
           } else if (ev.type === "error" && ev.text) {
             agentError = ev.text;
           }
@@ -273,6 +280,7 @@ export function ChatMode({
       setMessages((list) => (list[list.length - 1]?.text === "" ? list.slice(0, -1) : list));
     } finally {
       setThinking(false);
+      setApprovals([]);
       abortRef.current = null;
     }
   }, [input, pending, thinking, selected, messages, setMessages, agent, preferredModel, clientId, agentEndpoint, agentBody]);
@@ -390,6 +398,37 @@ export function ChatMode({
 
       <div className="pb-2 pt-2">
         {noVision ? <p className="mb-2 font-mono text-[11px] text-terracotta">{selected?.label} cannot see images. Pick a vision model (tagged “vision”) or a cloud model.</p> : null}
+        {approvals.map((a) => (
+          <div key={a.id} className="develop mb-2.5 flex flex-wrap items-center gap-3 rounded-[16px] border border-terracotta/30 bg-terracotta-wash px-4 py-3">
+            <span className="min-w-0 flex-1 text-[13.5px] leading-snug text-ink">
+              The agent wants <span className="font-medium">{a.tool.replace(/_/g, " ")}</span> access outside the workspace:
+              <span className="mt-0.5 block truncate font-mono text-[12px] text-ink-muted" title={a.path}>{a.path}</span>
+            </span>
+            <span className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                className="btn-primary h-8 rounded-full px-4 text-[13px]"
+                onClick={() => {
+                  void fetch("/api/code/approve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: a.id, allow: true }) });
+                  onApprovePath?.(a.path);
+                  setApprovals((list) => list.filter((x) => x.id !== a.id));
+                }}
+              >
+                Allow
+              </button>
+              <button
+                type="button"
+                className="btn-quiet h-8 rounded-full px-4 text-[13px]"
+                onClick={() => {
+                  void fetch("/api/code/approve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: a.id, allow: false }) });
+                  setApprovals((list) => list.filter((x) => x.id !== a.id));
+                }}
+              >
+                Deny
+              </button>
+            </span>
+          </div>
+        ))}
         <div
           className="rounded-[22px] bg-paper-2 p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_0_0_1px_var(--line)]"
           onDragOver={(e) => e.preventDefault()}
@@ -545,6 +584,7 @@ function ToolCard({ call, onUseAsInput }: { call: ToolCall; onUseAsInput: (o: Jo
           {summary ? <p className="mt-0.5 line-clamp-3 text-ink-muted">{summary}</p> : null}
         </div>
       </div>
+      {call.name === "save_theme" && call.state === "done" ? <ThemeSwatch result={call.result} /> : null}
       {images.length > 0 ? (
         <div className="flex flex-wrap gap-2 border-t border-line bg-pill/30 p-2.5">
           {images.map((o) => (
@@ -563,6 +603,50 @@ function ToolCard({ call, onUseAsInput }: { call: ToolCall; onUseAsInput: (o: Jo
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+interface SavedTheme {
+  name: string;
+  description: string;
+  colors: Record<string, string>;
+  fonts: { display: string; body: string; mono?: string };
+}
+
+/** A saved theme rendered as a small live preview: swatch row plus a card in the theme's own colors. */
+function ThemeSwatch({ result }: { result: unknown }) {
+  const theme = (result as { theme?: SavedTheme } | undefined)?.theme;
+  if (!theme?.colors) return null;
+  const c = theme.colors;
+  return (
+    <div className="border-t border-line p-3">
+      <div className="flex flex-col gap-2.5 rounded-[14px] border border-line p-3.5" style={{ background: c.bg, color: c.text }}>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-display text-[15px] font-semibold">{theme.name}</span>
+          <span className="font-mono text-[10.5px]" style={{ color: c.muted }}>
+            {theme.fonts.display} · {theme.fonts.body}
+          </span>
+        </div>
+        {theme.description ? (
+          <p className="m-0 text-[12.5px] leading-snug" style={{ color: c.muted }}>
+            {theme.description}
+          </p>
+        ) : null}
+        <div className="flex items-center gap-2">
+          <span className="rounded-[8px] px-3 py-1.5 text-[12px] font-semibold" style={{ background: c.accent, color: c.accentText }}>
+            Button
+          </span>
+          <span className="rounded-[8px] border px-3 py-1.5 text-[12px]" style={{ borderColor: c.muted, background: c.surface }}>
+            Card
+          </span>
+          <span className="ml-auto flex gap-1">
+            {Object.entries(c).map(([k, v]) => (
+              <span key={k} title={`${k} ${v}`} className="size-4 rounded-full border border-black/10" style={{ background: v }} />
+            ))}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

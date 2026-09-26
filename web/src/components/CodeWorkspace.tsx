@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderCode, Plus } from "lucide-react";
+import { FolderCode, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { JobOutput } from "@/lib/comfy/types";
 import type { ChatAttachment, ChatMessage, CodeSession } from "@/lib/session-types";
@@ -12,6 +12,8 @@ export function CodeWorkspace({
   active,
   onCreateSession,
   onRoot,
+  onApprovePath,
+  onRemoveApprovedPath,
   models,
   ollamaUp,
   model,
@@ -27,6 +29,8 @@ export function CodeWorkspace({
   active: CodeSession | null;
   onCreateSession: () => void;
   onRoot: (root: string) => void;
+  onApprovePath: (path: string) => void;
+  onRemoveApprovedPath: (path: string) => void;
   models: ChatModelInfo[];
   ollamaUp: boolean;
   model: string;
@@ -47,7 +51,8 @@ export function CodeWorkspace({
     setSeenSession(active?.id);
     setDraft(root);
   }
-  const agentBody = useMemo(() => ({ root }), [root]);
+  const approvedPaths = useMemo(() => active?.approvedPaths ?? [], [active?.approvedPaths]);
+  const agentBody = useMemo(() => ({ root, approvedPaths }), [root, approvedPaths]);
   const toolCapable = models.filter((m) => m.provider !== "ollama" || m.tags?.includes("tools"));
 
   return (
@@ -79,6 +84,19 @@ export function CodeWorkspace({
           <Plus className="size-4" /> New session
         </button>
       </div>
+      {approvedPaths.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 px-6 pb-3">
+          <span className="text-[12px] font-medium text-faint">Also allowed:</span>
+          {approvedPaths.map((p) => (
+            <span key={p} className="inline-flex max-w-[360px] items-center gap-1.5 rounded-full bg-terracotta-wash py-1 pl-2.5 pr-1.5 font-mono text-[11px] text-terracotta">
+              <span className="truncate" title={p}>{p}</span>
+              <button type="button" aria-label={`Revoke access to ${p}`} onClick={() => onRemoveApprovedPath(p)} className="grid size-4 shrink-0 place-items-center rounded-full hover:bg-paper-2/60">
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="relative flex min-h-0 flex-1 flex-col px-6 pb-5">
         {root ? (
           <ChatMode
@@ -97,6 +115,7 @@ export function CodeWorkspace({
             agentLocked
             agentEndpoint="/api/code"
             agentBody={agentBody}
+            onApprovePath={onApprovePath}
             onUseAsInput={onUseAsInput}
             clientId={clientId}
             showControls={false}

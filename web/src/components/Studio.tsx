@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useComfySocket } from "@/hooks/useComfySocket";
 import { teCompatible, type GalleryItem, type JobOutput, type JobStatus, type ModelCatalog, type ModelEntry } from "@/lib/comfy/types";
 import { randomSeed } from "@/lib/presets";
-import { autoTitle, newProject, newSession, type ChatAttachment, type ChatMessage, type ChatSession, type CodeSession, type ImageSession, type Project, type Session, type SessionKind } from "@/lib/session-types";
+import { autoTitle, newProject, newSession, type ChatAttachment, type ChatMessage, type ChatSession, type CodeSession, type DesignSession, type ImageSession, type Project, type Session, type SessionKind } from "@/lib/session-types";
 import { DEFAULT_SETTINGS, defaultsForModel, toRequest, viewUrl, type Job, type Settings, type UploadedImage } from "@/lib/studio-state";
 import { chatModelKey, type ChatModelInfo, type PromptHandoff } from "./ChatMode";
 import { ChatWorkspace } from "./ChatWorkspace";
 import { CodeWorkspace } from "./CodeWorkspace";
+import { DesignWorkspace } from "./DesignWorkspace";
 import { Composer } from "./Composer";
 import type { SystemRow, Tone, TopMode } from "./Header";
 import type { KeyStatus } from "./KeysDialog";
@@ -76,7 +77,7 @@ export function Studio() {
     // ?mode=chat|image deep-links a mode; otherwise the last used mode wins.
     const fromUrl = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("mode");
     const saved = fromUrl ?? loadString("studio.mode.v1", "image");
-    return saved === "chat" || saved === "library" || saved === "code" ? saved : "image";
+    return saved === "chat" || saved === "library" || saved === "code" || saved === "design" ? saved : "image";
   });
   const [online, setOnline] = useState(false);
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
@@ -97,7 +98,7 @@ export function Studio() {
   // ---------- sessions ----------
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
-  const [activeIds, setActiveIds] = useState<Record<SessionKind, string | null>>(() => loadJSON(ACTIVE_KEY, { chat: null, image: null, code: null }));
+  const [activeIds, setActiveIds] = useState<Record<SessionKind, string | null>>(() => loadJSON(ACTIVE_KEY, { chat: null, image: null, code: null, design: null }));
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => loadString(PROJECT_KEY, "") || null);
   const [wallFilter, setWallFilter] = useState<"session" | "all">(() => (loadString(RAIL_KEY, "all") === "session" ? "session" : "all"));
@@ -187,6 +188,10 @@ export function Studio() {
   const activeCode = useMemo(
     () => (sessions.find((s) => s.kind === "code" && s.id === activeIds.code && inProject(s)) ?? sessions.find((s) => s.kind === "code" && inProject(s)) ?? null) as CodeSession | null,
     [sessions, activeIds.code, inProject],
+  );
+  const activeDesign = useMemo(
+    () => (sessions.find((s) => s.kind === "design" && s.id === activeIds.design && inProject(s)) ?? sessions.find((s) => s.kind === "design" && inProject(s)) ?? null) as DesignSession | null,
+    [sessions, activeIds.design, inProject],
   );
 
   // Load sessions once; migrate the old single chat from localStorage if present.
@@ -665,6 +670,39 @@ export function Studio() {
     },
     [ensureSession, updateSession],
   );
+  const approveCodePath = useCallback(
+    (p: string) => {
+      const s = ensureSession("code");
+      updateSession<CodeSession>(s.id, (x) => ({ ...x, approvedPaths: (x.approvedPaths ?? []).includes(p) ? x.approvedPaths : [...(x.approvedPaths ?? []), p] }));
+    },
+    [ensureSession, updateSession],
+  );
+  const removeCodePath = useCallback(
+    (p: string) => {
+      const s = ensureSession("code");
+      updateSession<CodeSession>(s.id, (x) => ({ ...x, approvedPaths: (x.approvedPaths ?? []).filter((a) => a !== p) }));
+    },
+    [ensureSession, updateSession],
+  );
+  const designModel = activeDesign?.model && chatModels.some((m) => chatModelKey(m) === activeDesign.model) ? activeDesign.model : defaultChatModel;
+  const setDesignModel = useCallback(
+    (key: string) => {
+      const s = ensureSession("design");
+      updateSession<DesignSession>(s.id, (x) => ({ ...x, model: key }));
+    },
+    [ensureSession, updateSession],
+  );
+  const onDesignMessages = useCallback(
+    (fn: (prev: ChatMessage[]) => ChatMessage[]) => {
+      const s = ensureSession("design");
+      updateSession<DesignSession>(s.id, (x) => {
+        const messages = fn(x.messages);
+        const firstUser = messages.find((m) => m.role === "user")?.text ?? "";
+        return { ...x, messages, title: x.titled ? x.title : autoTitle(firstUser, x.title) };
+      });
+    },
+    [ensureSession, updateSession],
+  );
   const onCodeMessages = useCallback(
     (fn: (prev: ChatMessage[]) => ChatMessage[]) => {
       const s = ensureSession("code");
@@ -737,6 +775,7 @@ export function Studio() {
   const imageSessions = sessions.filter((s): s is ImageSession => s.kind === "image" && inProject(s));
   const chatSessions = sessions.filter((s): s is ChatSession => s.kind === "chat" && inProject(s));
   const codeSessions = sessions.filter((s): s is CodeSession => s.kind === "code" && inProject(s));
+  const designSessions = sessions.filter((s): s is DesignSession => s.kind === "design" && inProject(s));
 
   return (
     <div className="grid min-h-[100dvh] grid-cols-1 gap-3.5 bg-shell p-3.5 font-sans lg:h-[100dvh] lg:grid-cols-[268px_minmax(0,1fr)]">
@@ -749,9 +788,11 @@ export function Studio() {
         chatSessions={chatSessions}
         imageSessions={imageSessions}
         codeSessions={codeSessions}
+        designSessions={designSessions}
         activeChatId={activeChat?.id ?? null}
         activeImageId={activeImage?.id ?? null}
         activeCodeId={activeCode?.id ?? null}
+        activeDesignId={activeDesign?.id ?? null}
         onSelectSession={selectSession}
         onCreateSession={createAndOpen}
         onRenameSession={renameSession}
@@ -798,12 +839,30 @@ export function Studio() {
             active={activeCode}
             onCreateSession={() => createAndOpen("code")}
             onRoot={setCodeRoot}
+            onApprovePath={approveCodePath}
+            onRemoveApprovedPath={removeCodePath}
             models={chatModels}
             ollamaUp={ollamaUp}
             model={codeModel}
             onModel={setCodeModel}
             messages={activeCode?.messages ?? []}
             onMessages={onCodeMessages}
+            onUseAsPrompt={useAsPrompt}
+            onUseAsInput={useAsInput}
+            onOpenKeys={() => setKeysOpen(true)}
+            clientId={clientId}
+            onUpload={uploadRefs}
+          />
+        ) : topMode === "design" ? (
+          <DesignWorkspace
+            active={activeDesign}
+            onCreateSession={() => createAndOpen("design")}
+            models={chatModels}
+            ollamaUp={ollamaUp}
+            model={designModel}
+            onModel={setDesignModel}
+            messages={activeDesign?.messages ?? []}
+            onMessages={onDesignMessages}
             onUseAsPrompt={useAsPrompt}
             onUseAsInput={useAsInput}
             onOpenKeys={() => setKeysOpen(true)}

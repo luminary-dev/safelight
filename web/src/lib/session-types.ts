@@ -1,13 +1,15 @@
 import type { JobOutput } from "@/lib/comfy/types";
 import type { Job } from "@/lib/studio-state";
 
-export type SessionKind = "chat" | "image" | "code";
+export type SessionKind = "chat" | "image" | "code" | "design";
 
 export interface ToolCall {
   id: string;
   name: string;
   args: Record<string, unknown>;
   state: "running" | "done" | "error";
+  /** The tool's structured result, for cards that render richer previews (e.g. theme swatches). */
+  result?: unknown;
   note?: string;
   images?: JobOutput[];
 }
@@ -70,9 +72,17 @@ export interface CodeSession extends SessionBase {
   messages: ChatMessage[];
   /** Absolute folder on this machine the agent may read and edit. */
   root: string;
+  /** Extra absolute paths the user approved beyond the root (a folder approves its subtree). */
+  approvedPaths?: string[];
 }
 
-export type Session = ChatSession | ImageSession | CodeSession;
+export interface DesignSession extends SessionBase {
+  kind: "design";
+  model: string;
+  messages: ChatMessage[];
+}
+
+export type Session = ChatSession | ImageSession | CodeSession | DesignSession;
 
 export function autoTitle(text: string, fallback: string): string {
   const t = text.replace(/\s+/g, " ").trim();
@@ -81,9 +91,10 @@ export function autoTitle(text: string, fallback: string): string {
 }
 
 export function newSession(kind: SessionKind): Session {
-  const base = { id: crypto.randomUUID(), title: kind === "chat" ? "New chat" : kind === "code" ? "New coding session" : "New image session", titled: false, createdAt: Date.now(), updatedAt: Date.now() };
+  const base = { id: crypto.randomUUID(), title: kind === "chat" ? "New chat" : kind === "code" ? "New coding session" : kind === "design" ? "New design session" : "New image session", titled: false, createdAt: Date.now(), updatedAt: Date.now() };
   if (kind === "chat") return { ...base, kind, model: "", messages: [] };
-  if (kind === "code") return { ...base, kind, model: "", messages: [], root: "" };
+  if (kind === "code") return { ...base, kind, model: "", messages: [], root: "", approvedPaths: [] };
+  if (kind === "design") return { ...base, kind, model: "", messages: [] };
   return { ...base, kind: "image", draft: "", currentJobId: null, jobs: [] };
 }
 

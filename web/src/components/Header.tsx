@@ -8,7 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export type TopMode = "chat" | "image" | "code" | "library";
+export type TopMode = "chat" | "image" | "code" | "design" | "library";
 export type Tone = "ok" | "warn" | "down" | "checking" | "off";
 
 export interface SystemRow {

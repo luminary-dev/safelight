@@ -1,9 +1,9 @@
 "use client";
 
-import { Code2, FolderInput, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Code2, FolderInput, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { ChatSession, CodeSession, ImageSession, Project, Session } from "@/lib/session-types";
+import type { ChatSession, CodeSession, DesignSession, ImageSession, Project, Session } from "@/lib/session-types";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "./ConfirmDelete";
 import type { SystemRow, Tone, TopMode } from "./Header";
@@ -13,7 +13,9 @@ import { ThemeToggle } from "./ThemeToggle";
 const TONE_DOT: Record<Tone, string> = { ok: "bg-green", warn: "bg-terracotta", down: "bg-danger", checking: "bg-faint pulse", off: "bg-line-strong" };
 const TONE_TEXT: Record<Tone, string> = { ok: "text-green", warn: "text-terracotta", down: "text-danger", checking: "text-ink-muted", off: "text-faint" };
 
-function group(sessions: (ChatSession | ImageSession | CodeSession)[]): { label: string; items: (ChatSession | ImageSession | CodeSession)[] }[] {
+type ListSession = ChatSession | ImageSession | CodeSession | DesignSession;
+
+function group(sessions: ListSession[]): { label: string; items: ListSession[] }[] {
   const dayStart = new Date().setHours(0, 0, 0, 0);
   const today = sessions.filter((s) => s.updatedAt >= dayStart);
   const earlier = sessions.filter((s) => s.updatedAt < dayStart);
@@ -31,9 +33,11 @@ export function Sidebar({
   chatSessions,
   imageSessions,
   codeSessions,
+  designSessions,
   activeChatId,
   activeImageId,
   activeCodeId,
+  activeDesignId,
   onSelectSession,
   onCreateSession,
   onRenameSession,
@@ -58,11 +62,13 @@ export function Sidebar({
   chatSessions: ChatSession[];
   imageSessions: ImageSession[];
   codeSessions: CodeSession[];
+  designSessions: DesignSession[];
   activeChatId: string | null;
   activeImageId: string | null;
   activeCodeId: string | null;
+  activeDesignId: string | null;
   onSelectSession: (id: string) => void;
-  onCreateSession: (kind: "chat" | "image" | "code") => void;
+  onCreateSession: (kind: "chat" | "image" | "code" | "design") => void;
   onRenameSession: (id: string, title: string) => void;
   onDeleteSession: (id: string) => void;
   onMoveSession: (id: string, projectId: string | null) => void;
@@ -118,9 +124,9 @@ export function Sidebar({
     // Re-fetch when renders start or finish, since that is when memory moves.
   }, [queueCount]);
 
-  const kind = mode === "chat" ? "chat" : mode === "code" ? "code" : "image";
-  const list = (mode === "chat" ? chatSessions : mode === "code" ? codeSessions : imageSessions) as (ChatSession | ImageSession | CodeSession)[];
-  const activeId = mode === "chat" ? activeChatId : mode === "code" ? activeCodeId : activeImageId;
+  const kind = mode === "chat" ? "chat" : mode === "code" ? "code" : mode === "design" ? "design" : "image";
+  const list = (mode === "chat" ? chatSessions : mode === "code" ? codeSessions : mode === "design" ? designSessions : imageSessions) as ListSession[];
+  const activeId = mode === "chat" ? activeChatId : mode === "code" ? activeCodeId : mode === "design" ? activeDesignId : activeImageId;
   const filtered = useMemo(() => (query.trim() ? list.filter((s) => s.title.toLowerCase().includes(query.trim().toLowerCase())) : list), [list, query]);
   // Decimal gigabytes, matching how the machine's memory is marketed and shown in About This Mac.
   const usedGb = ram ? (ram.total - ram.free) / 1e9 : 0;
@@ -152,6 +158,7 @@ export function Sidebar({
             ["chat", "Chat", MessageSquare, null],
             ["image", "Image", ImageIcon, null],
             ["code", "Code", Code2, null],
+            ["design", "Design", Palette, null],
             ["library", "Library", LibraryBig, galleryCount],
           ] as const
         ).map(([value, label, Icon, count]) => (
@@ -174,12 +181,12 @@ export function Sidebar({
       {mode !== "library" ? (
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           <div className="flex items-center justify-between px-3 pb-1.5">
-            <span className="text-[12px] font-medium text-placeholder">{mode === "chat" ? "Conversations" : mode === "code" ? "Coding sessions" : "Sessions"}</span>
+            <span className="text-[12px] font-medium text-placeholder">{mode === "chat" ? "Conversations" : mode === "code" ? "Coding sessions" : mode === "design" ? "Design sessions" : "Sessions"}</span>
             <button type="button" onClick={() => onCreateSession(kind)} className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[12px] font-medium text-faint hover:bg-pill hover:text-ink">
               <Plus className="size-3" /> New
             </button>
           </div>
-          {filtered.length === 0 ? <p className="px-3 py-4 text-[13px] text-placeholder">{query ? "No matches." : mode === "chat" ? "Your first message starts a chat." : mode === "code" ? "Point a session at a folder to start." : "Your first render starts a session."}</p> : null}
+          {filtered.length === 0 ? <p className="px-3 py-4 text-[13px] text-placeholder">{query ? "No matches." : mode === "chat" ? "Your first message starts a chat." : mode === "code" ? "Point a session at a folder to start." : mode === "design" ? "Ask for a theme to start." : "Your first render starts a session."}</p> : null}
           {group(filtered).map((g) => (
             <div key={g.label} className="flex flex-col gap-0.5">
               <span className="px-3 pb-1 pt-2.5 text-[12px] font-medium text-placeholder">{g.label}</span>

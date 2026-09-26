@@ -1,7 +1,8 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import type { NextRequest } from "next/server";
-import { codeSystemPrompt, codeToolDefs, executeCodeTool } from "@/lib/agent/code-tools";
+import { waitForApproval } from "@/lib/agent/approvals";
+import { codeSystemPrompt, codeToolDefs, executeCodeTool, type CodeAccess } from "@/lib/agent/code-tools";
 import { runAgent } from "@/lib/agent/run";
 import type { AgentEvent } from "@/lib/agent/tools";
 import { toTurns, type WireMessage } from "@/lib/chat-images";
@@ -9,7 +10,7 @@ import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 
 /** Streams newline-delimited JSON events while the coding agent reads and edits files under the session's workspace folder. */
 export async function POST(request: NextRequest) {
-  let body: { provider?: string; model?: string; messages?: WireMessage[]; root?: string; clientId?: string };
+  let body: { provider?: string; model?: string; messages?: WireMessage[]; root?: string; approvedPaths?: string[]; clientId?: string };
   try {
     body = await request.json();
   } catch {
@@ -31,13 +32,22 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (e: AgentEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+      const access: CodeAccess = {
+        root,
+        approved: (Array.isArray(body.approvedPaths) ? body.approvedPaths : []).filter((p) => typeof p === "string" && path.isAbsolute(p)),
+        requestApproval: (absPath, tool) => {
+          const id = crypto.randomUUID();
+          emit({ type: "approval", id, path: absPath, tool });
+          return waitForApproval(id);
+        },
+      };
       try {
         await runAgent(provider as ProviderId | "ollama", body.model!, turns, {
           clientId: body.clientId ?? "code",
           emit,
           signal: request.signal,
           systemPrompt: codeSystemPrompt(root),
-          toolset: { defs: codeToolDefs(), execute: (name, args) => executeCodeTool(name, args, root) },
+          toolset: { defs: codeToolDefs(), execute: (name, args) => executeCodeTool(name, args, access) },
         });
       } catch (err) {
         if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "The coding agent failed." });

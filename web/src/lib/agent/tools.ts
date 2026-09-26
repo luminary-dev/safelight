@@ -36,6 +36,7 @@ export interface ToolContext {
 export type AgentEvent =
   | { type: "text"; text: string }
   | { type: "tool"; id: string; name: string; args: Record<string, unknown>; state: "running" | "done" | "error"; result?: unknown; images?: JobOutput[]; note?: string }
+  | { type: "approval"; id: string; path: string; tool: string }
   | { type: "status"; text: string }
   | { type: "error"; text: string }
   | { type: "done" };
