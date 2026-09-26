@@ -134,7 +134,7 @@ export function CodeWorkspace({
             <FolderCode className="size-8 text-placeholder" />
             <h2 className="font-display text-[20px] font-semibold text-ink">Point this session at a folder</h2>
             <p className="text-[14px] leading-relaxed text-ink-muted [text-wrap:pretty]">
-              Paste the absolute path of a project above. The model can then list, read, and edit files inside that folder — and nowhere else. It cannot run commands.
+              Paste the absolute path of a project above. The model can then search, read, and edit files inside that folder — and nowhere else without your approval. Commands run only after you approve each one.
             </p>
           </div>
         )}
