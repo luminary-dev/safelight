@@ -1,0 +1,9 @@
+node_modules
+.next
+tsconfig.tsbuildinfo
+.env
+.env.*
+*.log
+.DS_Store
+Dockerfile
+.dockerignore

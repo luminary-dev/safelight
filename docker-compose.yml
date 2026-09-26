@@ -1,0 +1,121 @@
+# Safelight — server / headless deployment (the Linux-server path).
+#
+# On this Mac, Docker has no GPU passthrough (no Metal/MPS inside containers),
+# so the recommended local setup stays native: scripts/dev.sh (Next.js) +
+# scripts/comfy.sh (ComfyUI on Metal) + Ollama.app. Use this compose file on
+# a Linux server, ideally with an NVIDIA GPU (see the commented GPU blocks).
+#
+# LICENSING (docs/adr/0001): the comfyui service builds a Python-deps-only
+# image and bind-mounts YOUR local ./comfyui clone at start. No ComfyUI code
+# is ever baked into an image. Never push any image built from this file.
+#
+#   docker compose up -d --build
+#   docker compose logs -f web
+
+name: safelight
+
+services:
+  web:
+    build:
+      context: ./web
+      args:
+        # Inlined into the client bundle at BUILD time. The browser opens
+        # this WebSocket itself, so for LAN access set it to the ComfyUI
+        # port as reachable from the browser, e.g. ws://192.168.1.10:8188,
+        # then rebuild: docker compose build web
+        NEXT_PUBLIC_COMFY_WS: ${NEXT_PUBLIC_COMFY_WS:-ws://127.0.0.1:8188}
+    ports:
+      - "3001:3001"
+    environment:
+      SAFELIGHT_DATA_DIR: /data
+      # Comma-separated extra hostnames the middleware host allowlist accepts
+      # (localhost/127.0.0.1 are always allowed). Required for LAN access,
+      # e.g. "192.168.1.10,safelight.lan". Set it in .env.
+      SAFELIGHT_ALLOWED_HOSTS: ${SAFELIGHT_ALLOWED_HOSTS:-}
+      # Server-side URLs of the sibling services on the compose network.
+      COMFY_URL: http://comfyui:8188
+      OLLAMA_URL: http://ollama:11434
+      COMFY_OUTPUT_DIR: /outputs
+      COMFY_INPUT_DIR: /inputs
+      # ComfyUI's model-path map, via the read-only clone mount below.
+      COMFY_EXTRA_MODEL_PATHS: /comfyui/extra_model_paths.yaml
+      BLUEPRINTS_DIR: /comfyui/blueprints
+    volumes:
+      - safelight-data:/data
+      - ./outputs:/outputs
+      - ./inputs:/inputs
+      # Read-only view of the clone so the model manager and blueprints
+      # resolve; ComfyUI itself runs in its own service.
+      - ./comfyui:/comfyui:ro
+    depends_on:
+      - comfyui
+      - ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  comfyui:
+    build:
+      # Context is the user's local clone (for requirements.txt only);
+      # the Dockerfile copies no ComfyUI code — see comfyui.Dockerfile.
+      context: ./comfyui
+      dockerfile: ../comfyui.Dockerfile
+    ports:
+      # Published so the browser's direct WebSocket (NEXT_PUBLIC_COMFY_WS)
+      # can reach it. Remove if only server-side access is needed.
+      - "8188:8188"
+    volumes:
+      # The GPL clone stays on the host; mounted, never copied into an image.
+      - ./comfyui:/app
+      - ./outputs:/outputs
+      - ./inputs:/inputs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8188/system_stats', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    # --- NVIDIA GPU (Linux + NVIDIA Container Toolkit) ---
+    # 1. Switch comfyui.Dockerfile to the CUDA torch block (see comments there)
+    #    and remove "--cpu" from its CMD (e.g. via `command:` here).
+    # 2. Uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      # Published for debugging with the ollama CLI from the host; the web
+      # service reaches it over the compose network either way.
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "ps"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    # --- NVIDIA GPU (Linux + NVIDIA Container Toolkit) ---
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  safelight-data:
+  ollama-models:

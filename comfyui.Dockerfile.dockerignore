@@ -1,0 +1,6 @@
+# BuildKit ignore file for comfyui.Dockerfile (context: ./comfyui).
+# Exclude EVERYTHING except the dependency list: the image must contain no
+# ComfyUI (GPL-3.0) code (docs/adr/0001), and the multi-GB clone (.venv,
+# models) must not be shipped to the Docker daemon as build context.
+*
+!requirements.txt

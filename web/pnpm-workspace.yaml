@@ -1,6 +1,6 @@
 allowBuilds:
   '@google/genai': false
-  better-sqlite3: set this to true or false
+  better-sqlite3: true
   protobufjs: false
   sharp: true
   unrs-resolver: false

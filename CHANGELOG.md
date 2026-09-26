@@ -12,6 +12,13 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Docker deployment (Workstream Q): a multi-stage web image (standalone Next, non-root,
+  /data volume — built and smoke-tested: health, sessions DB, host-allowlist 403 all
+  verified in-container) and a GPL-safe compose stack where the user's local ComfyUI clone
+  is bind-mounted, never baked into an image, plus Ollama, healthchecks, `.env.example`
+  covering every env the code reads, `docs/deploy.md`, and a concrete Tauri 2 desktop plan
+  in `docs/desktop-plan.md`. Also fixes a placeholder in pnpm-workspace.yaml that broke
+  fresh installs.
 - Agent runtime (Workstream G, round two): per-session sampling params (temperature, top-p,
   max tokens) honored by every provider; per-project memory the agent reads and appends —
   explicit, user-visible notes at `/api/notes`, never silent; code and design agents can
