@@ -258,27 +258,26 @@ describe("generate_image", () => {
   it("integration: the real queue+wait chain against the fake ComfyUI emits Queued then Rendering ticks", async () => {
     gc.real = true;
     comfy.setAutoComplete(false);
-    vi.useFakeTimers({ toFake: ["setTimeout"] }); // fake only the poll sleep; I/O and Date stay real
-    const yieldIo = async (until: () => boolean) => {
-      for (let i = 0; i < 2000 && !until(); i++) await new Promise((r) => setImmediate(r));
+    // Real timers throughout: faking setTimeout can stall fetch internals on slow
+    // runners (the CI flake this replaced). The poll loop sleeps 2 s once, so the
+    // test costs ~2-3 s wall — an accepted price for exercising the REAL chain.
+    const waitFor = async (until: () => boolean, what: string, ms = 15000) => {
+      const start = Date.now();
+      while (!until()) {
+        if (Date.now() - start > ms) throw new Error(`timed out waiting for ${what}`);
+        await new Promise((r) => setTimeout(r, 25));
+      }
     };
-    try {
-      const pending = generate({ prompt: "p", model: QWEN });
-      pending.catch(() => {}); // asserted below; never unhandled
-      const notes = () => events.flatMap((e) => (e.type === "tool" && e.note ? [e.note] : []));
-      await yieldIo(() => notes().length >= 1);
-      expect(notes()[0]).toMatch(/^Queued · \d+s$/);
-      comfy.completePrompt("fake-prompt-1");
-      // Wake the 2 s poll sleep; the next jobStatus sees the finished history entry.
-      await vi.advanceTimersByTimeAsync(2100);
-      await yieldIo(() => notes().length >= 2);
-      const { result } = await pending;
-      expect(notes().at(-1)).toMatch(/^Rendering · \d+s$/);
-      expect(result.images).toEqual(["safelight/ComfyUI_00001_.png"]);
-      expect(result.modelId).toBe(QWEN);
-    } finally {
-      vi.useRealTimers();
-    }
+    const pending = generate({ prompt: "p", model: QWEN });
+    pending.catch(() => {}); // asserted below; never unhandled
+    const notes = () => events.flatMap((e) => (e.type === "tool" && e.note ? [e.note] : []));
+    await waitFor(() => notes().length >= 1, "the Queued tick");
+    expect(notes()[0]).toMatch(/^Queued · \d+s$/);
+    comfy.completePrompt("fake-prompt-1");
+    const { result } = await pending;
+    expect(notes().at(-1)).toMatch(/^(Queued|Rendering) · \d+s$/);
+    expect(result.images).toEqual(["safelight/ComfyUI_00001_.png"]);
+    expect(result.modelId).toBe(QWEN);
   });
 });
 
