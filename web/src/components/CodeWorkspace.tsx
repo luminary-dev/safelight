@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import type { JobOutput } from "@/lib/comfy/types";
 import type { ChatAttachment, ChatMessage, CodeSession } from "@/lib/session-types";
 import { ChatMode, chatModelKey, type ChatModelInfo, type PromptHandoff } from "./ChatMode";
+import { FolderBrowser } from "./FolderBrowser";
 import { ModelPicker } from "./ModelPicker";
 
 /** Code as the main panel: a workspace folder on this machine, and an agent that reads and edits files inside it. */
@@ -80,6 +81,13 @@ export function CodeWorkspace({
             aria-label="Workspace folder"
           />
         </label>
+        <FolderBrowser
+          start={root || undefined}
+          onPick={(p) => {
+            setDraft(p);
+            onRoot(p);
+          }}
+        />
         <button type="button" onClick={onCreateSession} className="btn-ink gap-1.5">
           <Plus className="size-4" /> New session
         </button>
