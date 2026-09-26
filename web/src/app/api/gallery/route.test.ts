@@ -144,3 +144,17 @@ describe("DELETE confinement (§15 payload list)", () => {
     }
   });
 });
+
+describe("DELETE removes the metadata sidecar with the image", () => {
+  it("deletes <image>.json beside the file and ignores its absence", async () => {
+    const withSidecar = path.join(OUT, "with-sidecar.png");
+    writeFileSync(withSidecar, "x");
+    writeFileSync(`${withSidecar}.json`, JSON.stringify({ v: 1 }));
+    writeFileSync(path.join(OUT, "without-sidecar.png"), "x");
+
+    expect((await del({ filename: "with-sidecar.png", subfolder: "" })).status).toBe(200);
+    expect(existsSync(`${withSidecar}.json`)).toBe(false);
+
+    expect((await del({ filename: "without-sidecar.png", subfolder: "" })).status).toBe(200);
+  });
+});

@@ -62,6 +62,8 @@ export async function DELETE(request: NextRequest) {
   }
   try {
     await unlink(full);
+    // The render's metadata sidecar goes with it; a lone .json is just clutter.
+    await unlink(`${full}.json`).catch(() => undefined);
     return Response.json({ ok: true });
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;

@@ -28,6 +28,8 @@ All notable changes to Safelight are documented here. The format follows
   e2e; coverage over the full surface 38 % → **77.7 % lines**, floors ratcheted to 75/72/62/63.
 
 ### Fixed
+- Deleting a render from the gallery now removes its metadata sidecar too (orphaned
+  `.json` files no longer accumulate beside deleted images).
 - Privacy: "Local only" now also gates the cloud provider catalog — with the switch on,
   model listing no longer contacts configured providers (the one outbound feature without a
   guard, exposed by the new absolute no-outbound test). Live render progress now names five
