@@ -280,7 +280,10 @@
       "closeCompare": "Close compare",
       "divider": "Comparison divider",
       "badgeA": "A",
-      "badgeB": "B"
+      "badgeB": "B",
+      "abToggleAria": "Which print is shown",
+      "showA": "Show A",
+      "showB": "Show B"
     },
     "export": "Export",
     "clear": "Clear",

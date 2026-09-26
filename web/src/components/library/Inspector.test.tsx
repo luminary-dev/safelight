@@ -79,6 +79,17 @@ describe("library Inspector", () => {
     expect(onRemoveTag).toHaveBeenCalledWith("portrait");
   });
 
+  it("is a bottom drawer below 1024 (§5 item 9) and long tags keep their full value in a title", () => {
+    stubFetch();
+    const subject = item({ tags: ["a-very-long-tag-name-that-will-truncate-in-a-chip"] });
+    const view = renderApp(<Inspector {...props(subject)} />);
+
+    const aside = view.container.querySelector("aside") as HTMLElement;
+    expect(aside.className).toContain("max-lg:fixed");
+    expect(aside.className).toContain("max-lg:bottom-0");
+    expect(screen.getByTitle("a-very-long-tag-name-that-will-truncate-in-a-chip")).toBeInTheDocument();
+  });
+
   it("delete asks for confirmation before it destroys anything", async () => {
     stubFetch();
     const onDelete = vi.fn(async () => {});

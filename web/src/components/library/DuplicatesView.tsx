@@ -53,7 +53,7 @@ export function DuplicatesView({
             </p>
             <button
               type="button"
-              className="btn-quiet h-7 rounded-full px-3 font-mono text-[11px]"
+              className="btn-quiet h-7 rounded-full px-3 font-mono text-[11px] max-lg:min-h-11"
               onClick={() => onSelectMany(g.items.slice(1).map((i) => i.path))}
             >
               {t("selectAllButNewest")}

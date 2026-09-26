@@ -4,6 +4,7 @@ import { ArrowUp, Check, Folder, FolderOpen, Home, Loader2 } from "lucide-react"
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TruncatedText } from "@/components/ui/truncated-text";
 
 interface Listing {
   path: string;
@@ -44,13 +45,13 @@ export function FolderBrowser({ start, onPick }: { start?: string; onPick: (path
       }}
     >
       <PopoverTrigger asChild>
-        <button type="button" className="btn-quiet gap-1.5 whitespace-nowrap" aria-label={t("browseAria")}>
+        <button type="button" className="btn-quiet gap-1.5 whitespace-nowrap max-lg:min-h-11" aria-label={t("browseAria")}>
           <FolderOpen className="size-3.5" /> {t("browse")}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="glass w-[380px] gap-0 rounded-[16px] p-0 ring-0">
         <div className="flex items-center gap-1.5 border-b border-line px-3 py-2.5">
-          <button type="button" aria-label={t("home")} onClick={() => void load()} className="grid size-6 shrink-0 place-items-center rounded-full text-ink-muted hover:bg-pill hover:text-ink">
+          <button type="button" aria-label={t("home")} onClick={() => void load()} className="grid size-8 shrink-0 place-items-center rounded-full text-ink-muted hover:bg-pill hover:text-ink max-lg:size-11">
             <Home className="size-3.5" />
           </button>
           <button
@@ -58,22 +59,21 @@ export function FolderBrowser({ start, onPick }: { start?: string; onPick: (path
             aria-label={t("up")}
             disabled={!listing?.parent}
             onClick={() => listing?.parent && void load(listing.parent)}
-            className="grid size-6 shrink-0 place-items-center rounded-full text-ink-muted hover:bg-pill hover:text-ink disabled:opacity-40"
+            className="grid size-8 shrink-0 place-items-center rounded-full text-ink-muted hover:bg-pill hover:text-ink disabled:opacity-40 max-lg:size-11"
           >
             <ArrowUp className="size-3.5" />
           </button>
-          <span className="min-w-0 flex-1 truncate text-left font-mono text-[11px] text-ink-muted" title={listing?.path}>
-            {listing?.path ?? "…"}
-          </span>
+          {/* Deep absolute paths truncate but keep the full value reachable via title. */}
+          <TruncatedText text={listing?.path ?? "…"} title={listing?.path ?? "…"} className="flex-1 text-left font-mono text-[11px] text-ink-muted" />
           {loading ? <Loader2 className="size-3.5 shrink-0 animate-spin text-faint" /> : null}
         </div>
         <div className="max-h-[300px] overflow-y-auto p-1.5">
           {error ? <p className="px-3 py-4 text-[13px] text-danger">{error}</p> : null}
           {listing && listing.dirs.length === 0 && !error ? <p className="px-3 py-4 text-[13px] text-placeholder">{t("noSubfolders")}</p> : null}
           {listing?.dirs.map((d) => (
-            <button key={d.path} type="button" onClick={() => void load(d.path)} className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left text-[13.5px] text-ink-muted transition-colors hover:bg-pill/60 hover:text-ink">
+            <button key={d.path} type="button" onClick={() => void load(d.path)} className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left text-[13.5px] text-ink-muted transition-colors hover:bg-pill/60 hover:text-ink max-lg:min-h-11">
               <Folder className="size-4 shrink-0 text-placeholder" />
-              <span className="truncate">{d.name}</span>
+              <TruncatedText text={d.name} title={d.path} />
             </button>
           ))}
         </div>
@@ -86,7 +86,7 @@ export function FolderBrowser({ start, onPick }: { start?: string; onPick: (path
               onPick(listing.path);
               setOpen(false);
             }}
-            className="btn-primary h-9 w-full rounded-[10px] text-[13.5px]"
+            className="btn-primary h-9 w-full rounded-[10px] text-[13.5px] max-lg:min-h-11"
           >
             <Check className="size-4" /> {t("useFolder")}
           </button>

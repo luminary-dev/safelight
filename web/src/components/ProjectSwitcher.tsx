@@ -64,9 +64,10 @@ export function ProjectSwitcher({
           />
         </form>
       ) : (
-        <Popover open={open} onOpenChange={setOpen}>
+        // modal (§6): while the switcher is open the page behind is inert — body locked, no half-covered targets.
+        <Popover open={open} onOpenChange={setOpen} modal>
           <PopoverTrigger asChild>
-            <button type="button" className="inline-flex min-w-0 max-w-[160px] items-center gap-1 rounded-full px-1.5 py-0.5 text-[12px] font-medium text-ink-muted hover:bg-pill hover:text-ink">
+            <button type="button" className="inline-flex min-w-0 max-w-[160px] items-center gap-1 rounded-full px-1.5 py-0.5 text-[12px] font-medium text-ink-muted hover:bg-pill hover:text-ink" title={active?.title ?? t("allProjects")}>
               <span className="truncate">{active?.title ?? t("allProjects")}</span>
               <ChevronDown className={cn("size-3 shrink-0 text-faint transition-transform", open && "rotate-180")} />
             </button>
@@ -80,7 +81,7 @@ export function ProjectSwitcher({
                   onCreate();
                   setOpen(false);
                 }}
-                className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-ink hover:border-terracotta hover:text-terracotta"
+                className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-ink hover:border-terracotta hover:text-terracotta max-lg:min-h-11"
               >
                 <Plus className="size-3" /> {t("new")}
               </button>
@@ -93,12 +94,12 @@ export function ProjectSwitcher({
                     onSelect(null);
                     setOpen(false);
                   }}
-                  className={cn("flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-start transition-colors", activeId === null ? "bg-pill text-ink" : "hover:bg-pill/60")}
+                  className={cn("flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-start transition-colors max-lg:min-h-11", activeId === null ? "bg-pill text-ink" : "hover:bg-pill/60")}
                 >
                   <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", activeId === null ? "bg-terracotta" : "bg-line-strong")} />
                   <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                    <span className="truncate font-display text-[13px] font-medium text-ink">{t("allProjects")}</span>
-                    <span className="truncate font-mono text-[10.5px] text-faint">{t("allProjectsSubtitle")}</span>
+                    <span className="truncate font-display text-[13px] font-medium text-ink" title={t("allProjects")}>{t("allProjects")}</span>
+                    <span className="truncate font-mono text-[10.5px] text-faint" title={t("allProjectsSubtitle")}>{t("allProjectsSubtitle")}</span>
                   </span>
                 </button>
               </li>
@@ -110,15 +111,16 @@ export function ProjectSwitcher({
                       onSelect(p.id);
                       setOpen(false);
                     }}
-                    className={cn("flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 pe-16 text-start transition-colors", p.id === activeId ? "bg-pill text-ink" : "hover:bg-pill/60")}
+                    className={cn("flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 pe-16 text-start transition-colors max-lg:min-h-11 max-lg:pe-20", p.id === activeId ? "bg-pill text-ink" : "hover:bg-pill/60")}
                   >
                     <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", p.id === activeId ? "bg-terracotta" : "bg-line-strong")} />
                     <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                      <span className="truncate font-display text-[13px] font-medium text-ink">{p.title}</span>
-                      <span className="truncate font-mono text-[10.5px] text-faint">{summary(p)}</span>
+                      <span className="truncate font-display text-[13px] font-medium text-ink" title={p.title}>{p.title}</span>
+                      <span className="truncate font-mono text-[10.5px] text-faint" title={summary(p)}>{summary(p)}</span>
                     </span>
                   </button>
-                  <div className="absolute end-2 top-1/2 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-focus-within/p:opacity-100 group-hover/p:opacity-100">
+                  {/* Hover-only affordance gets a touch equivalent (§8): always visible at coarse pointers. */}
+                  <div className="absolute end-2 top-1/2 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-focus-within/p:opacity-100 group-hover/p:opacity-100 pointer-coarse:opacity-100">
                     <button
                       type="button"
                       aria-label={t("rename")}
@@ -128,7 +130,7 @@ export function ProjectSwitcher({
                         setEditing(true);
                         setOpen(false);
                       }}
-                      className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted hover:text-ink"
+                      className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted hover:text-ink max-lg:size-8"
                     >
                       <Pencil className="size-3" />
                     </button>
@@ -141,7 +143,7 @@ export function ProjectSwitcher({
                       })}
                       onConfirm={() => onDelete(p.id)}
                       trigger={
-                        <button type="button" aria-label={t("delete")} className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted hover:text-danger">
+                        <button type="button" aria-label={t("delete")} className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted hover:text-danger max-lg:size-8">
                           <Trash2 className="size-3" />
                         </button>
                       }
@@ -161,7 +163,7 @@ export function ProjectSwitcher({
             setDraft(active.title);
             setEditing(true);
           }}
-          className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink"
+          className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink max-lg:size-11"
         >
           <Pencil className="size-3" />
         </button>

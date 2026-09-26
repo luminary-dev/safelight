@@ -28,6 +28,19 @@ function browseRoute() {
 }
 
 describe("FolderBrowser", () => {
+  it("deep paths and folder names truncate with the full value in a title", async () => {
+    stubFetch(browseRoute());
+    const user = userEvent.setup();
+    renderApp(<FolderBrowser onPick={() => {}} />);
+
+    await user.click(screen.getByRole("button", { name: "Browse for a folder" }));
+    await screen.findByText("/Users/me");
+    // The current-path readout carries its own full value…
+    expect(screen.getByTitle("/Users/me")).toBeInTheDocument();
+    // …and each folder row's title is the full absolute path, not just the name.
+    expect(screen.getByTitle("/Users/me/code")).toHaveTextContent("code");
+  });
+
   it("browses into a folder, back up, and picks the current path", async () => {
     stubFetch(browseRoute());
     const onPick = vi.fn();

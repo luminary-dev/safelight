@@ -6,6 +6,14 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Responsive integrity (UI brief, Tier B): every floating primitive (dialog, alert, sheet,
+  popover, select, tooltip, command) now gets viewport-aware max sizes and collision
+  handling centrally; the Settings/Keys/MCP/Model-manager dialogs pin their header, scroll
+  internally, and become full-height sheets below 768 (Keys also gained its missing focus
+  trap, and the reveal-eye no longer overlaps the input); the Library inspector becomes a
+  bottom drawer below 1024, Compare stacks into an A/B toggle below 768, and long
+  names/paths truncate accessibly with 44px touch targets on narrow screens. Across all
+  audit scopes: overlaps 15 → 0, clipping 128 → 0, unlabeled truncation 553 → 0.
 - Responsive integrity (UI brief, Tier C): chat bubbles break 300-char words, URLs and
   base64 instead of widening the column, code blocks scroll sideways, and the chat composer
   caps at 40dvh; the Image composer's aspect/size pills became a labelled scroll strip and

@@ -61,7 +61,13 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Viewport contract (UI-RESPONSIVE-BRIEF §6): never wider than the
+          // viewport minus gutters, never taller than 100dvh; the dialog is a
+          // flex column so a DialogBody scrolls while header/footer stay pinned.
+          "fixed z-50 flex w-full flex-col gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // <768: a bottom sheet with pinned actions; ≥768: centered.
+          "inset-x-0 bottom-0 max-h-[calc(100dvh-1.5rem)] max-w-full rounded-b-none",
+          "md:inset-x-auto md:top-1/2 md:bottom-auto md:left-1/2 md:max-h-[calc(100dvh-2rem)] md:max-w-sm md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-b-xl",
           className
         )}
         {...props}
@@ -89,7 +95,21 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("flex shrink-0 flex-col gap-2", className)}
+      {...props}
+    />
+  )
+}
+
+/**
+ * The dialog's scroll region (§6): the body scrolls, never the whole dialog,
+ * so the footer can never scroll away.
+ */
+function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-body"
+      className={cn("min-h-0 flex-1 overflow-y-auto", className)}
       {...props}
     />
   )
@@ -107,7 +127,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 flex shrink-0 flex-col-reverse gap-2 border-t bg-muted/50 p-4 max-md:rounded-b-none sm:flex-row sm:justify-end md:rounded-b-xl",
         className
       )}
       {...props}
@@ -156,6 +176,7 @@ function DialogDescription({
 
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,

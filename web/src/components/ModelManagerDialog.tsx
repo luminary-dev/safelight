@@ -9,6 +9,7 @@ import { KIND_LABEL, SELECTABLE_KINDS, folderForKind } from "@/lib/models/kinds"
 import { STARTER_PICKS } from "@/lib/models/registry";
 import type { DownloadProgress, FileKind, RemoteFile, SearchResult } from "@/lib/models/types";
 import { cn } from "@/lib/utils";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useDialogFocus } from "./shell";
 
 type Tab = "starter" | "search";
@@ -116,12 +117,10 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
     const folder = folderForKind(kind);
     const shortName = file.name.split("/").pop() ?? file.name;
     return (
-      <div key={file.downloadUrl} className="flex items-center justify-between gap-3 py-1.5">
-        <div className="min-w-0">
-          <p className="truncate font-mono text-[11.5px]" title={file.name}>
-            {shortName}
-          </p>
-          <p className="font-mono text-[10.5px] text-faint">
+      <div key={file.downloadUrl} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-1.5">
+        <div className="min-w-0 flex-1 basis-48">
+          <TruncatedText text={shortName} title={file.name} as="p" className="font-mono text-[11.5px]" />
+          <p className="font-mono text-[10.5px] text-faint [overflow-wrap:anywhere]">
             {formatBytes(file.sizeBytes)}
             {file.sha256 ? " · sha256 ✓" : ""}
             {folder ? ` · → ${folder}/` : ""}
@@ -131,7 +130,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
           {file.kind === "unknown" ? (
             <select
               aria-label={t("folderFor", { name: shortName })}
-              className="field h-7 rounded-full px-2 font-mono text-[10.5px]"
+              className="field h-8 w-auto max-w-40 rounded-full px-2 font-mono text-[10.5px] max-lg:min-h-11"
               value={kindChoice[file.downloadUrl] ?? ""}
               onChange={(e) => setKindChoice((m) => ({ ...m, [file.downloadUrl]: e.target.value as FileKind }))}
             >
@@ -147,7 +146,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
           ) : null}
           <button
             type="button"
-            className="btn-quiet inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11.5px]"
+            className="btn-quiet inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[11.5px] max-lg:min-h-11"
             disabled={busyFiles.has(shortName)}
             onClick={() => void start(file)}
           >
@@ -160,8 +159,8 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
 
   const resultRow = (r: SearchResult, whatFor?: string, note?: string) => (
     <li key={`${r.source}:${r.id}`} className="flex flex-col gap-1 py-4">
-      <div className="flex items-center gap-2">
-        <span className="truncate font-display text-[15px] font-medium">{r.name}</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <TruncatedText text={r.name} className="font-display text-[15px] font-medium" />
         <span className="shrink-0 font-mono text-[11px] text-faint">{r.source === "hf" ? "Hugging Face" : r.source === "civitai" ? "Civitai" : t("sourceCurated")}</span>
         {r.nsfw ? <span className="shrink-0 rounded-[6px] bg-pill px-1.5 py-0.5 font-mono text-[10px] text-ink-muted">{t("nsfw")}</span> : null}
       </div>
@@ -182,7 +181,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0 : 0.18 }}
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[8vh] backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[8vh] backdrop-blur-sm max-md:items-stretch max-md:p-0"
           onClick={onClose}
         >
           <motion.div
@@ -190,20 +189,21 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
             initial={reduce ? false : { y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="card-raised w-full max-w-[640px] p-6"
+            className="card-raised flex max-h-[calc(92dvh-1rem)] w-full max-w-[640px] flex-col overflow-hidden max-md:max-h-dvh max-md:max-w-none max-md:rounded-none max-md:border-0"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
+            <div className="flex shrink-0 items-start justify-between gap-4 px-6 pt-6 pb-4">
+              <div className="min-w-0">
                 <span className="eyebrow text-terracotta">{t("eyebrow")}</span>
                 <h2 id="models-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">{t("heading")}</h2>
                 <p className="mt-1.5 text-sm text-ink-muted">{t("intro")}</p>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label={t("close")} data-initial-focus onClick={onClose}>
+              <button type="button" className="btn-quiet grid size-9 shrink-0 place-items-center rounded-full p-0 max-lg:size-11" aria-label={t("close")} data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <div className="flex gap-1.5">
               {(["starter", "search"] as const).map((tabId) => (
                 <button
@@ -211,7 +211,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                   type="button"
                   aria-pressed={tab === tabId}
                   onClick={() => setTab(tabId)}
-                  className={cn("rounded-full px-3 py-1 font-mono text-[11px]", tab === tabId ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
+                  className={cn("min-h-8 rounded-full px-3 py-1 font-mono text-[11px] max-lg:min-h-11", tab === tabId ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
                 >
                   {tabId === "starter" ? t("tabStarter") : t("tabSearch")}
                 </button>
@@ -220,17 +220,17 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
 
             {tab === "search" ? (
               <div className="mt-4 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void search()}
                     placeholder={source === "hf" ? t("searchPlaceholderHf") : t("searchPlaceholderCivitai")}
                     aria-label={t("searchAria")}
-                    className="field flex-1 text-sm"
+                    className="field min-w-0 flex-1 basis-40 text-sm max-lg:min-h-11"
                     autoFocus
                   />
-                  <button type="button" className="btn-primary inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px]" disabled={searching || !query.trim()} onClick={() => void search()}>
+                  <button type="button" className="btn-primary inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] max-lg:min-h-11" disabled={searching || !query.trim()} onClick={() => void search()}>
                     <Search className="size-3.5" /> {searching ? t("searching") : t("search")}
                   </button>
                 </div>
@@ -244,7 +244,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                         setSource(s);
                         setResults(null);
                       }}
-                      className={cn("rounded-full px-3 py-1 font-mono text-[11px]", source === s ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted")}
+                      className={cn("min-h-8 rounded-full px-3 py-1 font-mono text-[11px] max-lg:min-h-11", source === s ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted")}
                     >
                       {s === "hf" ? "Hugging Face" : "Civitai"}
                     </button>
@@ -260,18 +260,17 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
             {downloads.length > 0 ? (
               <div className="mt-5 border-t border-line pt-4">
                 <span className="eyebrow">{t("downloadsHeader")}</span>
-                <ul className="mt-2 flex flex-col gap-3">
+                {/* The download list scrolls internally instead of growing the dialog past the viewport. */}
+                <ul className="mt-2 flex max-h-56 flex-col gap-3 overflow-y-auto">
                   {downloads.map((d) => (
                     <li key={d.id} className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="truncate font-mono text-[11.5px]" title={d.file}>
-                          {d.fileName}
-                        </span>
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                        <TruncatedText text={d.fileName} title={d.file} className="flex-1 basis-40 font-mono text-[11.5px]" />
                         <span className="flex shrink-0 items-center gap-2">
                           <span className={cn("font-mono text-[10.5px]", d.state === "error" ? "text-danger" : "text-ink-muted")}>
                             {d.state === "downloading" ? t("progressOf", { received: formatBytes(d.received), total: formatBytes(d.total) }) : t(STATE_KEY[d.state])}
                           </span>
-                          <button type="button" aria-label={d.state === "downloading" ? t("cancelFile", { name: d.fileName }) : t("clearFile", { name: d.fileName })} onClick={() => void cancel(d.id)} className="grid size-6 place-items-center rounded-full text-faint hover:bg-pill hover:text-danger">
+                          <button type="button" aria-label={d.state === "downloading" ? t("cancelFile", { name: d.fileName }) : t("clearFile", { name: d.fileName })} onClick={() => void cancel(d.id)} className="grid size-8 place-items-center rounded-full text-faint hover:bg-pill hover:text-danger max-lg:size-11">
                             <X className="size-3" />
                           </button>
                         </span>
@@ -284,15 +283,16 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                           />
                         </div>
                       ) : null}
-                      {d.error ? <p className="font-mono text-[11px] text-danger">{d.error}</p> : null}
+                      {d.error ? <p className="font-mono text-[11px] text-danger [overflow-wrap:anywhere]">{d.error}</p> : null}
                     </li>
                   ))}
                 </ul>
               </div>
             ) : null}
 
-            {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
-            <p className="mt-4 text-[12px] leading-relaxed text-placeholder">
+            {error ? <p className="mt-3 font-mono text-xs text-danger [overflow-wrap:anywhere]">{error}</p> : null}
+            {/* Absolute model-root paths have no break opportunity — give them one so they can never widen the card (§1.2). */}
+            <p className="mt-4 text-[12px] leading-relaxed text-placeholder [overflow-wrap:anywhere]">
               {root ? (
                 t.rich("footerWithRoot", {
                   root,
@@ -302,6 +302,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                 t("footerNoRoot")
               )}
             </p>
+            </div>
           </motion.div>
         </motion.div>
       ) : null}

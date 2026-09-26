@@ -140,34 +140,53 @@ Reading notes:
   silent loss). Session header row `scrollWidth` 902 vs `clientWidth` 738 / 578 / 322 at
   1440 / 1280 / 1024, `overflow-x: visible`.
 
+## Overlay and dialog contract (Tier B, 2026-09-26)
+
+- **Every floating primitive is viewport-aware centrally** (`ui/dialog|alert-dialog|sheet|
+  popover|select|tooltip|command`): max sizes derived from `100dvh`/`100vw` minus gutters,
+  Radix collision handling (`collisionPadding` 8) where applicable. Fix a floating-layer
+  sizing bug in the primitive, not the call site.
+- **Dialogs are a flex column with exactly one scroll region**: pinned header (with the
+  Close action), pinned footer, and a `DialogBody`/`SheetBody` that owns `overflow-y`.
+  Footers can never scroll away.
+- **Below 768 every dialog becomes a bottom/full-height sheet** (full width, no bottom
+  radius, ≥ 44 px Close). The four hand-rolled dialogs (Settings/Keys/MCP/Model manager)
+  follow the same contract.
+- **CompareView decision**: below 768 the drag slider is replaced by a stacked A/B toggle
+  (two ≥ 44 px "Show A"/"Show B" buttons over one full-width easel), `matchMedia`-driven so
+  it tracks live window resizes; the slider is unchanged at ≥ 768. A vertical slider was
+  rejected — at that width the handle and the image compete for the same 390 px.
+- **Library inspector** is a fixed bottom drawer (max-h 60dvh) below 1024 instead of a
+  squeezed third column.
+
+The 2026-09-26 end-of-day sweep after Tiers A+B+C measures **4,372 findings** (from the
+6,659 pre-Tier-A baseline): overflowsViewport/clippedX/clippedY/overlaps/truncatedNoTitle
+are all **0**; what remains is tinyTargets 2,153 (the systemic 24–32 px control scale — a
+design-level decision) and contrastFails 2,211 (dominated by `--faint`/`--placeholder`
+tokens on `paper-2`, ~2.5:1 — a theme-token decision), plus 8 zeroSize.
+
 ## Per-component status
 
-"baseline (empty)" = the composed empty state was measured by the sweep above; per-component
-zero-finding sign-off still requires the populated/stress round. Everything else is
-**unaudited**.
+"fixed (tier X)" = reworked to the contract on 2026-09-26, covered by unit tests, and
+clean in that day's end sweep for its categories. Per-component zero-finding sign-off
+still requires the populated/stress round.
 
 | Component | Status |
 |---|---|
-| `shell.tsx`, `Sidebar.tsx`, `Safelight.tsx` | baseline (empty) — measured in every mode cell |
-| `ChatWorkspace.tsx` / `ChatMode.tsx` (empty) | baseline (empty) |
-| `Composer.tsx`, `ImageControls.tsx` (empty draft) | baseline (empty) |
-| `CodeWorkspace.tsx` (folder prompt) | baseline (empty) |
-| `DesignWorkspace.tsx` (empty) | baseline (empty) |
-| `Library.tsx` / `library/LibraryGrid.tsx` (empty) | baseline (empty) |
-| `BlueprintsWorkspace.tsx` (catalog, backend down) | baseline (empty) |
-| `SettingsDialog.tsx` | baseline (empty, 1440/1024/390 light) |
-| `KeysDialog.tsx` | baseline (empty, 1440/1024/390 light) — fixes owned by the KeysDialog workstream |
-| `McpDialog.tsx` | baseline (empty, 1440/1024/390 light) |
-| `ModelManagerDialog.tsx` | baseline (empty, 1440/1024/390 light) |
-| `ModelPicker.tsx` | baseline (empty popover, 1440/1024/390 light) |
-| `ProjectSwitcher.tsx` | baseline (empty popover, 1440/1024/390 light) |
-| Status panel popover (`Sidebar.tsx`) | baseline (empty, 1440/1024/390 light) |
-| `Stage.tsx` (render selected, action bar §1.1) | unaudited by the sweep — reproduced manually, Tier A |
-| `ConfirmDelete.tsx` | unaudited (needs a render) |
-| Full-size viewer, `MaskCanvas.tsx` | unaudited (needs a render; 200 % zoom pointer mapping untested) |
-| `RunQueue.tsx` | unaudited (needs queued runs) |
-| `library/Inspector.tsx`, `CompareView.tsx`, `DuplicatesView.tsx` | unaudited (need a populated library) |
-| `BlueprintRunner.tsx` (generated forms) | unaudited |
-| `FolderBrowser.tsx` | unaudited |
-| `ThemeToggle.tsx`, remaining `ui/` primitives | unaudited individually (present in baseline cells) |
-| Populated / loading / error / stress states, pseudo-locale, both orientations | unaudited — follow-up round |
+| `shell.tsx`, `Sidebar.tsx`, `Safelight.tsx` | fixed (tier A) + compact-range column handoff; Sidebar's 28×28 buttons remain the last tinyTargets in every overlay cell ≤ 1024 and its session-title span lacks a truncation title — **open, Tier A owner** |
+| `ChatWorkspace.tsx` / `ChatMode.tsx` | fixed (tier C) — word/URL/base64 wrapping, code-block scroll, 40dvh composer cap |
+| `Composer.tsx`, `ImageControls.tsx` | fixed (tier C) — labelled pill scroll strip, sticky Generate at lg+ |
+| `CodeWorkspace.tsx`, `DesignWorkspace.tsx` | fixed (tier C) — picker/chip clamps, glow width |
+| `Library.tsx` / `library/LibraryGrid.tsx` | fixed (tier B) — wrapping filter/bulk rows, touch equivalents for hover actions |
+| `BlueprintsWorkspace.tsx`, `BlueprintRunner.tsx` | fixed (tier C) — accessible truncation, per-width grids/forms; card-metadata contrast remains (theme tokens) |
+| `SettingsDialog.tsx`, `KeysDialog.tsx`, `McpDialog.tsx`, `ModelManagerDialog.tsx` | fixed (tier B) — sheet-mode contract; Keys also gained its focus trap and the eye moved out of the input rect |
+| `ModelPicker.tsx` | fixed (tier C + central popover clamp) — viewport-capped, full names in titles |
+| `ProjectSwitcher.tsx`, `FolderBrowser.tsx` | fixed (tier B) — modal popover, path/name titles; one overlap remains inside ProjectSwitcher at 1024 |
+| Status panel popover (`Sidebar.tsx`) | improved by central clamps; remaining findings are the Sidebar tinyTargets |
+| `Stage.tsx` | fixed (tier A action bar + tier C letterboxing) |
+| `ConfirmDelete.tsx` | fixed (tier B, by inspection + test) — sweep still can't reach it (needs a render fixture) |
+| Full-size viewer, `MaskCanvas.tsx` | fixed (tier B, by test: pointer mapping after resize/DPR, focus trap, Escape) — sweep still can't reach it |
+| `RunQueue.tsx` | fixed (tier B, by test) — sweep needs queued runs |
+| `library/Inspector.tsx`, `CompareView.tsx`, `DuplicatesView.tsx` | fixed (tier B) — drawer / A/B toggle / touch sizing; verified live against a populated library at 768 |
+| `ThemeToggle.tsx`, remaining `ui/` primitives | central viewport clamps (tier B); unaudited individually |
+| Populated / loading / error / stress states, pseudo-locale, both orientations, visual regression | unaudited — follow-up round |

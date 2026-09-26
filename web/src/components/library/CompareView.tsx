@@ -3,14 +3,34 @@
 /* eslint-disable @next/next/no-img-element */
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { cn } from "@/lib/utils";
 import { useDialogFocus } from "../shell";
 import { fullUrl, type LibraryItem } from "./types";
 
-/** Two prints on one easel: drag the divider to sweep between them. */
+/**
+ * Below 768 a two-up sweep cannot work (each half would be ~180 px), so the
+ * compare becomes a stacked A/B toggle (UI-RESPONSIVE-BRIEF §5 item 10 — the
+ * "toggle A/B" option): one full-width easel plus two switch buttons.
+ * matchMedia-driven so it tracks live window resizes.
+ */
+function useNarrowViewport(): boolean {
+  const subscribe = useCallback((cb: () => void) => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return () => {};
+    const m = window.matchMedia("(max-width: 767px)");
+    m.addEventListener("change", cb);
+    return () => m.removeEventListener("change", cb);
+  }, []);
+  const getSnapshot = () => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 767px)").matches : false);
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
+
+/** Two prints on one easel: drag the divider to sweep between them (stacked A/B toggle below 768). */
 export function CompareView({ a, b, onClose }: { a: LibraryItem; b: LibraryItem; onClose: () => void }) {
   const t = useTranslations("library.compare");
   const [pct, setPct] = useState(50);
+  const [shown, setShown] = useState<"a" | "b">("a");
+  const narrow = useNarrowViewport();
   const ref = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -31,13 +51,38 @@ export function CompareView({ a, b, onClose }: { a: LibraryItem; b: LibraryItem;
   return (
     <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t("ariaDialog")} className="fixed inset-0 z-50 flex flex-col bg-paper/95 backdrop-blur-md">
       <div className="flex items-center justify-between gap-3 px-6 py-4">
-        <p className="min-w-0 truncate font-mono text-xs text-ink-muted">
+        <p className="min-w-0 truncate font-mono text-xs text-ink-muted" title={`${a.path} ${t("vs")} ${b.path}`}>
           <span className="text-ink">{a.path}</span> <span className="text-faint">{t("vs")}</span> <span className="text-ink">{b.path}</span>
         </p>
-        <button type="button" className="btn-quiet px-2" aria-label={t("closeCompare")} onClick={onClose}>
+        <button type="button" className="btn-quiet grid size-9 shrink-0 place-items-center rounded-full p-0 max-lg:size-11" aria-label={t("closeCompare")} onClick={onClose}>
           <X className="size-4" />
         </button>
       </div>
+      {narrow ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-4 pt-0">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-[18px] border border-line bg-shell">
+            <img src={fullUrl(shown === "a" ? a : b)} alt={(shown === "a" ? a : b).path} draggable={false} className="absolute inset-0 h-full w-full object-contain" />
+            <span className="absolute left-3 top-3 rounded-full bg-paper-2/90 px-2 py-0.5 font-mono text-[10.5px] text-ink-muted backdrop-blur">{shown === "a" ? t("badgeA") : t("badgeB")}</span>
+          </div>
+          <div role="group" aria-label={t("abToggleAria")} className="flex shrink-0 justify-center gap-1.5">
+            {(["a", "b"] as const).map((side) => (
+              <button
+                key={side}
+                type="button"
+                aria-pressed={shown === side}
+                title={side === "a" ? a.path : b.path}
+                onClick={() => setShown(side)}
+                className={cn(
+                  "min-h-11 min-w-24 rounded-full px-4 font-mono text-[12px] transition-colors",
+                  shown === side ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink",
+                )}
+              >
+                {side === "a" ? t("showA") : t("showB")}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
       <div className="flex min-h-0 flex-1 p-6 pt-0">
         <div
           ref={ref}
@@ -86,6 +131,7 @@ export function CompareView({ a, b, onClose }: { a: LibraryItem; b: LibraryItem;
           <span className="absolute right-3 top-3 rounded-full bg-paper-2/90 px-2 py-0.5 font-mono text-[10.5px] text-ink-muted backdrop-blur">{t("badgeB")}</span>
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -2,8 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { Brush, Eraser, RotateCcw, Trash2, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useDialogFocus } from "./shell";
 import { Slider } from "./ui";
 
 /** What the inpaint dialog hands back: the black/white mask PNG plus the edit's words. */
@@ -22,14 +23,22 @@ export interface OutpaintSubmission {
   prompt: string;
 }
 
-const TOOL_ON = "h-7 rounded-[8px]! px-2 font-mono text-[11px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]";
+const TOOL_ON = "h-7 rounded-[8px]! px-2 font-mono text-[11px] text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)] max-lg:min-h-11";
 
 function DialogShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(true, ref);
+  // §6: Escape closes every overlay, not just the four settings dialogs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
-    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex flex-col bg-paper/95 backdrop-blur-md">
+    <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex flex-col bg-paper/95 backdrop-blur-md">
       <div className="flex items-center justify-between gap-3 px-6 py-4">
-        <p className="font-display text-[17px] font-semibold text-ink">{title}</p>
-        <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={onClose}>
+        <p className="min-w-0 truncate font-display text-[17px] font-semibold text-ink" title={title}>{title}</p>
+        <button type="button" className="btn-quiet grid size-9 shrink-0 place-items-center rounded-full p-0 max-lg:size-11" aria-label="Close" onClick={onClose}>
           <X className="size-4" />
         </button>
       </div>
@@ -174,10 +183,10 @@ export function MaskCanvas({ imageUrl, imageName, busy, onClose, onSubmit }: { i
           <span className="form-label shrink-0">Size</span>
           <Slider value={brushSize} min={4} max={160} step={2} onChange={setBrushSize} />
         </div>
-        <button type="button" className="btn-quiet h-7" onClick={undo} disabled={!canUndo} title="Undo the last stroke">
+        <button type="button" className="btn-quiet h-7 max-lg:min-h-11" onClick={undo} disabled={!canUndo} title="Undo the last stroke">
           <RotateCcw className="size-3.5" /> Undo
         </button>
-        <button type="button" className="btn-quiet h-7" onClick={clear} disabled={!painted} title="Clear the mask">
+        <button type="button" className="btn-quiet h-7 max-lg:min-h-11" onClick={clear} disabled={!painted} title="Clear the mask">
           <Trash2 className="size-3.5" /> Clear
         </button>
         <div className="ml-auto flex w-52 items-center gap-2" title="1 fully repaints the masked area; lower keeps more of the original">

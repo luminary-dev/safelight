@@ -77,6 +77,23 @@ describe("SettingsDialog", () => {
     expect(onLocalOnlyChange).toHaveBeenCalledWith(false);
   });
 
+  it("pins the header and scrolls the sections in an internal body (§6: the body scrolls, never the whole dialog)", async () => {
+    stubFetch(...baseRoutes());
+    renderApp(dialog());
+    const dlg = await screen.findByRole("dialog");
+    const card = dlg.querySelector("[class*=card-raised]") as HTMLElement;
+    expect(card.className).toContain("max-h-[calc(94dvh-1rem)]");
+    expect(card.className).toContain("max-md:max-h-dvh"); // <768 full-height sheet
+
+    // Close lives in the pinned header — its nearest scroller is the overlay backstop…
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(close.closest(".overflow-y-auto")).toBe(dlg);
+    // …while the sections scroll in the internal body region.
+    const save = await screen.findByRole("button", { name: "Save limits" });
+    expect(save.closest(".overflow-y-auto")).not.toBe(dlg);
+    expect(save.closest(".overflow-y-auto")).not.toBeNull();
+  });
+
   it("does not flip Local-only when the save fails", async () => {
     stubFetch(...baseRoutes(), {
       method: "PATCH",

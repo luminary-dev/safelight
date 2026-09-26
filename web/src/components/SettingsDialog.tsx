@@ -173,7 +173,7 @@ export function SettingsDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0 : 0.18 }}
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[6vh] backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[6vh] backdrop-blur-sm max-md:items-stretch max-md:p-0"
           onClick={onClose}
         >
           <motion.div
@@ -181,25 +181,26 @@ export function SettingsDialog({
             initial={reduce ? false : { y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="card-raised w-full max-w-[620px] p-6"
+            className="card-raised flex max-h-[calc(94dvh-1rem)] w-full max-w-[620px] flex-col overflow-hidden max-md:max-h-dvh max-md:max-w-none max-md:rounded-none max-md:border-0"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
+            <div className="flex shrink-0 items-start justify-between gap-4 px-6 pt-6 pb-4">
+              <div className="min-w-0">
                 <span className="eyebrow text-terracotta">{t("eyebrow")}</span>
                 <h2 id="settings-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">{t("heading")}</h2>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label={t("close")} data-initial-focus onClick={onClose}>
+              <button type="button" className="btn-quiet grid size-9 shrink-0 place-items-center rounded-full p-0 max-lg:size-11" aria-label={t("close")} data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <Section title={t("sectionProviders")}>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={onOpenKeys}>
+                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px] max-lg:min-h-11" onClick={onOpenKeys}>
                   <KeyRound className="size-3.5" /> {t("apiKeys")}
                 </button>
-                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={onOpenMcp}>
+                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px] max-lg:min-h-11" onClick={onOpenMcp}>
                   <Plug className="size-3.5" /> {t("mcpServers")}
                 </button>
               </div>
@@ -215,13 +216,13 @@ export function SettingsDialog({
                         <span key={c} className="size-4 rounded-full border border-line" style={{ background: row.data?.colors?.[c] }} />
                       ))}
                     </span>
-                    <span className={cn("min-w-0 flex-1 truncate text-[13.5px]", activeTheme === row.name ? "font-medium text-ink" : "text-ink-muted")}>{row.name}</span>
+                    <span title={row.name} className={cn("min-w-0 flex-1 truncate text-[13.5px]", activeTheme === row.name ? "font-medium text-ink" : "text-ink-muted")}>{row.name}</span>
                     {activeTheme === row.name ? (
-                      <button type="button" className="btn-quiet h-7 rounded-full px-3 text-[12px]" onClick={() => void clearRow(row.name)}>
+                      <button type="button" className="btn-quiet h-8 rounded-full px-3 text-[12px] max-lg:min-h-11" onClick={() => void clearRow(row.name)}>
                         {t("reset")}
                       </button>
                     ) : (
-                      <button type="button" className="btn-quiet h-7 rounded-full px-3 text-[12px]" onClick={() => void applyRow(row)}>
+                      <button type="button" className="btn-quiet h-8 rounded-full px-3 text-[12px] max-lg:min-h-11" onClick={() => void applyRow(row)}>
                         {t("apply")}
                       </button>
                     )}
@@ -231,7 +232,7 @@ export function SettingsDialog({
             </Section>
 
             <Section title={t("sectionLimits")}>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {LIMIT_FIELDS.map((f) => (
                   <label key={f.key} className="flex flex-col gap-1 text-[12px] text-ink-muted">
                     {t(f.labelKey)}
@@ -240,13 +241,13 @@ export function SettingsDialog({
                       value={limits[f.key] ?? ""}
                       onChange={(e) => setLimits((l) => ({ ...l, [f.key]: e.target.value }))}
                       placeholder={t("limitOff")}
-                      className="field font-mono text-xs"
+                      className="field font-mono text-xs max-lg:min-h-11"
                     />
                   </label>
                 ))}
               </div>
               <div className="flex items-center gap-3">
-                <button type="button" className="btn-primary h-8 rounded-full px-4 text-[13px]" onClick={() => void saveLimits()}>
+                <button type="button" className="btn-primary h-8 rounded-full px-4 text-[13px] max-lg:min-h-11" onClick={() => void saveLimits()}>
                   {t("saveLimits")}
                 </button>
                 {savedNote ? <span role="status" className="font-mono text-[11px] text-ink-muted">{savedNote}</span> : null}
@@ -286,7 +287,7 @@ export function SettingsDialog({
                       onLocalOnlyChange?.(next);
                     }
                   }}
-                  className={cn("shrink-0 rounded-full px-3.5 py-1.5 font-mono text-[12px] transition-colors", localOnly ? "bg-terracotta text-white" : "border border-line text-ink-muted hover:text-ink")}
+                  className={cn("min-h-8 shrink-0 rounded-full px-3.5 py-1.5 font-mono text-[12px] transition-colors max-lg:min-h-11 max-lg:min-w-11", localOnly ? "bg-terracotta text-white" : "border border-line text-ink-muted hover:text-ink")}
                 >
                   {localOnly ? t("on") : t("off")}
                 </button>
@@ -305,7 +306,7 @@ export function SettingsDialog({
                       )}
                     />
                     <span className="w-[52px] shrink-0">{r.mode}</span>
-                    <span className="min-w-0 flex-1 truncate">{r.model}</span>
+                    <span title={r.model} className="min-w-0 flex-1 truncate">{r.model}</span>
                     <span className="shrink-0">{r.finishedAt ? t("runSeconds", { seconds: Math.max(1, Math.round((r.finishedAt - r.startedAt) / 1000)) }) : r.status}</span>
                     <span className="shrink-0 text-faint">{formatTime(r.startedAt)}</span>
                   </li>
@@ -317,7 +318,7 @@ export function SettingsDialog({
               {logLines === null ? (
                 <button
                   type="button"
-                  className="btn-quiet h-8 self-start rounded-full px-3.5 text-[13px]"
+                  className="btn-quiet h-8 self-start rounded-full px-3.5 text-[13px] max-lg:min-h-11"
                   onClick={() => {
                     void fetch("/api/logs?lines=100")
                       .then((r) => r.json() as Promise<{ lines: string[] }>)
@@ -342,10 +343,10 @@ export function SettingsDialog({
                 {t.rich("backupsBody", { code: (chunks) => <code className="code">{chunks}</code> })}
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={() => void exportAll()}>
+                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px] max-lg:min-h-11" onClick={() => void exportAll()}>
                   <Download className="size-3.5" /> {t("exportAll")}
                 </button>
-                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={() => fileRef.current?.click()}>
+                <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px] max-lg:min-h-11" onClick={() => fileRef.current?.click()}>
                   <Upload className="size-3.5" /> {t("import")}
                 </button>
                 <input
@@ -362,6 +363,7 @@ export function SettingsDialog({
                 {importNote ? <span role="status" className="font-mono text-[11px] text-ink-muted">{importNote}</span> : null}
               </div>
             </Section>
+            </div>
           </motion.div>
         </motion.div>
       ) : null}

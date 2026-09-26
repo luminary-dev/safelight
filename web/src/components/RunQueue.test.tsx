@@ -47,6 +47,16 @@ describe("RunQueue", () => {
     expect(within(rowFor("the waiting one")).getByText("queued")).toBeInTheDocument();
   });
 
+  it("the stage label truncates with its full value in a title (§7: every row is a truncation case)", () => {
+    stubFetch();
+    const running = aJob({ id: "p-run", state: "running", prompt: "the running one", nodes: { "3": "KSampler" } });
+    const waiting = aJob({ id: "p-wait", state: "queued", prompt: "the waiting one" });
+    renderApp(<RunQueue queue={[entry(running), entry(waiting)]} progress={progress({ activePromptId: "p-run", nodeLabel: "3", step: 7, totalSteps: 20, progress: 0.35 })} />);
+
+    expect(within(rowFor("the running one")).getByTitle("Step 7 of 20")).toBeInTheDocument();
+    expect(within(rowFor("the waiting one")).getByTitle("queued")).toBeInTheDocument();
+  });
+
   it("Cancel deletes the job on the server", async () => {
     const { of } = stubFetch({ method: "DELETE", url: /\/api\/jobs\/.+/, reply: { ok: true } });
     const job = aJob({ id: "p-run", state: "running", prompt: "cancel me" });

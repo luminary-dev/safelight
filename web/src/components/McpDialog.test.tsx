@@ -49,6 +49,15 @@ describe("McpDialog", () => {
     expect(screen.getByText("connect ECONNREFUSED")).toBeInTheDocument();
   });
 
+  it("long server names and command lines keep their full value in a title", async () => {
+    stubFetch(listRoute([filesystem]));
+    renderApp(<McpDialog open onClose={() => {}} />);
+
+    await screen.findByText("Filesystem");
+    expect(screen.getByTitle("Filesystem")).toBeInTheDocument();
+    expect(screen.getByTitle("npx -y @modelcontextprotocol/server-filesystem /tmp")).toBeInTheDocument();
+  });
+
   it("the add flow validates and posts a stdio server", async () => {
     const { of } = stubFetch(listRoute([]), { method: "POST", url: "/api/mcp", reply: { ok: true } });
     const user = userEvent.setup();

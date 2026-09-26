@@ -102,6 +102,28 @@ describe("MaskCanvas (inpaint)", () => {
     expect(ctx.calls.filter((c) => c === "stroke:source-over")).toHaveLength(2);
   });
 
+  it("maps pointer coordinates correctly AFTER a resize: the rect is re-read per event", () => {
+    stubFetch();
+    renderApp(<MaskCanvas {...props} onSubmit={() => {}} />);
+    const canvas = loadImage({ w: 8, h: 6 }, { w: 100, h: 50 });
+    strokeAcross(canvas, { x: 50, y: 25 }, { x: 50, y: 25 });
+    expect(contexts.get(canvas)!.calls).toContain("moveTo(4,3)");
+
+    // The window resizes: the same client point now maps through the new rect.
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => ({}) });
+    strokeAcross(canvas, { x: 50, y: 25 }, { x: 100, y: 50 });
+    expect(contexts.get(canvas)!.calls).toContain("moveTo(2,1.5)");
+    expect(contexts.get(canvas)!.calls).toContain("lineTo(4,3)");
+  });
+
+  it("Escape closes the dialog and the close button stays reachable", () => {
+    stubFetch();
+    const onClose = vi.fn();
+    renderApp(<MaskCanvas {...props} onClose={onClose} onSubmit={() => {}} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("the eraser paints with destination-out", async () => {
     stubFetch();
     const user = userEvent.setup();

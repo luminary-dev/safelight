@@ -73,4 +73,19 @@ describe("LibraryGrid", () => {
     expect(screen.getAllByTestId("tile")).toHaveLength(7); // items 33..39 are all that exist yet
     expect(screen.queryByText(loaded[0].path)).not.toBeInTheDocument();
   });
+
+  it("virtualization survives a resize: the ResizeObserver re-measure recomputes the column count", () => {
+    const loaded = items(40);
+    const { scroller } = renderGrid(loaded, 100, () => {});
+    expect(screen.getAllByTestId("tile")).toHaveLength(18); // 3 columns at 800 px
+
+    // The container narrows (e.g. the desktop window is resized): 400 px ⇒ 2 columns.
+    Object.defineProperty(scroller, "clientWidth", { value: 400, configurable: true });
+    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver)));
+
+    // 2 columns × (rows in 400 px + overscan) = 12 tiles, still starting at item 0.
+    const tiles = screen.getAllByTestId("tile");
+    expect(tiles).toHaveLength(12);
+    expect(tiles[0]).toHaveTextContent(loaded[0].path);
+  });
 });

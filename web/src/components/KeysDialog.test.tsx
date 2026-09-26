@@ -31,6 +31,25 @@ describe("KeysDialog", () => {
     expect(input).toHaveAttribute("type", "password");
   });
 
+  it("the reveal toggle sits beside the input, never over it, and long values truncate with titles", async () => {
+    const proxied: KeyStatus = { ...openaiKey, baseUrl: "https://my-very-long-proxy.example.com/v1/openai/custom-endpoint" };
+    stubFetch(keysRoute([proxied]));
+    renderApp(<KeysDialog open onClose={() => {}} onChanged={() => {}} />);
+    await screen.findByText("key …f3ab");
+
+    // §4 overlaps: the eye toggle is a flex sibling of the input inside the
+    // field group — not absolutely positioned over the input's rect.
+    const eye = screen.getByRole("button", { name: "Show key" });
+    const input = screen.getByPlaceholderText("Paste a new key to replace");
+    expect(eye.className).not.toContain("absolute");
+    expect(eye.parentElement).toBe(input.parentElement);
+
+    // Truncating values keep their full text reachable (title), and nothing reveals the key itself.
+    expect(screen.getByTitle("key …f3ab")).toBeInTheDocument();
+    expect(screen.getByTitle(/my-very-long-proxy\.example\.com/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sk-[a-z0-9]{8,}/i);
+  });
+
   it("labels the key's source: env keys are not removable, vault keys are", async () => {
     stubFetch(keysRoute([openaiKey, envKey]));
     renderApp(<KeysDialog open onClose={() => {}} onChanged={() => {}} />);

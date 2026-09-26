@@ -85,7 +85,7 @@ export function RunQueue({ queue, progress }: { queue: QueueEntry[]; progress: P
           Rendering queue <span className="text-placeholder">{queue.length}</span>
         </span>
         {queuedCount > 0 ? (
-          <button type="button" className="btn-quiet h-6 px-2 font-mono text-[10.5px]" onClick={() => void clearQueued()} disabled={clearing} title="Remove every waiting render from the queue">
+          <button type="button" className="btn-quiet h-6 px-2 font-mono text-[10.5px] max-lg:min-h-11" onClick={() => void clearQueued()} disabled={clearing} title="Remove every waiting render from the queue">
             Clear queued
           </button>
         ) : null}
@@ -102,23 +102,23 @@ export function RunQueue({ queue, progress }: { queue: QueueEntry[]; progress: P
             <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-muted" title={job.prompt}>
               <span className="font-medium text-ink">{job.settings.model}</span> · {job.prompt || sessionTitle}
             </span>
-            <div className="h-1 w-24 shrink-0 overflow-hidden rounded-full bg-line">
+            <div className="h-1 w-24 shrink-0 overflow-hidden rounded-full bg-line max-sm:w-12">
               {live && pct === null ? (
                 <div className="progress-sweep h-full rounded-full bg-terracotta/60" />
               ) : (
                 <div className="h-full rounded-full bg-terracotta transition-[width] duration-300" style={{ width: live && pct !== null ? `${Math.max(4, pct)}%` : "0%" }} />
               )}
             </div>
-            <span className="w-28 shrink-0 truncate text-right font-mono text-[10.5px] text-faint">{live ? label : "queued"}</span>
+            <span className="w-28 shrink truncate text-right font-mono text-[10.5px] text-faint" title={live ? label : "queued"}>{live ? label : "queued"}</span>
             {waiting ? (
-              <button type="button" className="btn-quiet h-6 shrink-0 px-1.5" onClick={() => void runNext(job)} disabled={rowBusy} title="Run this render next" aria-label="Run next">
+              <button type="button" className="btn-quiet h-6 shrink-0 px-1.5 max-lg:min-h-11 max-lg:min-w-11" onClick={() => void runNext(job)} disabled={rowBusy} title="Run this render next" aria-label="Run next">
                 <ChevronsUp className="size-3.5" />
               </button>
             ) : null}
             {manageable ? (
               <button
                 type="button"
-                className="btn-quiet h-6 shrink-0 px-1.5 hover:border-danger/40 hover:text-danger"
+                className="btn-quiet h-6 shrink-0 px-1.5 hover:border-danger/40 hover:text-danger max-lg:min-h-11 max-lg:min-w-11"
                 onClick={() => void cancel(job)}
                 disabled={rowBusy}
                 title={live || job.state === "running" ? "Stop this render" : "Remove from the queue"}

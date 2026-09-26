@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-09-26T12:17:29.501Z",
+ "generatedAt": "2026-09-26T12:24:53.506Z",
  "server": "isolated e2e dev server (e2e/dev-server.mjs → :3005, throwaway empty data root; never :3001 or real data/)",
  "state": "empty",
  "zoomProxy": "1440@2x = deviceScaleFactor 2 at 1440×900. This does NOT reflow CSS layout (still 1440 CSS px); true 200% zoom ≈ a ~720 CSS px viewport — read the 640/768 width cells for the zoom reflow signal.",
@@ -59,16 +59,16 @@
   ],
   "maxOffendersPerCategoryPerCell": 8
  },
- "grandTotal": 4454,
+ "grandTotal": 4372,
  "totals": {
   "overflowsViewport": 0,
-  "clippedX": 2,
+  "clippedX": 0,
   "clippedY": 0,
-  "overlaps": 1,
-  "tinyTargets": 2223,
+  "overlaps": 0,
+  "tinyTargets": 2153,
   "truncatedNoTitle": 0,
   "zeroSize": 8,
-  "contrastFails": 2220
+  "contrastFails": 2211
  },
  "totalsByMode": {
   "chat": {
@@ -113,10 +113,10 @@
   },
   "library": {
    "overflowsViewport": 0,
-   "clippedX": 2,
+   "clippedX": 0,
    "clippedY": 0,
    "overlaps": 0,
-   "tinyTargets": 184,
+   "tinyTargets": 156,
    "truncatedNoTitle": 0,
    "zeroSize": 0,
    "contrastFails": 39
@@ -136,7 +136,7 @@
    "clippedX": 0,
    "clippedY": 0,
    "overlaps": 0,
-   "tinyTargets": 29,
+   "tinyTargets": 25,
    "truncatedNoTitle": 0,
    "zeroSize": 0,
    "contrastFails": 20
@@ -146,7 +146,7 @@
    "clippedX": 0,
    "clippedY": 0,
    "overlaps": 0,
-   "tinyTargets": 40,
+   "tinyTargets": 25,
    "truncatedNoTitle": 0,
    "zeroSize": 0,
    "contrastFails": 10
@@ -169,7 +169,7 @@
    "tinyTargets": 25,
    "truncatedNoTitle": 0,
    "zeroSize": 0,
-   "contrastFails": 21
+   "contrastFails": 22
   },
   "overlay:status-panel": {
    "overflowsViewport": 0,
@@ -185,11 +185,11 @@
    "overflowsViewport": 0,
    "clippedX": 0,
    "clippedY": 0,
-   "overlaps": 1,
-   "tinyTargets": 25,
+   "overlaps": 0,
+   "tinyTargets": 2,
    "truncatedNoTitle": 0,
    "zeroSize": 0,
-   "contrastFails": 13
+   "contrastFails": 3
   },
   "overlay:model-picker": {
    "overflowsViewport": 0,
@@ -340,11 +340,11 @@
       "rect": {
        "x": 43,
        "y": 1015,
-       "w": 69,
+       "w": 122,
        "h": 21
       },
       "detail": {
-       "w": 69,
+       "w": 122,
        "h": 21,
        "min": 32
       }
@@ -6747,7 +6747,7 @@
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(2)",
       "label": "1024 × 1024",
       "rect": {
-       "x": 533,
+       "x": 483,
        "y": 472,
        "w": 73,
        "h": 18
@@ -6989,7 +6989,7 @@
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(2)",
       "label": "1024 × 1024",
       "rect": {
-       "x": 533,
+       "x": 483,
        "y": 376,
        "w": 73,
        "h": 18
@@ -9523,7 +9523,7 @@
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(2)",
       "label": "1024 × 1024",
       "rect": {
-       "x": 533,
+       "x": 483,
        "y": 472,
        "w": 73,
        "h": 18
@@ -9747,7 +9747,7 @@
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(2)",
       "label": "1024 × 1024",
       "rect": {
-       "x": 533,
+       "x": 483,
        "y": 376,
        "w": 73,
        "h": 18
@@ -21292,7 +21292,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
@@ -21329,36 +21329,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -21402,7 +21372,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
@@ -21439,36 +21409,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -21512,7 +21452,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
@@ -21549,36 +21489,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -21622,7 +21532,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
@@ -21659,36 +21569,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 152,
-       "y": 234,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 306,
-       "y": 234,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -21732,7 +21612,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
@@ -21769,36 +21649,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 282,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 282,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -21842,7 +21692,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
@@ -21879,36 +21729,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 369,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 369,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -21949,34 +21769,17 @@
    "documentScrollWidth": 360,
    "counts": {
     "overflowsViewport": 0,
-    "clippedX": 1,
+    "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
    },
    "offenders": {
     "overflowsViewport": [],
-    "clippedX": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2)",
-      "label": "All modelsNewestOldestLargest Favorites–",
-      "rect": {
-       "x": 39,
-       "y": 277,
-       "w": 282,
-       "h": 184
-      },
-      "detail": {
-       "scrollWidth": 288,
-       "clientWidth": 282,
-       "hiddenPx": 6,
-       "overflowX": "visible"
-      }
-     }
-    ],
+    "clippedX": [],
     "clippedY": [],
     "overlaps": [],
     "tinyTargets": [
@@ -22006,36 +21809,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 425,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 425,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -23269,7 +23042,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
@@ -23306,36 +23079,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -23360,7 +23103,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
@@ -23397,36 +23140,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -23451,7 +23164,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
@@ -23488,36 +23201,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 230,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -23542,7 +23225,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
@@ -23582,36 +23265,6 @@
        "h": 36,
        "min": 44
       }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 152,
-       "y": 234,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 306,
-       "y": 234,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
      }
     ],
     "truncatedNoTitle": [],
@@ -23633,7 +23286,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
@@ -23673,36 +23326,6 @@
        "h": 36,
        "min": 44
       }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 282,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 282,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
      }
     ],
     "truncatedNoTitle": [],
@@ -23724,7 +23347,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
@@ -23764,36 +23387,6 @@
        "h": 36,
        "min": 44
       }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 369,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 369,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
      }
     ],
     "truncatedNoTitle": [],
@@ -23812,34 +23405,17 @@
    "documentScrollWidth": 360,
    "counts": {
     "overflowsViewport": 0,
-    "clippedX": 1,
+    "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 4,
+    "tinyTargets": 2,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
    },
    "offenders": {
     "overflowsViewport": [],
-    "clippedX": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2)",
-      "label": "All modelsNewestOldestLargest Favorites–",
-      "rect": {
-       "x": 39,
-       "y": 277,
-       "w": 282,
-       "h": 184
-      },
-      "detail": {
-       "scrollWidth": 288,
-       "clientWidth": 282,
-       "hiddenPx": 6,
-       "overflowX": "visible"
-      }
-     }
-    ],
+    "clippedX": [],
     "clippedY": [],
     "overlaps": [],
     "tinyTargets": [
@@ -23869,36 +23445,6 @@
       },
       "detail": {
        "w": 93,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "From date",
-      "rect": {
-       "x": 39,
-       "y": 425,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) > input:nth-of-type(2)",
-      "label": "To date",
-      "rect": {
-       "x": 192,
-       "y": 425,
-       "w": 135,
-       "h": 36
-      },
-      "detail": {
-       "w": 135,
        "h": 36,
        "min": 44
       }
@@ -33452,12 +32998,12 @@
     "contrastFails": [
      {
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1)",
-      "label": "Loading servers…",
+      "label": "No servers yet. Add one below — for example an npx-run files",
       "rect": {
        "x": 465,
        "y": 223,
        "w": 510,
-       "h": 44
+       "h": 64
       },
       "detail": {
        "ratio": 2.54,
@@ -33473,7 +33019,7 @@
       "label": "✳ marks tools that can change things; each of those calls sh",
       "rect": {
        "x": 465,
-       "y": 331,
+       "y": 351,
        "w": 510,
        "h": 39
       },
@@ -33597,7 +33143,7 @@
     "tinyTargets": 10,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
-    "contrastFails": 8
+    "contrastFails": 9
    },
    "offenders": {
     "overflowsViewport": [],
@@ -33767,12 +33313,12 @@
      },
      {
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1)",
-      "label": "Models are saved where the render engine finds them.",
+      "label": "Models are saved under /private/var/folders/h0/r8r9cgr972l96",
       "rect": {
        "x": 425,
        "y": 1145,
        "w": 590,
-       "h": 20
+       "h": 40
       },
       "detail": {
        "ratio": 2.54,
@@ -33780,6 +33326,24 @@
        "fg": "#9ca3af",
        "bg": "#ffffff",
        "fontSize": 12,
+       "fontWeight": 400
+      }
+     },
+     {
+      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1) > span:nth-of-type(1)",
+      "label": "/private/var/folders/h0/r8r9cgr972l96tmptlhbmr100000gn/T/saf",
+      "rect": {
+       "x": 425,
+       "y": 1148,
+       "w": 571,
+       "h": 34
+      },
+      "detail": {
+       "ratio": 2.54,
+       "threshold": 4.5,
+       "fg": "#9ca3af",
+       "bg": "#ffffff",
+       "fontSize": 11,
        "fontWeight": 400
       }
      },
@@ -33852,24 +33416,6 @@
        "fg": "#9ca3af",
        "bg": "#f7f7f5",
        "fontSize": 13,
-       "fontWeight": 400
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1)",
-      "label": "⏎ send",
-      "rect": {
-       "x": 1189,
-       "y": 786,
-       "w": 40,
-       "h": 18
-      },
-      "detail": {
-       "ratio": 2.54,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#ffffff",
-       "fontSize": 11,
        "fontWeight": 400
       }
      }
@@ -34134,10 +33680,10 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 10,
+    "tinyTargets": 1,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
-    "contrastFails": 6
+    "contrastFails": 1
    },
    "offenders": {
     "overflowsViewport": [],
@@ -34145,111 +33691,6 @@
     "clippedY": [],
     "overlaps": [],
     "tinyTargets": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(1)",
-      "label": "Switch to dark theme",
-      "rect": {
-       "x": 39,
-       "y": 75,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(2)",
-      "label": "API keys",
-      "rect": {
-       "x": 71,
-       "y": 75,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(3)",
-      "label": "MCP servers",
-      "rect": {
-       "x": 103,
-       "y": 75,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(4)",
-      "label": "Model manager",
-      "rect": {
-       "x": 135,
-       "y": 75,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(5)",
-      "label": "Settings",
-      "rect": {
-       "x": 167,
-       "y": 75,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > label:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "Search sessions",
-      "rect": {
-       "x": 67,
-       "y": 129,
-       "w": 151,
-       "h": 22
-      },
-      "detail": {
-       "w": 151,
-       "h": 22,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(1)",
-      "label": "New",
-      "rect": {
-       "x": 201,
-       "y": 467,
-       "w": 52,
-       "h": 23
-      },
-      "detail": {
-       "w": 52,
-       "h": 23,
-       "min": 32
-      }
-     },
      {
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1)",
       "label": "System status",
@@ -34269,96 +33710,6 @@
     "truncatedNoTitle": [],
     "zeroSize": [],
     "contrastFails": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > label:nth-of-type(1) > span:nth-of-type(1)",
-      "label": "⌘K",
-      "rect": {
-       "x": 228,
-       "y": 129,
-       "w": 25,
-       "h": 22
-      },
-      "detail": {
-       "ratio": 4.48,
-       "threshold": 4.5,
-       "fg": "#487e06",
-       "bg": "#eef8de",
-       "fontSize": 11,
-       "fontWeight": 500
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > nav:nth-of-type(1) > button:nth-of-type(5) > span:nth-of-type(1)",
-      "label": "0",
-      "rect": {
-       "x": 246,
-       "y": 373,
-       "w": 7,
-       "h": 19
-      },
-      "detail": {
-       "ratio": 2.37,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#f7f7f5",
-       "fontSize": 12,
-       "fontWeight": 400
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1)",
-      "label": "Conversations",
-      "rect": {
-       "x": 43,
-       "y": 469,
-       "w": 77,
-       "h": 19
-      },
-      "detail": {
-       "ratio": 2.37,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#f7f7f5",
-       "fontSize": 12,
-       "fontWeight": 500
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1)",
-      "label": "Your first message starts a chat.",
-      "rect": {
-       "x": 31,
-       "y": 498,
-       "w": 234,
-       "h": 53
-      },
-      "detail": {
-       "ratio": 2.37,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#f7f7f5",
-       "fontSize": 13,
-       "fontWeight": 400
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1)",
-      "label": "⏎ send",
-      "rect": {
-       "x": 1189,
-       "y": 786,
-       "w": 40,
-       "h": 18
-      },
-      "detail": {
-       "ratio": 2.54,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#ffffff",
-       "fontSize": 11,
-       "fontWeight": 400
-      }
-     },
      {
       "selector": "#radix-_r_2_ > ul:nth-of-type(1) > li:nth-of-type(1) > button:nth-of-type(1) > span:nth-of-type(2) > span:nth-of-type(2)",
       "label": "Everything, filed and unfiled",
@@ -35996,140 +35347,18 @@
     "overflowsViewport": 0,
     "clippedX": 0,
     "clippedY": 0,
-    "overlaps": 1,
-    "tinyTargets": 10,
+    "overlaps": 0,
+    "tinyTargets": 1,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
-    "contrastFails": 6
+    "contrastFails": 1
    },
    "offenders": {
     "overflowsViewport": [],
     "clippedX": [],
     "clippedY": [],
-    "overlaps": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > textarea:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 357,
-       "y": 645,
-       "w": 342,
-       "h": 39
-      },
-      "detail": {
-       "with": "#radix-_r_2_ > ul:nth-of-type(1) > li:nth-of-type(1) > button:nth-of-type(1)",
-       "withLabel": "All projectsEverything, filed and unfiled",
-       "overlapW": 115,
-       "overlapH": 39
-      }
-     }
-    ],
+    "overlaps": [],
     "tinyTargets": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(1)",
-      "label": "Switch to dark theme",
-      "rect": {
-       "x": 37,
-       "y": 73,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(2)",
-      "label": "API keys",
-      "rect": {
-       "x": 69,
-       "y": 73,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(3)",
-      "label": "MCP servers",
-      "rect": {
-       "x": 101,
-       "y": 73,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(4)",
-      "label": "Model manager",
-      "rect": {
-       "x": 133,
-       "y": 73,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) > button:nth-of-type(5)",
-      "label": "Settings",
-      "rect": {
-       "x": 165,
-       "y": 73,
-       "w": 28,
-       "h": 28
-      },
-      "detail": {
-       "w": 28,
-       "h": 28,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > label:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "Search sessions",
-      "rect": {
-       "x": 65,
-       "y": 127,
-       "w": 131,
-       "h": 22
-      },
-      "detail": {
-       "w": 131,
-       "h": 22,
-       "min": 32
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(1)",
-      "label": "New",
-      "rect": {
-       "x": 179,
-       "y": 465,
-       "w": 52,
-       "h": 23
-      },
-      "detail": {
-       "w": 52,
-       "h": 23,
-       "min": 32
-      }
-     },
      {
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1)",
       "label": "System status",
@@ -36149,96 +35378,6 @@
     "truncatedNoTitle": [],
     "zeroSize": [],
     "contrastFails": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > label:nth-of-type(1) > span:nth-of-type(1)",
-      "label": "⌘K",
-      "rect": {
-       "x": 206,
-       "y": 127,
-       "w": 25,
-       "h": 22
-      },
-      "detail": {
-       "ratio": 4.48,
-       "threshold": 4.5,
-       "fg": "#487e06",
-       "bg": "#eef8de",
-       "fontSize": 11,
-       "fontWeight": 500
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > nav:nth-of-type(1) > button:nth-of-type(5) > span:nth-of-type(1)",
-      "label": "0",
-      "rect": {
-       "x": 224,
-       "y": 371,
-       "w": 7,
-       "h": 19
-      },
-      "detail": {
-       "ratio": 2.37,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#f7f7f5",
-       "fontSize": 12,
-       "fontWeight": 400
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1)",
-      "label": "Conversations",
-      "rect": {
-       "x": 41,
-       "y": 467,
-       "w": 77,
-       "h": 19
-      },
-      "detail": {
-       "ratio": 2.37,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#f7f7f5",
-       "fontSize": 12,
-       "fontWeight": 500
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1)",
-      "label": "Your first message starts a chat.",
-      "rect": {
-       "x": 29,
-       "y": 496,
-       "w": 214,
-       "h": 53
-      },
-      "detail": {
-       "ratio": 2.37,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#f7f7f5",
-       "fontSize": 13,
-       "fontWeight": 400
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1)",
-      "label": "⏎ send",
-      "rect": {
-       "x": 885,
-       "y": 656,
-       "w": 40,
-       "h": 18
-      },
-      "detail": {
-       "ratio": 2.54,
-       "threshold": 4.5,
-       "fg": "#9ca3af",
-       "bg": "#ffffff",
-       "fontSize": 11,
-       "fontWeight": 400
-      }
-     },
      {
       "selector": "#radix-_r_2_ > ul:nth-of-type(1) > li:nth-of-type(1) > button:nth-of-type(1) > span:nth-of-type(2) > span:nth-of-type(2)",
       "label": "Everything, filed and unfiled",
@@ -36518,7 +35657,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 9,
+    "tinyTargets": 5,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 3
@@ -36529,66 +35668,6 @@
     "clippedY": [],
     "overlaps": [],
     "tinyTargets": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(3) > div:nth-of-type(1) > label:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 24,
-       "y": 355,
-       "w": 342,
-       "h": 34
-      },
-      "detail": {
-       "w": 342,
-       "h": 34,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(3) > div:nth-of-type(1) > label:nth-of-type(2) > input:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 24,
-       "y": 422,
-       "w": 342,
-       "h": 34
-      },
-      "detail": {
-       "w": 342,
-       "h": 34,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(3) > div:nth-of-type(1) > label:nth-of-type(3) > input:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 24,
-       "y": 490,
-       "w": 342,
-       "h": 34
-      },
-      "detail": {
-       "w": 342,
-       "h": 34,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(3) > div:nth-of-type(1) > label:nth-of-type(4) > input:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 24,
-       "y": 557,
-       "w": 342,
-       "h": 34
-      },
-      "detail": {
-       "w": 342,
-       "h": 34,
-       "min": 44
-      }
-     },
      {
       "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
       "label": "New chat",
@@ -36648,6 +35727,21 @@
        "h": 36,
        "min": 44
       }
+     },
+     {
+      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(4)",
+      "label": "Send",
+      "rect": {
+       "x": 297,
+       "y": 733,
+       "w": 38,
+       "h": 38
+      },
+      "detail": {
+       "w": 38,
+       "h": 38,
+       "min": 44
+      }
      }
     ],
     "truncatedNoTitle": [],
@@ -36676,7 +35770,7 @@
       "label": "No agent runs recorded yet.",
       "rect": {
        "x": 24,
-       "y": 944,
+       "y": 984,
        "w": 342,
        "h": 21
       },
@@ -36694,7 +35788,7 @@
       "label": "Structured, secret-redacted, rotating at 10 MB in data/logs/",
       "rect": {
        "x": 24,
-       "y": 1091,
+       "y": 1131,
        "w": 342,
        "h": 40
       },
@@ -36725,7 +35819,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 20,
+    "tinyTargets": 5,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 0
@@ -36737,122 +35831,77 @@
     "overlaps": [],
     "tinyTargets": [
      {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
+      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+      "label": "New chat",
       "rect": {
        "x": 39,
-       "y": 286,
-       "w": 174,
-       "h": 32
+       "y": 171,
+       "w": 121,
+       "h": 40
       },
       "detail": {
-       "w": 174,
-       "h": 32,
+       "w": 121,
+       "h": 40,
        "min": 44
       }
      },
      {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
+      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1) > button:nth-of-type(1)",
+      "label": "add an API key",
       "rect": {
-       "x": 39,
-       "y": 473,
-       "w": 174,
-       "h": 32
+       "x": 135,
+       "y": 561,
+       "w": 91,
+       "h": 23
       },
       "detail": {
-       "w": 174,
-       "h": 32,
+       "w": 91,
+       "h": 23,
        "min": 44
       }
      },
      {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
+      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1)",
+      "label": "Attach a file",
       "rect": {
-       "x": 39,
-       "y": 660,
-       "w": 174,
-       "h": 32
+       "x": 55,
+       "y": 735,
+       "w": 36,
+       "h": 36
       },
       "detail": {
-       "w": 174,
-       "h": 32,
+       "w": 36,
+       "h": 36,
        "min": 44
       }
      },
      {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
+      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(2)",
+      "label": "Dictate",
       "rect": {
-       "x": 39,
-       "y": 847,
-       "w": 174,
-       "h": 32
+       "x": 253,
+       "y": 735,
+       "w": 36,
+       "h": 36
       },
       "detail": {
-       "w": 174,
-       "h": 32,
+       "w": 36,
+       "h": 36,
        "min": 44
       }
      },
      {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
+      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(4)",
+      "label": "Send",
       "rect": {
-       "x": 39,
-       "y": 1034,
-       "w": 174,
-       "h": 32
+       "x": 297,
+       "y": 733,
+       "w": 38,
+       "h": 38
       },
       "detail": {
-       "w": 174,
-       "h": 32,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 39,
-       "y": 1221,
-       "w": 174,
-       "h": 32
-      },
-      "detail": {
-       "w": 174,
-       "h": 32,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(7) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 39,
-       "y": 1408,
-       "w": 174,
-       "h": 32
-      },
-      "detail": {
-       "w": 174,
-       "h": 32,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(8) > div:nth-of-type(2) > div:nth-of-type(1) > input:nth-of-type(1)",
-      "label": "",
-      "rect": {
-       "x": 39,
-       "y": 1595,
-       "w": 174,
-       "h": 32
-      },
-      "detail": {
-       "w": 174,
-       "h": 32,
+       "w": 38,
+       "h": 38,
        "min": 44
       }
      }
@@ -37353,7 +36402,7 @@
     "clippedX": 0,
     "clippedY": 0,
     "overlaps": 0,
-    "tinyTargets": 5,
+    "tinyTargets": 0,
     "truncatedNoTitle": 0,
     "zeroSize": 0,
     "contrastFails": 1
@@ -37363,83 +36412,7 @@
     "clippedX": [],
     "clippedY": [],
     "overlaps": [],
-    "tinyTargets": [
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
-      "label": "New chat",
-      "rect": {
-       "x": 39,
-       "y": 171,
-       "w": 121,
-       "h": 40
-      },
-      "detail": {
-       "w": 121,
-       "h": 40,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1) > button:nth-of-type(1)",
-      "label": "add an API key",
-      "rect": {
-       "x": 135,
-       "y": 561,
-       "w": 91,
-       "h": 23
-      },
-      "detail": {
-       "w": 91,
-       "h": 23,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1)",
-      "label": "Attach a file",
-      "rect": {
-       "x": 55,
-       "y": 735,
-       "w": 36,
-       "h": 36
-      },
-      "detail": {
-       "w": 36,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(2)",
-      "label": "Dictate",
-      "rect": {
-       "x": 253,
-       "y": 735,
-       "w": 36,
-       "h": 36
-      },
-      "detail": {
-       "w": 36,
-       "h": 36,
-       "min": 44
-      }
-     },
-     {
-      "selector": "body:nth-of-type(1) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(4)",
-      "label": "Send",
-      "rect": {
-       "x": 297,
-       "y": 733,
-       "w": 38,
-       "h": 38
-      },
-      "detail": {
-       "w": 38,
-       "h": 38,
-       "min": 44
-      }
-     }
-    ],
+    "tinyTargets": [],
     "truncatedNoTitle": [],
     "zeroSize": [],
     "contrastFails": [

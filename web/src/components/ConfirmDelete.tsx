@@ -40,7 +40,8 @@ export function ConfirmDelete({
             {description ??
               t.rich("defaultDescription", {
                 filename,
-                file: (chunks) => <span className="font-mono text-xs text-ink">{chunks}</span>,
+                // Long filenames have no break opportunity; anywhere-wrapping keeps them inside the dialog.
+                file: (chunks) => <span className="font-mono text-xs text-ink [overflow-wrap:anywhere]">{chunks}</span>,
               })}
           </AlertDialogDescription>
         </AlertDialogHeader>
