@@ -28,12 +28,11 @@ jobs:
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz gitleaks
           ./gitleaks git --redact --no-banner .
-  # Non-blocking e2e smoke (quality gate 3, in progress): boots its own dev
-  # server against a throwaway data dir with ComfyUI/Ollama unreachable on
-  # purpose. Not in the required `verify` job yet; failures don't block merges.
+  # E2E (quality gate 3): boots its own dev server against a throwaway data dir
+  # with ComfyUI/Ollama unreachable on purpose. BLOCKING since 2026-09-26 —
+  # TEST-BRIEF §12; a red e2e is a red push.
   e2e:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
