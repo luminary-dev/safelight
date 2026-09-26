@@ -12,6 +12,10 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Model manager (Workstream J): browse and download models from Hugging Face and Civitai
+  in-app — live progress, sha256 verification when the source publishes hashes, a disk-space
+  check with 2 GB headroom, cancel, and automatic placement into the correct `~/models`
+  subfolder, plus curated starter picks with plain-language descriptions.
 - MCP client (Workstream G): add Model Context Protocol servers (stdio or HTTP) from the new
   plug icon in the sidebar and their tools join Chat, Code, and Design as
   `mcp__<server>__<tool>`. Stdio servers run with a scrubbed environment; tools the server
