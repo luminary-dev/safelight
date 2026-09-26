@@ -4,13 +4,15 @@ import path from "node:path";
 import { dataDir } from "@/lib/db";
 import { decryptJson, encryptJson } from "@/lib/secrets/vault";
 
-export type ProviderId = "openai" | "anthropic" | "gemini";
-export const PROVIDERS: ProviderId[] = ["openai", "anthropic", "gemini"];
+export type ProviderId = "openai" | "anthropic" | "gemini" | "openrouter" | "groq";
+export const PROVIDERS: ProviderId[] = ["openai", "anthropic", "gemini", "openrouter", "groq"];
 
 export const PROVIDER_META: Record<ProviderId, { label: string; envVar: string; placeholder: string; chat: boolean; images: boolean; defaultBaseUrl: string }> = {
   openai: { label: "OpenAI", envVar: "OPENAI_API_KEY", placeholder: "sk-…", chat: true, images: true, defaultBaseUrl: "https://api.openai.com/v1" },
   anthropic: { label: "Anthropic", envVar: "ANTHROPIC_API_KEY", placeholder: "sk-ant-…", chat: true, images: false, defaultBaseUrl: "https://api.anthropic.com" },
   gemini: { label: "Gemini", envVar: "GEMINI_API_KEY", placeholder: "AIza…", chat: true, images: true, defaultBaseUrl: "https://generativelanguage.googleapis.com" },
+  openrouter: { label: "OpenRouter", envVar: "OPENROUTER_API_KEY", placeholder: "sk-or-…", chat: true, images: false, defaultBaseUrl: "https://openrouter.ai/api/v1" },
+  groq: { label: "Groq", envVar: "GROQ_API_KEY", placeholder: "gsk_…", chat: true, images: false, defaultBaseUrl: "https://api.groq.com/openai/v1" },
 };
 
 function encFile(): string {
@@ -125,7 +127,8 @@ export async function validateKey(provider: ProviderId, key: string, baseUrl?: s
   const init: RequestInit & { signal: AbortSignal } = { signal: AbortSignal.timeout(8000) };
   try {
     let res: Response;
-    if (provider === "openai") res = await fetch(`${base}/models`, { ...init, headers: { authorization: `Bearer ${key}` } });
+    // OpenRouter and Groq speak the OpenAI wire format, so all three validate the same way.
+    if (provider === "openai" || provider === "openrouter" || provider === "groq") res = await fetch(`${base}/models`, { ...init, headers: { authorization: `Bearer ${key}` } });
     else if (provider === "anthropic") res = await fetch(`${base}/v1/models`, { ...init, headers: { "x-api-key": key, "anthropic-version": "2023-06-01" } });
     else res = await fetch(`${base}/v1beta/models?pageSize=1&key=${encodeURIComponent(key)}`, init);
     if (res.ok) return { ok: true, message: "Key works." };

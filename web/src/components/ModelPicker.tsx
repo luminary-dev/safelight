@@ -8,7 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-export type PickerProvider = "local" | "ollama" | "openai" | "anthropic" | "gemini";
+export type PickerProvider = "local" | "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq";
 
 export interface PickerOption {
   /** Unique key across all groups. */
@@ -27,9 +27,11 @@ export const PROVIDER_META: Record<PickerProvider, { label: string; short: strin
   openai: { label: "OpenAI", short: "OpenAI", group: "OpenAI" },
   anthropic: { label: "Anthropic", short: "Anthropic", group: "Anthropic" },
   gemini: { label: "Gemini", short: "Gemini", group: "Gemini" },
+  openrouter: { label: "OpenRouter", short: "OR", group: "OpenRouter" },
+  groq: { label: "Groq", short: "Groq", group: "Groq" },
 };
 
-const GROUP_ORDER: PickerProvider[] = ["local", "ollama", "openai", "anthropic", "gemini"];
+const GROUP_ORDER: PickerProvider[] = ["local", "ollama", "openai", "anthropic", "gemini", "openrouter", "groq"];
 
 /** Small square mark that gives each row a visual anchor without borrowing brand logos. */
 export function ProviderMark({ provider, className }: { provider: PickerProvider; className?: string }) {

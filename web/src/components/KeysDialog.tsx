@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
 export interface KeyStatus {
-  provider: "openai" | "anthropic" | "gemini";
+  provider: "openai" | "anthropic" | "gemini" | "openrouter" | "groq";
   label: string;
   configured: boolean;
   hint?: string;
@@ -18,6 +18,8 @@ const HELP: Record<KeyStatus["provider"], { placeholder: string; url: string }> 
   openai: { placeholder: "sk-…", url: "https://platform.openai.com/api-keys" },
   anthropic: { placeholder: "sk-ant-…", url: "https://console.anthropic.com/settings/keys" },
   gemini: { placeholder: "AIza…", url: "https://aistudio.google.com/apikey" },
+  openrouter: { placeholder: "sk-or-…", url: "https://openrouter.ai/settings/keys" },
+  groq: { placeholder: "gsk_…", url: "https://console.groq.com/keys" },
 };
 
 export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged: () => void }) {

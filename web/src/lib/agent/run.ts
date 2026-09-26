@@ -86,11 +86,14 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: ToolCon
   }
 }
 
-// ---------------- OpenAI ----------------
-const runOpenAI: Runner = async (turns, model, ctx) => {
-  const { key, baseUrl } = await getProviderConfig("openai");
-  if (!key) throw new Error("No OpenAI API key configured.");
-  const client = new OpenAI({ apiKey: key, ...(baseUrl ? { baseURL: baseUrl } : {}) });
+// ---------------- OpenAI (and OpenAI-compatible: OpenRouter, Groq) ----------------
+type OpenAICompatProvider = Extract<ProviderId, "openai" | "openrouter" | "groq">;
+
+const runOpenAI = async (turns: ChatTurn[], model: string, ctx: ToolContext, provider: OpenAICompatProvider = "openai"): Promise<void> => {
+  const meta = PROVIDER_META[provider];
+  const { key, baseUrl } = await getProviderConfig(provider);
+  if (!key) throw new Error(`No ${meta.label} API key configured.`);
+  const client = new OpenAI({ apiKey: key, baseURL: baseUrl || meta.defaultBaseUrl });
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "system", content: systemOf(ctx) }, ...toOpenAIMessages(turns)];
   const tools: OpenAI.Chat.ChatCompletionTool[] = defsOf(ctx).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
   for (let round = 0; round < maxRounds(ctx); round++) {
@@ -201,7 +204,10 @@ const runOllama: Runner = async (turns, model, ctx) => {
 };
 
 export async function runAgent(provider: ProviderId | "ollama", model: string, turns: ChatTurn[], ctx: ToolContext): Promise<void> {
-  const runner: Runner = provider === "ollama" ? runOllama : provider === "openai" ? runOpenAI : provider === "anthropic" ? runAnthropic : runGemini;
   if (provider !== "ollama" && !(await getKey(provider))) throw new Error(`No ${PROVIDER_META[provider].label} API key configured.`);
-  await runner(turns, model, ctx);
+  if (provider === "ollama") return runOllama(turns, model, ctx);
+  if (provider === "anthropic") return runAnthropic(turns, model, ctx);
+  if (provider === "gemini") return runGemini(turns, model, ctx);
+  // openai, openrouter, and groq all speak the OpenAI wire format.
+  return runOpenAI(turns, model, ctx, provider);
 }

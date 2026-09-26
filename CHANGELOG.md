@@ -6,6 +6,10 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Providers (Workstream E): OpenRouter and Groq join as chat providers — full model catalogs
+  in the picker (OpenRouter labels straight from its API, Groq via friendly names), streaming
+  chat and agent-mode tool calling over the OpenAI-compatible wire format, key validation on
+  save, and per-provider base-URL overrides.
 - Documentation matches the product (Workstream S): root README rewritten around all five
   modes with a capability matrix and verified setup and data-layout details, web/README
   refreshed, repo-level AGENTS.md conventions, and a docs/ set covering getting started, each
