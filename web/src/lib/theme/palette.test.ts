@@ -44,15 +44,11 @@ describe("shell palette meets WCAG AA", () => {
     expect(contrastRatio(token(body, fg), token(body, bg))).toBeGreaterThanOrEqual(AA_TEXT);
   });
 
-  // TODO(a11y): --terracotta (the text-safe accent) on --paper sits below AA in
-  // light mode today (~3.1:1). It is used for small labels and links, and lifting
-  // it to 4.5:1 would visibly darken the lime brand accent — a design decision,
-  // not a token nudge — so the shortfall is documented here instead of silently
-  // recoloring the brand. The dark theme's --terracotta passes comfortably.
-  it("documents the known light-mode --terracotta on --paper shortfall", () => {
+  // The light accent was darkened 2026-09-26 (#5a9e08 -> #487e06, owner-approved)
+  // precisely to cross AA for the small labels and links it colors.
+  it("light-mode --terracotta on --paper passes AA", () => {
     const ratio = contrastRatio(token(light, "--terracotta"), token(light, "--paper"));
-    expect(ratio).toBeLessThan(AA_TEXT);
-    expect(ratio).toBeGreaterThan(3); // still passes AA for large text / UI components
+    expect(ratio).toBeGreaterThanOrEqual(AA_TEXT);
   });
 
   it("dark-mode --terracotta on --paper passes AA", () => {

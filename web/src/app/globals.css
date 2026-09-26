@@ -23,8 +23,10 @@
   --ink-muted: #3f3f46;
   --faint: #6b7280;
   --placeholder: #9ca3af;
-  --terracotta: #5a9e08;
-  --terracotta-deep: #4a8407;
+  /* Darkened 2026-09-26 (was #5a9e08 at 3.09:1 on paper) to meet WCAG AA 4.5:1
+     for small text — the same lime, scaled; the owner approved the change. */
+  --terracotta: #487e06;
+  --terracotta-deep: #3b6a06;
   --terracotta-wash: rgba(132, 204, 22, 0.14);
   --green: #22c55e;
   --green-wash: rgba(34, 197, 94, 0.12);
