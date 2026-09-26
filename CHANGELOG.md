@@ -12,6 +12,10 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Settings (Workstream R): a gear icon opens one surface for everything — provider keys and
+  MCP shortcuts, saved themes with apply/reset, daily and monthly spend limits (soft warning,
+  hard stop), a 30-day usage summary, and export/import of all app data. The model manager
+  gets its own sidebar button.
 - Model manager (Workstream J): browse and download models from Hugging Face and Civitai
   in-app — live progress, sha256 verification when the source publishes hashes, a disk-space
   check with 2 GB headroom, cancel, and automatic placement into the correct `~/models`

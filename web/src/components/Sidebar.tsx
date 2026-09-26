@@ -1,12 +1,14 @@
 "use client";
 
-import { Code2, FolderInput, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plug, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Code2, FolderInput, HardDriveDownload, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plug, Plus, RefreshCw, Search, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ChatSession, CodeSession, DesignSession, ImageSession, Project, Session } from "@/lib/session-types";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "./ConfirmDelete";
 import { McpDialog } from "./McpDialog";
+import { ModelManagerDialog } from "./ModelManagerDialog";
+import { SettingsDialog } from "./SettingsDialog";
 import { SafelightMark, type SystemRow, type Tone, type TopMode } from "./shell";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
@@ -93,6 +95,8 @@ export function Sidebar({
   const [spinning, setSpinning] = useState(false);
   const [ram, setRam] = useState<{ total: number; free: number } | null>(null);
   const [mcpOpen, setMcpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [modelsOpen, setModelsOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ⌘K focuses search.
@@ -149,8 +153,27 @@ export function Sidebar({
           <button type="button" aria-label="MCP servers" onClick={() => setMcpOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
             <Plug className="size-3.5" />
           </button>
+          <button type="button" aria-label="Model manager" onClick={() => setModelsOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
+            <HardDriveDownload className="size-3.5" />
+          </button>
+          <button type="button" aria-label="Settings" onClick={() => setSettingsOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
+            <Settings2 className="size-3.5" />
+          </button>
         </span>
+        <ModelManagerDialog open={modelsOpen} onClose={() => setModelsOpen(false)} />
         <McpDialog open={mcpOpen} onClose={() => setMcpOpen(false)} />
+        <SettingsDialog
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onOpenKeys={() => {
+            setSettingsOpen(false);
+            onKeys();
+          }}
+          onOpenMcp={() => {
+            setSettingsOpen(false);
+            setMcpOpen(true);
+          }}
+        />
       </div>
 
       <label className="flex items-center gap-2.5 rounded-[12px] bg-paper-2 px-3 py-2.5 shadow-[var(--shadow-hairline)]">
