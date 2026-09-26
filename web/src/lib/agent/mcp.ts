@@ -1,6 +1,7 @@
 import "server-only";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { getSetting, setSetting } from "@/lib/db/settings";
+import { assertOutboundAllowed } from "@/lib/privacy";
 import type { ToolContext, ToolDef } from "./tools";
 import type { JobOutput } from "@/lib/comfy/types";
 
@@ -173,6 +174,7 @@ class HttpTransport implements Transport {
   }
 
   async request(method: string, params: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
+    assertOutboundAllowed("remote MCP servers", this.url);
     const id = this.nextId++;
     const res = await fetch(this.url, {
       method: "POST",
@@ -192,6 +194,7 @@ class HttpTransport implements Transport {
   }
 
   async notify(method: string, params?: Record<string, unknown>): Promise<void> {
+    assertOutboundAllowed("remote MCP servers", this.url);
     await fetch(this.url, {
       method: "POST",
       headers: this.headers(),

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertOutboundAllowed } from "@/lib/privacy";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { dataDir } from "@/lib/db";
@@ -123,6 +124,7 @@ export interface KeyValidation {
 
 /** One cheap authenticated call so the Keys dialog can say "works" or "wrong key" at save time. */
 export async function validateKey(provider: ProviderId, key: string, baseUrl?: string): Promise<KeyValidation> {
+  assertOutboundAllowed("key validation");
   const base = (baseUrl || PROVIDER_META[provider].defaultBaseUrl).replace(/\/$/, "");
   const init: RequestInit & { signal: AbortSignal } = { signal: AbortSignal.timeout(8000) };
   try {

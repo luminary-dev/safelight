@@ -1,4 +1,5 @@
 import "server-only";
+import { assertOutboundAllowed } from "@/lib/privacy";
 import { friendlyName } from "@/lib/friendly-names";
 import { streamAnthropicChat, listAnthropicModels } from "./anthropic";
 import { generateGeminiImages, listGeminiModels, streamGeminiChat } from "./gemini";
@@ -74,6 +75,7 @@ export async function cloudCatalog(): Promise<CloudCatalog> {
 }
 
 export async function streamCloudChat(provider: ProviderId, model: string, turns: ChatTurn[], signal?: AbortSignal, system?: string): Promise<ReadableStream<Uint8Array>> {
+  assertOutboundAllowed("cloud chat");
   const { key, baseUrl } = await getProviderConfig(provider);
   if (!key) throw new Error(`No ${PROVIDER_META[provider].label} API key configured.`);
   switch (provider) {
@@ -91,6 +93,7 @@ export async function streamCloudChat(provider: ProviderId, model: string, turns
 }
 
 export async function generateCloudImages(provider: ProviderId, model: string, req: CloudImageRequest): Promise<GeneratedImage[]> {
+  assertOutboundAllowed("cloud image generation");
   const { key, baseUrl } = await getProviderConfig(provider);
   if (!key) throw new Error(`No ${PROVIDER_META[provider].label} API key configured.`);
   switch (provider) {

@@ -12,6 +12,11 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Local only switch (Workstream V): one toggle in Settings hard-disables every outbound
+  call — cloud chat and images, web search, page fetches, model downloads, key validation,
+  and remote MCP servers — while local renders, Ollama, and loopback targets keep working.
+  A visible sidebar badge shows when it is on, and every blocked attempt is written to the
+  audit log with the feature name, never the content.
 - Release engineering (Workstreams W, X, Y): ADR 0003 proposes the business model — a
   one-time license with a signed offline license file (PROPOSED, awaiting the owner's
   sign-off; nothing is built) — RELEASING.md documents the semver/checklist/tag/rollback

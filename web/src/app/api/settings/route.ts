@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { deleteSetting, getSetting, setSetting } from "@/lib/db/settings";
+import { invalidateLocalOnlyCache } from "@/lib/privacy";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ const KEYS: Record<string, "number" | "boolean" | "string"> = {
   spendLimitMonthSoft: "number",
   spendLimitMonthHard: "number",
   telemetryEnabled: "boolean",
+  localOnly: "boolean",
 };
 
 export async function GET() {
@@ -43,5 +45,6 @@ export async function PATCH(request: NextRequest) {
     if (kind === "number" && (!Number.isFinite(value as number) || (value as number) < 0)) return Response.json({ error: `${key} must be a non-negative number.` }, { status: 400 });
     setSetting(key, value);
   }
+  invalidateLocalOnlyCache();
   return GET();
 }

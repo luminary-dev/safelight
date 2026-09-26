@@ -33,14 +33,27 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-/** One place for everything: keys, MCP, themes, spend limits, usage, backups. */
-export function SettingsDialog({ open, onClose, onOpenKeys, onOpenMcp }: { open: boolean; onClose: () => void; onOpenKeys: () => void; onOpenMcp: () => void }) {
+/** One place for everything: keys, MCP, themes, spend limits, usage, privacy, backups. */
+export function SettingsDialog({
+  open,
+  onClose,
+  onOpenKeys,
+  onOpenMcp,
+  onLocalOnlyChange,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onOpenKeys: () => void;
+  onOpenMcp: () => void;
+  onLocalOnlyChange?: (on: boolean) => void;
+}) {
   const reduce = useReducedMotion();
   const [themes, setThemes] = useState<ThemeRow[]>([]);
   const [activeTheme, setActiveTheme] = useState<string | null>(null);
   const [limits, setLimits] = useState<Record<string, string>>({});
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null | "unavailable">(null);
+  const [localOnly, setLocalOnly] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -55,8 +68,12 @@ export function SettingsDialog({ open, onClose, onOpenKeys, onOpenMcp }: { open:
           })
           .catch(() => undefined),
         fetch("/api/settings")
-          .then((r) => r.json() as Promise<{ settings?: Record<string, number> }>)
-          .then((d) => setLimits(Object.fromEntries(Object.entries(d.settings ?? {}).map(([k, v]) => [k, String(v)]))))
+          .then((r) => r.json() as Promise<{ settings?: Record<string, number | boolean> }>)
+          .then((d) => {
+            const all = d.settings ?? {};
+            setLocalOnly(all.localOnly === true);
+            setLimits(Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith("spendLimit")).map(([k, v]) => [k, String(v)])));
+          })
           .catch(() => undefined),
         fetch("/api/usage?days=30")
           .then(async (r): Promise<UsageSummary | "unavailable"> => (r.ok ? ((await r.json()) as UsageSummary) : "unavailable"))
@@ -216,6 +233,30 @@ export function SettingsDialog({ open, onClose, onOpenKeys, onOpenMcp }: { open:
               ) : (
                 <p className="text-[12px] text-placeholder">{usage === "unavailable" ? "The usage ledger is not available yet." : "Loading usage…"}</p>
               )}
+            </Section>
+
+            <Section title="Privacy">
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-[13px] leading-relaxed text-ink-muted">
+                  <span className="font-medium text-ink">Local only</span> — hard-disables every outbound call: cloud models, web search, page fetches, model downloads, key checks, and remote MCP servers. Local renders and Ollama keep working. Blocked attempts are listed in <code className="code">data/logs/</code>.
+                </p>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={localOnly}
+                  onClick={async () => {
+                    const next = !localOnly;
+                    const res = await fetch("/api/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ localOnly: next ? true : null }) }).catch(() => null);
+                    if (res?.ok) {
+                      setLocalOnly(next);
+                      onLocalOnlyChange?.(next);
+                    }
+                  }}
+                  className={cn("shrink-0 rounded-full px-3.5 py-1.5 font-mono text-[12px] transition-colors", localOnly ? "bg-terracotta text-white" : "border border-line text-ink-muted hover:text-ink")}
+                >
+                  {localOnly ? "On" : "Off"}
+                </button>
+              </div>
             </Section>
 
             <Section title="Backups & data">

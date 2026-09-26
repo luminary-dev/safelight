@@ -97,6 +97,15 @@ export function Sidebar({
   const [mcpOpen, setMcpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
+  const [localOnly, setLocalOnly] = useState(false);
+
+  // The Local only badge must be truthful on load, not only after the dialog was opened.
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json() as Promise<{ settings?: { localOnly?: boolean } }>)
+      .then((d) => setLocalOnly(d.settings?.localOnly === true))
+      .catch(() => undefined);
+  }, []);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ⌘K focuses search.
@@ -173,8 +182,15 @@ export function Sidebar({
             setSettingsOpen(false);
             setMcpOpen(true);
           }}
+          onLocalOnlyChange={setLocalOnly}
         />
       </div>
+
+      {localOnly ? (
+        <p className="flex items-center gap-2 rounded-[10px] bg-terracotta-wash px-3 py-1.5 font-mono text-[11px] font-medium text-terracotta">
+          <span className="size-1.5 rounded-full bg-terracotta" /> Local only — nothing leaves this machine
+        </p>
+      ) : null}
 
       <label className="flex items-center gap-2.5 rounded-[12px] bg-paper-2 px-3 py-2.5 shadow-[var(--shadow-hairline)]">
         <Search className="size-3.5 shrink-0 text-placeholder" />

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertOutboundAllowed } from "@/lib/privacy";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { saveTheme } from "@/lib/db/sessions";
@@ -149,6 +150,7 @@ export async function executeDesignTool(name: string, args: Record<string, unkno
       return { result: { provider, results }, note: `${results.length} results · ${provider}` };
     }
     case "fetch_page": {
+      assertOutboundAllowed("page fetching");
       let url = guardUrl(args.url);
       await assertPublicHost(url);
       let res: Response | null = null;

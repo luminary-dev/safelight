@@ -1,4 +1,5 @@
 import "server-only";
+import { assertOutboundAllowed } from "@/lib/privacy";
 import { createHash } from "node:crypto";
 import { createWriteStream, existsSync, mkdirSync, unlinkSync } from "node:fs";
 import path from "node:path";
@@ -62,6 +63,7 @@ export interface StartOptions {
 }
 
 export function startDownload(opts: StartOptions): { id: string } {
+  assertOutboundAllowed("model downloading", opts.url);
   const fileName = sanitizeFileName(opts.fileName);
   const file = path.join(opts.targetDir, fileName);
 

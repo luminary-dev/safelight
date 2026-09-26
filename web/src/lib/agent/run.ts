@@ -1,4 +1,5 @@
 import "server-only";
+import { assertOutboundAllowed } from "@/lib/privacy";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI, type Content, type FunctionDeclaration, type Part } from "@google/genai";
 import OpenAI from "openai";
@@ -349,6 +350,7 @@ function dispatch(provider: ProviderId | "ollama", model: string, turns: ChatTur
 }
 
 export async function runAgent(provider: ProviderId | "ollama", model: string, turns: ChatTurn[], ctx: ToolContext): Promise<void> {
+  if (provider !== "ollama") assertOutboundAllowed("cloud chat");
   if (provider !== "ollama" && !(await getKey(provider))) throw new Error(`No ${PROVIDER_META[provider].label} API key configured.`);
   const log = getLogger();
   const meta: RunMeta = {
