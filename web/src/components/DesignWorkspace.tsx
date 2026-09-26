@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { JobOutput } from "@/lib/comfy/types";
 import type { ChatAttachment, ChatMessage, DesignSession } from "@/lib/session-types";
 import { ChatMode, chatModelKey, type ChatModelInfo, type PromptHandoff } from "./ChatMode";
@@ -36,6 +37,7 @@ export function DesignWorkspace({
   clientId: string;
   onUpload: (files: File[]) => Promise<ChatAttachment[]>;
 }) {
+  const tw = useTranslations("workspace");
   const toolCapable = models.filter((m) => m.provider !== "ollama" || m.tags?.includes("tools"));
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -46,12 +48,12 @@ export function DesignWorkspace({
           value={model || null}
           onChange={onModel}
           onAddKey={onOpenKeys}
-          placeholder="Pick a tool-capable model"
-          emptyHint={ollamaUp ? "No tool-capable models. Add an API key, or pull a tool-capable Ollama model." : "Ollama is offline. Start it with ollama serve, or add an API key."}
+          placeholder={tw("pickerPlaceholder")}
+          emptyHint={ollamaUp ? tw("emptyHintOllamaUp") : tw("emptyHintOllamaDown")}
           className="w-auto min-w-[220px]"
         />
         <button type="button" onClick={onCreateSession} className="btn-ink gap-1.5">
-          <Plus className="size-4" /> New session
+          <Plus className="size-4" /> {tw("newSession")}
         </button>
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col px-6 pb-5">

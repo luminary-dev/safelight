@@ -1,6 +1,7 @@
 "use client";
 
 import { FolderCode, Plus, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import type { JobOutput } from "@/lib/comfy/types";
 import type { ChatAttachment, ChatMessage, CodeSession } from "@/lib/session-types";
@@ -44,6 +45,8 @@ export function CodeWorkspace({
   clientId: string;
   onUpload: (files: File[]) => Promise<ChatAttachment[]>;
 }) {
+  const t = useTranslations("codeWorkspace");
+  const tw = useTranslations("workspace");
   const root = active?.root ?? "";
   const [draft, setDraft] = useState(root);
   // Reset the path field when the session changes (render-phase adjustment, not an effect).
@@ -64,8 +67,8 @@ export function CodeWorkspace({
           value={model || null}
           onChange={onModel}
           onAddKey={onOpenKeys}
-          placeholder="Pick a tool-capable model"
-          emptyHint={ollamaUp ? "No tool-capable models. Add an API key, or pull a tool-capable Ollama model." : "Ollama is offline. Start it with ollama serve, or add an API key."}
+          placeholder={tw("pickerPlaceholder")}
+          emptyHint={ollamaUp ? tw("emptyHintOllamaUp") : tw("emptyHintOllamaDown")}
           className="w-auto min-w-[220px]"
         />
         <label className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] bg-paper px-3 py-2.5">
@@ -75,10 +78,10 @@ export function CodeWorkspace({
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => onRoot(draft.trim())}
             onKeyDown={(e) => e.key === "Enter" && onRoot(draft.trim())}
-            placeholder="/absolute/path/to/your/project"
+            placeholder={t("rootPlaceholder")}
             spellCheck={false}
             className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-ink outline-none placeholder:text-placeholder"
-            aria-label="Workspace folder"
+            aria-label={t("rootAria")}
           />
         </label>
         <FolderBrowser
@@ -89,16 +92,16 @@ export function CodeWorkspace({
           }}
         />
         <button type="button" onClick={onCreateSession} className="btn-ink gap-1.5">
-          <Plus className="size-4" /> New session
+          <Plus className="size-4" /> {tw("newSession")}
         </button>
       </div>
       {approvedPaths.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5 px-6 pb-3">
-          <span className="text-[12px] font-medium text-faint">Also allowed:</span>
+          <span className="text-[12px] font-medium text-faint">{t("alsoAllowed")}</span>
           {approvedPaths.map((p) => (
-            <span key={p} className="inline-flex max-w-[360px] items-center gap-1.5 rounded-full bg-terracotta-wash py-1 pl-2.5 pr-1.5 font-mono text-[11px] text-terracotta">
+            <span key={p} className="inline-flex max-w-[360px] items-center gap-1.5 rounded-full bg-terracotta-wash py-1 ps-2.5 pe-1.5 font-mono text-[11px] text-terracotta">
               <span className="truncate" title={p}>{p}</span>
-              <button type="button" aria-label={`Revoke access to ${p}`} onClick={() => onRemoveApprovedPath(p)} className="grid size-4 shrink-0 place-items-center rounded-full hover:bg-paper-2/60">
+              <button type="button" aria-label={t("revoke", { path: p })} onClick={() => onRemoveApprovedPath(p)} className="grid size-4 shrink-0 place-items-center rounded-full hover:bg-paper-2/60">
                 <X className="size-3" />
               </button>
             </span>
@@ -132,9 +135,9 @@ export function CodeWorkspace({
         ) : (
           <div className="m-auto flex max-w-md flex-col items-center gap-3 text-center">
             <FolderCode className="size-8 text-placeholder" />
-            <h2 className="font-display text-[20px] font-semibold text-ink">Point this session at a folder</h2>
+            <h2 className="font-display text-[20px] font-semibold text-ink">{t("emptyTitle")}</h2>
             <p className="text-[14px] leading-relaxed text-ink-muted [text-wrap:pretty]">
-              Paste the absolute path of a project above. The model can then search, read, and edit files inside that folder — and nowhere else without your approval. Commands run only after you approve each one.
+              {t("emptyBody")}
             </p>
           </div>
         )}

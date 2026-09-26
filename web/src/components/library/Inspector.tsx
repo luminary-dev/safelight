@@ -2,10 +2,12 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { Download, Heart, Maximize2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import { formatBytes, formatDate } from "@/lib/i18n-format";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "../ConfirmDelete";
-import { fmtDate, fmtSize, fullUrl, type LibraryItem } from "./types";
+import { fullUrl, type LibraryItem } from "./types";
 
 /** Every sidecar field the render wrote, in display order. */
 const META_FIELDS = ["mode", "negativePrompt", "sampler", "scheduler", "steps", "cfg", "denoise", "createdAt"] as const;
@@ -23,7 +25,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
       <dt className="shrink-0 font-mono text-[11px] text-faint">{label}</dt>
-      <dd className="min-w-0 truncate text-right font-mono text-[11.5px] text-ink" title={value}>
+      <dd className="min-w-0 truncate text-end font-mono text-[11.5px] text-ink" title={value}>
         {value}
       </dd>
     </div>
@@ -50,6 +52,7 @@ export function Inspector({
   onUseAsInput: () => void;
   onDelete: () => Promise<void>;
 }) {
+  const t = useTranslations("library.inspector");
   const [draft, setDraft] = useState("");
   const meta = useMemo(() => metaOf(item), [item]);
   const filename = item.path.split("/").pop() ?? item.path;
@@ -69,14 +72,14 @@ export function Inspector({
         <p className="min-w-0 break-all font-mono text-[11.5px] leading-snug text-ink" title={item.path}>
           {filename}
         </p>
-        <button type="button" className="btn-quiet px-1.5" aria-label="Close inspector" onClick={onClose}>
+        <button type="button" className="btn-quiet px-1.5" aria-label={t("closeInspector")} onClick={onClose}>
           <X className="size-3.5" />
         </button>
       </div>
 
-      <button type="button" onClick={onOpenViewer} className="group relative block overflow-hidden rounded-[14px] border border-line" aria-label={`Open ${filename} full size`}>
+      <button type="button" onClick={onOpenViewer} className="group relative block overflow-hidden rounded-[14px] border border-line" aria-label={t("openFullSize", { filename })}>
         <img src={fullUrl(item)} alt={filename} className="aspect-square w-full object-cover" />
-        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink opacity-0 shadow-[var(--shadow-hairline)] backdrop-blur transition-opacity group-hover:opacity-100">
+        <span className="absolute end-2 top-2 grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink opacity-0 shadow-[var(--shadow-hairline)] backdrop-blur transition-opacity group-hover:opacity-100">
           <Maximize2 className="size-3.5" />
         </span>
       </button>
@@ -87,19 +90,19 @@ export function Inspector({
           onClick={onToggleFavorite}
           className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-mono text-[11px] transition-colors", item.favorite ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
         >
-          <Heart className={cn("size-3.5", item.favorite && "fill-current")} /> {item.favorite ? "Favorited" : "Favorite"}
+          <Heart className={cn("size-3.5", item.favorite && "fill-current")} /> {item.favorite ? t("favorited") : t("favorite")}
         </button>
-        <button type="button" onClick={onUseAsInput} aria-label="Edit in Image" className="grid size-8 place-items-center rounded-full border border-line text-ink-muted hover:text-terracotta">
+        <button type="button" onClick={onUseAsInput} aria-label={t("editInImage")} className="grid size-8 place-items-center rounded-full border border-line text-ink-muted hover:text-terracotta">
           <Pencil className="size-3.5" />
         </button>
-        <a href={fullUrl(item)} download={filename} aria-label="Save" className="grid size-8 place-items-center rounded-full border border-line text-ink-muted hover:text-terracotta">
+        <a href={fullUrl(item)} download={filename} aria-label={t("save")} className="grid size-8 place-items-center rounded-full border border-line text-ink-muted hover:text-terracotta">
           <Download className="size-3.5" />
         </a>
         <ConfirmDelete
           filename={filename}
           onConfirm={onDelete}
           trigger={
-            <button type="button" aria-label="Delete" className="grid size-8 place-items-center rounded-full border border-line text-ink-muted hover:text-danger">
+            <button type="button" aria-label={t("delete")} className="grid size-8 place-items-center rounded-full border border-line text-ink-muted hover:text-danger">
               <Trash2 className="size-3.5" />
             </button>
           }
@@ -109,28 +112,28 @@ export function Inspector({
       {item.prompt ? <p className="rounded-[12px] bg-pill px-3 py-2.5 text-[12.5px] leading-relaxed text-ink-muted">{item.prompt}</p> : null}
 
       <dl className="divide-y divide-line">
-        {item.width && item.height ? <Row label="size" value={`${item.width} × ${item.height} · ${fmtSize(item.size)}`} /> : <Row label="size" value={fmtSize(item.size)} />}
-        <Row label="modified" value={fmtDate(item.mtime)} />
-        {item.model ? <Row label="model" value={item.model} /> : null}
-        {modelMeta?.provider ? <Row label="provider" value={modelMeta.provider} /> : null}
-        {modelMeta?.folder ? <Row label="folder" value={modelMeta.folder} /> : null}
-        {item.seed !== null ? <Row label="seed" value={String(item.seed)} /> : null}
+        {item.width && item.height ? <Row label={t("rowSize")} value={t("sizeWithDimensions", { width: item.width, height: item.height, size: formatBytes(item.size) })} /> : <Row label={t("rowSize")} value={formatBytes(item.size)} />}
+        <Row label={t("rowModified")} value={formatDate(item.mtime)} />
+        {item.model ? <Row label={t("rowModel")} value={item.model} /> : null}
+        {modelMeta?.provider ? <Row label={t("rowProvider")} value={modelMeta.provider} /> : null}
+        {modelMeta?.folder ? <Row label={t("rowFolder")} value={modelMeta.folder} /> : null}
+        {item.seed !== null ? <Row label={t("rowSeed")} value={String(item.seed)} /> : null}
         {META_FIELDS.map((f) => {
           const v = meta[f];
           if (v === undefined || v === null || v === "") return null;
-          return <Row key={f} label={f} value={f === "createdAt" && typeof v === "number" ? fmtDate(v) : String(v)} />;
+          return <Row key={f} label={t(`meta.${f}`)} value={f === "createdAt" && typeof v === "number" ? formatDate(v) : String(v)} />;
         })}
-        {typeof meta.width === "number" && typeof meta.height === "number" ? <Row label="requested" value={`${meta.width} × ${meta.height}`} /> : null}
-        {images.length > 0 ? <Row label="references" value={images.join(", ")} /> : null}
+        {typeof meta.width === "number" && typeof meta.height === "number" ? <Row label={t("rowRequested")} value={t("dimensions", { width: meta.width, height: meta.height })} /> : null}
+        {images.length > 0 ? <Row label={t("rowReferences")} value={images.join(", ")} /> : null}
       </dl>
 
       <div>
-        <p className="mb-1.5 font-mono text-[11px] text-faint">tags</p>
+        <p className="mb-1.5 font-mono text-[11px] text-faint">{t("tags")}</p>
         <div className="flex flex-wrap items-center gap-1.5">
-          {item.tags.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1 rounded-full bg-pill px-2 py-0.5 font-mono text-[10.5px] text-ink-muted">
-              {t}
-              <button type="button" aria-label={`Remove tag ${t}`} onClick={() => onRemoveTag(t)} className="text-faint hover:text-danger">
+          {item.tags.map((tag) => (
+            <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-pill px-2 py-0.5 font-mono text-[10.5px] text-ink-muted">
+              {tag}
+              <button type="button" aria-label={t("removeTag", { tag })} onClick={() => onRemoveTag(tag)} className="text-faint hover:text-danger">
                 <X className="size-3" />
               </button>
             </span>
@@ -140,11 +143,11 @@ export function Inspector({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitTag()}
-              placeholder="add tag"
+              placeholder={t("addTagPlaceholder")}
               className="field h-6 w-20 rounded-full px-2 font-mono text-[10.5px]"
-              aria-label="Add tag"
+              aria-label={t("addTag")}
             />
-            <button type="button" aria-label="Add tag" onClick={submitTag} className="grid size-6 place-items-center rounded-full border border-line text-faint hover:text-terracotta">
+            <button type="button" aria-label={t("addTag")} onClick={submitTag} className="grid size-6 place-items-center rounded-full border border-line text-faint hover:text-terracotta">
               <Plus className="size-3" />
             </button>
           </span>

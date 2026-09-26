@@ -57,14 +57,25 @@ export function useDialogFocus(open: boolean, ref: RefObject<HTMLElement | null>
 }
 export type Tone = "ok" | "warn" | "down" | "checking" | "off";
 
+/**
+ * A message reference resolved at the render site: a key in the catalog's
+ * "systemStatus" namespace plus its ICU values. Keeps deriveStatus pure while
+ * the component tree owns translation.
+ */
+export interface StatusMessage {
+  key: string;
+  values?: Record<string, string | number>;
+}
+
 export interface SystemRow {
   id: string;
+  /** Product/provider name (ComfyUI, Ollama, OpenAI, …) — never translated. */
   label: string;
   /** One line of detail, e.g. "1 model · live progress connected" or "key ends …NPoA". */
-  detail: string;
+  detail: StatusMessage;
   tone: Tone;
-  /** Optional action shown at the right of the row. */
-  action?: { label: string; onClick: () => void };
+  /** Optional action shown at the end of the row. */
+  action?: { label: StatusMessage; onClick: () => void };
 }
 
 /** The Safelight mark: an ink tile holding a paper disc and an accent crescent. */

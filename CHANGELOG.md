@@ -6,6 +6,12 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Internationalisation (Workstream U): every UI string in the sidebar, dialogs, library, and
+  blueprint surfaces now lives in a next-intl message catalog (English, 344 messages) with
+  ICU plurals; dates, numbers, and file sizes format through Intl; the layout sets its
+  direction from the locale and uses logical CSS properties, making the shell RTL-ready.
+  English stays the only shipped locale. Also fixes the Settings runs list showing
+  "Invalid Date" (a camelCase/snake_case mismatch surfaced by the conversion).
 - Prompt library, sweeps, and a memory guard (Workstream J, round three): saved prompts with
   `{a|b}` and `__title__` wildcards expanded per render and seeded by the render seed (a
   locked seed reproduces the expansion), one-click Enhance with undo, seed/CFG/steps sweeps

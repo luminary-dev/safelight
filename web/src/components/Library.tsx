@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { Check, Columns, Copy, Download, FolderOutput, Heart, Pencil, Search, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GalleryItem, JobOutput } from "@/lib/comfy/types";
 import { cn } from "@/lib/utils";
@@ -15,9 +16,9 @@ import { useDialogFocus } from "./shell";
 
 const PAGE = 120;
 const SORTS = [
-  { id: "newest", label: "Newest" },
-  { id: "oldest", label: "Oldest" },
-  { id: "largest", label: "Largest" },
+  { id: "newest", labelKey: "sortNewest" },
+  { id: "oldest", labelKey: "sortOldest" },
+  { id: "largest", labelKey: "sortLargest" },
 ] as const;
 type Sort = (typeof SORTS)[number]["id"];
 
@@ -27,6 +28,7 @@ type Sort = (typeof SORTS)[number]["id"];
  * index instead of walking outputs/ per request.
  */
 export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryItem[]; onUseAsInput: (o: JobOutput) => void; onDelete: (o: JobOutput) => Promise<void> }) {
+  const t = useTranslations("library");
   // ---------- filters ----------
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
@@ -103,12 +105,12 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
         setFacets(data.facets);
         setError(null);
       } catch {
-        if (seq === reqSeq.current) setError("The library index did not answer.");
+        if (seq === reqSeq.current) setError(t("loadFailed"));
       } finally {
         loadingRef.current = false;
       }
     },
-    [params],
+    [params, t],
   );
 
   useEffect(() => {
@@ -206,22 +208,22 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
           body: JSON.stringify({ paths: selected, action, dest }),
         });
         const data = (await res.json().catch(() => ({}))) as { error?: string; exported?: number; deleted?: number; dest?: string };
-        if (!res.ok) throw new Error(data.error ?? "Bulk action failed.");
+        if (!res.ok) throw new Error(data.error ?? t("bulkFailed"));
         if (action === "export") {
-          setNotice(`Exported ${data.exported ?? 0} file${data.exported === 1 ? "" : "s"} to ${data.dest}.`);
+          setNotice(t("exportedNotice", { count: data.exported ?? 0, dest: data.dest ?? "" }));
           setExportOpen(false);
         } else {
-          setNotice(`Deleted ${data.deleted ?? 0} file${data.deleted === 1 ? "" : "s"}.`);
+          setNotice(t("deletedNotice", { count: data.deleted ?? 0 }));
           removeLocal(selected);
           setDupReload((n) => n + 1);
         }
       } catch (err) {
-        setNotice(err instanceof Error ? err.message : "Bulk action failed.");
+        setNotice(err instanceof Error ? err.message : t("bulkFailed"));
       } finally {
         setBusy(false);
       }
     },
-    [selected, removeLocal],
+    [selected, removeLocal, t],
   );
 
   useEffect(() => {
@@ -245,40 +247,40 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
       const open = () => (selecting ? toggleSelect(item.path) : setInspectPath(item.path));
       return (
         <div className={cn("group/g relative h-full w-full overflow-hidden rounded-[18px] border transition-colors", on ? "border-terracotta" : "border-line", inspectPath === item.path && !selecting && "border-line-strong")}>
-          <button type="button" onClick={open} className="block h-full w-full" aria-label={selecting ? `Select ${item.path}` : `Inspect ${item.path}`} aria-pressed={selecting ? on : undefined}>
+          <button type="button" onClick={open} className="block h-full w-full" aria-label={selecting ? t("selectAria", { path: item.path }) : t("inspectAria", { path: item.path })} aria-pressed={selecting ? on : undefined}>
             <img src={thumbUrl(item)} alt={item.prompt ?? item.path} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover/g:scale-[1.02]" />
           </button>
           {selecting || on ? (
-            <span className={cn("pointer-events-none absolute left-2.5 top-2.5 grid size-6 place-items-center rounded-full border backdrop-blur", on ? "border-terracotta bg-terracotta text-paper-2" : "border-line bg-paper-2/90 text-transparent")}>
+            <span className={cn("pointer-events-none absolute start-2.5 top-2.5 grid size-6 place-items-center rounded-full border backdrop-blur", on ? "border-terracotta bg-terracotta text-paper-2" : "border-line bg-paper-2/90 text-transparent")}>
               <Check className="size-3.5" />
             </span>
           ) : null}
           {item.favorite ? (
-            <span className="pointer-events-none absolute bottom-2.5 left-2.5 grid size-6 place-items-center rounded-full bg-paper-2/90 text-terracotta backdrop-blur">
+            <span className="pointer-events-none absolute bottom-2.5 start-2.5 grid size-6 place-items-center rounded-full bg-paper-2/90 text-terracotta backdrop-blur">
               <Heart className="size-3.5 fill-current" />
             </span>
           ) : null}
           {!selecting ? (
-            <span className="absolute right-2.5 top-2.5 flex gap-1 opacity-0 transition-opacity group-focus-within/g:opacity-100 group-hover/g:opacity-100">
+            <span className="absolute end-2.5 top-2.5 flex gap-1 opacity-0 transition-opacity group-focus-within/g:opacity-100 group-hover/g:opacity-100">
               <button
                 type="button"
-                aria-label={item.favorite ? "Unfavorite" : "Favorite"}
+                aria-label={item.favorite ? t("unfavorite") : t("favorite")}
                 onClick={() => toggleFavorite(item)}
                 className={cn("grid size-7 place-items-center rounded-full bg-paper-2/90 shadow-[var(--shadow-hairline)] backdrop-blur", item.favorite ? "text-terracotta" : "text-ink hover:text-terracotta")}
               >
                 <Heart className={cn("size-3.5", item.favorite && "fill-current")} />
               </button>
-              <button type="button" aria-label="Edit in Image" onClick={() => onUseAsInput(toJobOutput(item))} className="grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink shadow-[var(--shadow-hairline)] backdrop-blur hover:text-terracotta">
+              <button type="button" aria-label={t("editInImage")} onClick={() => onUseAsInput(toJobOutput(item))} className="grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink shadow-[var(--shadow-hairline)] backdrop-blur hover:text-terracotta">
                 <Pencil className="size-3.5" />
               </button>
-              <a aria-label="Save" href={fullUrl(item)} download={item.path.split("/").pop()} className="grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink shadow-[var(--shadow-hairline)] backdrop-blur hover:text-terracotta">
+              <a aria-label={t("save")} href={fullUrl(item)} download={item.path.split("/").pop()} className="grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink shadow-[var(--shadow-hairline)] backdrop-blur hover:text-terracotta">
                 <Download className="size-3.5" />
               </a>
               <ConfirmDelete
                 filename={item.path.split("/").pop() ?? item.path}
                 onConfirm={() => deleteOne(item)}
                 trigger={
-                  <button type="button" aria-label="Delete" className="grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink shadow-[var(--shadow-hairline)] backdrop-blur hover:text-danger">
+                  <button type="button" aria-label={t("delete")} className="grid size-7 place-items-center rounded-full bg-paper-2/90 text-ink shadow-[var(--shadow-hairline)] backdrop-blur hover:text-danger">
                     <Trash2 className="size-3.5" />
                   </button>
                 }
@@ -288,7 +290,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
         </div>
       );
     },
-    [selectedSet, selecting, inspectPath, toggleSelect, toggleFavorite, onUseAsInput, deleteOne],
+    [selectedSet, selecting, inspectPath, toggleSelect, toggleFavorite, onUseAsInput, deleteOne, t],
   );
 
   const topTags = facets.tags.slice(0, 10);
@@ -296,10 +298,10 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-4 p-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-display text-[24px] font-bold tracking-[-0.01em] text-ink">Library</h1>
+        <h1 className="font-display text-[24px] font-bold tracking-[-0.01em] text-ink">{t("heading")}</h1>
         <div className="flex items-center gap-3">
           <span className="font-mono text-[12px] text-faint">
-            {total} image{total === 1 ? "" : "s"}
+            {t("imageCount", { count: total })}
           </span>
           <div className="flex gap-1.5">
             {(["grid", "duplicates"] as const).map((v) => (
@@ -309,7 +311,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
                 onClick={() => setView(v)}
                 className={cn("rounded-full px-3 py-1 font-mono text-[11px] transition-colors", view === v ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
               >
-                {v === "grid" ? "All" : "Duplicates"}
+                {v === "grid" ? t("viewAll") : t("viewDuplicates")}
               </button>
             ))}
           </div>
@@ -318,7 +320,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
             onClick={() => (selecting ? clearSelection() : setSelecting(true))}
             className={cn("rounded-full px-3 py-1 font-mono text-[11px] transition-colors", selecting ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
           >
-            {selecting ? "Done" : "Select"}
+            {selecting ? t("done") : t("select")}
           </button>
         </div>
       </div>
@@ -326,21 +328,21 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
       {view === "grid" ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-faint" />
-            <input value={queryInput} onChange={(e) => setQueryInput(e.target.value)} placeholder="Search prompts and models" className="field h-9 w-[240px] rounded-full pl-8 text-[13px]" aria-label="Search library" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 size-3.5 -translate-y-1/2 text-faint" />
+            <input value={queryInput} onChange={(e) => setQueryInput(e.target.value)} placeholder={t("searchPlaceholder")} className="field h-9 w-[240px] rounded-full ps-8 text-[13px]" aria-label={t("searchAria")} />
           </span>
-          <select value={model} onChange={(e) => setModel(e.target.value)} className="field h-9 w-auto max-w-[220px] rounded-full text-[12.5px]" aria-label="Filter by model">
-            <option value="">All models</option>
+          <select value={model} onChange={(e) => setModel(e.target.value)} className="field h-9 w-auto max-w-[220px] rounded-full text-[12.5px]" aria-label={t("modelFilterAria")}>
+            <option value="">{t("allModels")}</option>
             {facets.models.map((m) => (
               <option key={m.value} value={m.value}>
                 {m.value} ({m.count})
               </option>
             ))}
           </select>
-          <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="field h-9 w-auto rounded-full text-[12.5px]" aria-label="Sort">
+          <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="field h-9 w-auto rounded-full text-[12.5px]" aria-label={t("sortAria")}>
             {SORTS.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.label}
+                {t(s.labelKey)}
               </option>
             ))}
           </select>
@@ -350,23 +352,23 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
             className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3 font-mono text-[11px] transition-colors", fav ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
             aria-pressed={fav}
           >
-            <Heart className={cn("size-3.5", fav && "fill-current")} /> Favorites
+            <Heart className={cn("size-3.5", fav && "fill-current")} /> {t("favorites")}
           </button>
           <span className="flex items-center gap-1.5 font-mono text-[11px] text-faint">
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="field h-9 w-auto rounded-full text-[11.5px]" aria-label="From date" />
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="field h-9 w-auto rounded-full text-[11.5px]" aria-label={t("fromDateAria")} />
             –
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="field h-9 w-auto rounded-full text-[11.5px]" aria-label="To date" />
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="field h-9 w-auto rounded-full text-[11.5px]" aria-label={t("toDateAria")} />
           </span>
           {topTags.length > 0 ? (
             <span className="flex flex-wrap items-center gap-1.5">
-              {topTags.map((t) => (
+              {topTags.map((tg) => (
                 <button
-                  key={t.value}
+                  key={tg.value}
                   type="button"
-                  onClick={() => setTag((cur) => (cur === t.value ? "" : t.value))}
-                  className={cn("rounded-full px-2.5 py-1 font-mono text-[10.5px] transition-colors", tag === t.value ? "bg-terracotta-wash text-terracotta" : "bg-pill text-ink-muted hover:text-ink")}
+                  onClick={() => setTag((cur) => (cur === tg.value ? "" : tg.value))}
+                  className={cn("rounded-full px-2.5 py-1 font-mono text-[10.5px] transition-colors", tag === tg.value ? "bg-terracotta-wash text-terracotta" : "bg-pill text-ink-muted hover:text-ink")}
                 >
-                  {t.value} · {t.count}
+                  {t("tagWithCount", { tag: tg.value, count: tg.count })}
                 </button>
               ))}
             </span>
@@ -378,7 +380,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
       {notice ? (
         <p role="status" className="flex items-center justify-between rounded-[12px] bg-pill px-3 py-2 font-mono text-[11.5px] text-ink-muted">
           {notice}
-          <button type="button" aria-label="Dismiss" onClick={() => setNotice(null)} className="text-faint hover:text-ink">
+          <button type="button" aria-label={t("dismiss")} onClick={() => setNotice(null)} className="text-faint hover:text-ink">
             <X className="size-3.5" />
           </button>
         </p>
@@ -389,7 +391,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
           <DuplicatesView reloadKey={dupReload} selected={selectedSet} onToggle={(p) => { setSelecting(true); toggleSelect(p); }} onSelectMany={(p) => { setSelecting(true); selectMany(p); }} />
         ) : total === 0 && !error ? (
           <p className="flex-1 py-16 text-center text-[14px] text-ink-muted">
-            {query || model || tag || fav || from || to ? "Nothing matches these filters." : "Nothing here yet. Renders from Image mode and chat land in the library automatically."}
+            {query || model || tag || fav || from || to ? t("emptyFiltered") : t("emptyNone")}
           </p>
         ) : (
           <LibraryGrid items={items} total={total} onNeedMore={onNeedMore} renderTile={renderTile} />
@@ -411,38 +413,38 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
       {selected.length > 0 ? (
         <div className="flex items-center justify-between gap-3 rounded-[16px] border border-line bg-paper-2 px-4 py-2.5 shadow-[var(--shadow-hairline)]">
           <span role="status" aria-live="polite" className="font-mono text-[12px] text-ink-muted">
-            {selected.length} selected
+            {t("selectedCount", { count: selected.length })}
           </span>
           <span className="flex items-center gap-1.5">
             <button type="button" disabled={selected.length !== 2 || !comparePair} onClick={() => setComparing(true)} className="btn-quiet inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] disabled:opacity-40">
-              <Columns className="size-3.5" /> Compare
+              <Columns className="size-3.5" /> {t("compare")}
             </button>
             <button type="button" disabled={busy} onClick={() => setExportOpen(true)} className="btn-quiet inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] disabled:opacity-40">
-              <FolderOutput className="size-3.5" /> Export
+              <FolderOutput className="size-3.5" /> {t("export")}
             </button>
             <ConfirmDelete
               filename={`${selected.length} images`}
-              title={`Delete ${selected.length} image${selected.length === 1 ? "" : "s"}?`}
-              description={<>The selected files, their metadata sidecars and thumbnails are removed from disk. This cannot be undone.</>}
+              title={t("deleteManyTitle", { count: selected.length })}
+              description={t("deleteManyDescription")}
               onConfirm={() => bulk("delete")}
               trigger={
                 <button type="button" disabled={busy} className="inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] text-danger hover:bg-danger-wash disabled:opacity-40">
-                  <Trash2 className="size-3.5" /> Delete
+                  <Trash2 className="size-3.5" /> {t("delete")}
                 </button>
               }
             />
             <button type="button" onClick={clearSelection} className="inline-flex h-8 items-center gap-1 rounded-full px-3 font-mono text-[11px] text-faint hover:text-ink">
-              <X className="size-3.5" /> Clear
+              <X className="size-3.5" /> {t("clear")}
             </button>
           </span>
         </div>
       ) : null}
 
       {viewer ? (
-        <div ref={viewerRef} role="dialog" aria-modal="true" aria-label="Image viewer" className="fixed inset-0 z-50 flex flex-col bg-paper/95 backdrop-blur-md" onClick={() => setViewer(null)}>
+        <div ref={viewerRef} role="dialog" aria-modal="true" aria-label={t("viewerAria")} className="fixed inset-0 z-50 flex flex-col bg-paper/95 backdrop-blur-md" onClick={() => setViewer(null)}>
           <div className="flex items-center justify-between gap-3 px-6 py-4" onClick={(e) => e.stopPropagation()}>
             <p className="min-w-0 truncate font-mono text-xs text-ink-muted">{viewer.path}</p>
-            <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={() => setViewer(null)}>
+            <button type="button" className="btn-quiet px-2" aria-label={t("close")} onClick={() => setViewer(null)}>
               <X className="size-4" />
             </button>
           </div>
@@ -457,26 +459,26 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
       {exportOpen ? (
         <div role="dialog" aria-modal="true" aria-labelledby="export-dialog-title" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[16vh] backdrop-blur-sm" onClick={() => setExportOpen(false)}>
           <div ref={exportRef} className="card-raised w-full max-w-[460px] p-6" onClick={(e) => e.stopPropagation()}>
-            <span className="eyebrow text-terracotta">Export</span>
+            <span className="eyebrow text-terracotta">{t("exportEyebrow")}</span>
             <h2 id="export-dialog-title" className="mt-1.5 font-display text-xl font-normal tracking-[-0.02em]">
-              Copy {selected.length} image{selected.length === 1 ? "" : "s"} to a folder
+              {t("exportTitle", { count: selected.length })}
             </h2>
-            <p className="mt-1.5 text-sm text-ink-muted">An absolute folder inside your home. It is created if it does not exist; sidecar metadata travels along.</p>
+            <p className="mt-1.5 text-sm text-ink-muted">{t("exportBody")}</p>
             <input
               value={exportDest}
               onChange={(e) => setExportDest(e.target.value)}
               placeholder="/Users/you/Desktop/safelight-export"
-              aria-label="Destination folder"
+              aria-label={t("destinationAria")}
               className="field mt-3 w-full font-mono text-xs"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && exportDest.trim() && void bulk("export", exportDest.trim())}
             />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" className="btn-quiet h-8 rounded-full px-3.5 text-[13px]" onClick={() => setExportOpen(false)}>
-                Cancel
+                {t("cancel")}
               </button>
               <button type="button" className="btn-primary h-8 rounded-full px-4 text-[13px]" disabled={busy || !exportDest.trim()} onClick={() => void bulk("export", exportDest.trim())}>
-                {busy ? "Copying…" : <><Copy className="size-3.5" /> Export</>}
+                {busy ? t("copying") : <><Copy className="size-3.5" /> {t("export")}</>}
               </button>
             </div>
           </div>

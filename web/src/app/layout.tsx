@@ -1,20 +1,27 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Outfit } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { dir, locale } from "@/i18n/config";
 import "./globals.css";
 
 const body = Outfit({ variable: "--font-body", subsets: ["latin"], weight: "variable" });
 const mono = JetBrains_Mono({ variable: "--font-mono-face", subsets: ["latin"], weight: "variable" });
 
-export const metadata: Metadata = {
-  title: "Safelight",
-  description: "Your private darkroom: image generation and chat with your own models.",
-  icons: { icon: "/safelight-mark.svg" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("app");
+  return {
+    // The wordmark is a product name, not a translatable string.
+    title: "Safelight",
+    description: t("description"),
+    icons: { icon: "/safelight-mark.svg" },
+  };
+}
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${body.variable} ${mono.variable} h-full`} suppressHydrationWarning>
+    <html lang={locale} dir={dir} className={`${body.variable} ${mono.variable} h-full`} suppressHydrationWarning>
       <head>
         {/* Applies the saved theme before first paint so there is no flash. Light is the default. */}
         <script
@@ -24,7 +31,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full">
-        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+        {/* Locale and messages come from src/i18n/request.ts (fixed "en" for now). */}
+        <NextIntlClientProvider>
+          <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

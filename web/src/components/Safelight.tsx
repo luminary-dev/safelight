@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useBackends } from "@/hooks/useBackends";
 import { useComfySocket } from "@/hooks/useComfySocket";
@@ -36,6 +37,7 @@ const MLibrary = memo(Library);
 const MStage = memo(Stage);
 
 export function Safelight() {
+  const tw = useTranslations("workspace");
   // Stable per-browser id: ComfyUI only sends progress events to the client id that queued a job,
   // so keeping it across reloads means a refreshed page still sees live progress.
   const [clientId] = useState(() => {
@@ -406,7 +408,7 @@ export function Safelight() {
             />
             <div className="flex min-h-0 flex-col overflow-y-auto p-5 lg:overflow-hidden">
               <MStage
-                title={activeImage?.title ?? "New session"}
+                title={activeImage?.title ?? tw("newSession")}
                 gallery={img.gallery}
                 jobs={img.jobs}
                 progress={progress}

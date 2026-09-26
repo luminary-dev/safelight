@@ -53,12 +53,5 @@ export function thumbUrl(item: Pick<LibraryItem, "path">): string {
   return `/api/library/thumb?path=${encodeURIComponent(item.path)}`;
 }
 
-export function fmtSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} B`;
-}
-
-export function fmtDate(ms: number): string {
-  return new Date(ms).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
+// Size and date formatting moved to @/lib/i18n-format (formatBytes / formatDate),
+// which route through Intl with the active locale.

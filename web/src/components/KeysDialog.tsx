@@ -2,10 +2,11 @@
 
 import { Check, Eye, EyeOff as EyeSlash, Trash2 as Trash, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 export interface KeyStatus {
-  provider: "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together";
+  provider: "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together" | "cerebras" | "gateway";
   label: string;
   configured: boolean;
   hint?: string;
@@ -15,6 +16,7 @@ export interface KeyStatus {
   images: boolean;
 }
 
+// Key-format hints and console URLs — not translatable copy.
 const HELP: Record<KeyStatus["provider"], { placeholder: string; url: string }> = {
   openai: { placeholder: "sk-…", url: "https://platform.openai.com/api-keys" },
   anthropic: { placeholder: "sk-ant-…", url: "https://console.anthropic.com/settings/keys" },
@@ -25,9 +27,12 @@ const HELP: Record<KeyStatus["provider"], { placeholder: string; url: string }> 
   deepseek: { placeholder: "sk-…", url: "https://platform.deepseek.com/api_keys" },
   xai: { placeholder: "xai-…", url: "https://console.x.ai" },
   together: { placeholder: "…", url: "https://api.together.ai/settings/api-keys" },
+  cerebras: { placeholder: "csk-…", url: "https://cloud.cerebras.ai/platform" },
+  gateway: { placeholder: "vck_…", url: "https://vercel.com/dashboard/ai-gateway" },
 };
 
 export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged: () => void }) {
+  const t = useTranslations("keysDialog");
   const reduce = useReducedMotion();
   const [keys, setKeys] = useState<KeyStatus[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -45,13 +50,13 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
     try {
       const res = await fetch("/api/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, key: null, baseUrl: urls[provider] ?? "" }) });
       const data = (await res.json()) as { keys?: KeyStatus[]; error?: string };
-      if (!res.ok || !data.keys) throw new Error(data.error ?? "Failed to save URL");
+      if (!res.ok || !data.keys) throw new Error(data.error ?? t("failedSaveUrl"));
       setKeys(data.keys);
       setUrlOpen((o) => ({ ...o, [provider]: false }));
       setUrls((u) => ({ ...u, [provider]: "" }));
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save URL");
+      setError(err instanceof Error ? err.message : t("failedSaveUrl"));
     } finally {
       setBusy(null);
     }
@@ -62,11 +67,11 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
     fetch("/api/keys")
       .then((r) => r.json() as Promise<{ keys: KeyStatus[] }>)
       .then((d) => setKeys(d.keys))
-      .catch(() => setError("Could not load key status."));
+      .catch(() => setError(t("loadFailed")));
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, t]);
 
   const submit = async (provider: string, key: string | null) => {
     // A saved custom base URL must survive a key replacement.
@@ -77,13 +82,13 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
     try {
       const res = await fetch("/api/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, key, ...(keptUrl ? { baseUrl: keptUrl } : {}) }) });
       const data = (await res.json()) as { keys?: KeyStatus[]; error?: string; validation?: { ok: boolean; message: string } };
-      if (!res.ok || !data.keys) throw new Error(data.error ?? "Failed to save");
+      if (!res.ok || !data.keys) throw new Error(data.error ?? t("failedSave"));
       setKeys(data.keys);
       setDrafts((d) => ({ ...d, [provider]: "" }));
       if (data.validation) setChecked({ provider, ...data.validation });
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+      setError(err instanceof Error ? err.message : t("failedSave"));
     } finally {
       setBusy(null);
     }
@@ -95,7 +100,7 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
         <motion.div
           role="dialog"
           aria-modal="true"
-          aria-label="API keys"
+          aria-label={t("ariaLabel")}
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -112,13 +117,13 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <span className="eyebrow text-terracotta">API keys</span>
-                <h2 className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Connect cloud models</h2>
+                <span className="eyebrow text-terracotta">{t("eyebrow")}</span>
+                <h2 className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">{t("heading")}</h2>
                 <p className="mt-1.5 text-sm text-ink-muted">
-                  Keys are stored on this machine in <code className="code">safelight/data/keys.json</code> and never sent to the browser.
+                  {t.rich("intro", { code: (chunks) => <code className="code">{chunks}</code> })}
                 </p>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={onClose}>
+              <button type="button" className="btn-quiet px-2" aria-label={t("close")} onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
@@ -131,16 +136,16 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                       <span className={`h-[7px] w-[7px] rounded-full ${k.configured ? "bg-green" : "bg-line"}`} />
                       <span className="font-display text-[15px] font-medium">{k.label}</span>
                       <span className="font-mono text-[11px] text-faint">
-                        {[k.chat ? "chat" : null, k.images ? "images" : null].filter(Boolean).join(" · ")}
+                        {[k.chat ? t("capChat") : null, k.images ? t("capImages") : null].filter(Boolean).join(" · ")}
                       </span>
                     </div>
                     {k.configured ? (
                       <span className="font-mono text-[11px] text-ink-muted">
-                        {k.source === "env" ? "from environment" : `key ${k.hint}`}
+                        {k.source === "env" ? t("fromEnv") : t("keyHint", { hint: k.hint ?? "" })}
                       </span>
                     ) : (
                       <a href={HELP[k.provider].url} target="_blank" rel="noreferrer" className="font-mono text-[11px]">
-                        Get a key
+                        {t("getKey")}
                       </a>
                     )}
                   </div>
@@ -153,16 +158,16 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && (drafts[k.provider] ?? "").trim()) void submit(k.provider, drafts[k.provider]);
                         }}
-                        placeholder={k.configured ? "Paste a new key to replace" : HELP[k.provider].placeholder}
+                        placeholder={k.configured ? t("replacePlaceholder") : HELP[k.provider].placeholder}
                         autoComplete="off"
                         spellCheck={false}
-                        className="field pr-9 font-mono text-xs"
+                        className="field pe-9 font-mono text-xs"
                       />
                       <button
                         type="button"
-                        aria-label={show[k.provider] ? "Hide key" : "Show key"}
+                        aria-label={show[k.provider] ? t("hideKey") : t("showKey")}
                         onClick={() => setShow((s) => ({ ...s, [k.provider]: !s[k.provider] }))}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-faint hover:text-ink"
+                        className="absolute end-2.5 top-1/2 -translate-y-1/2 text-faint hover:text-ink"
                       >
                         {show[k.provider] ? <EyeSlash size={14} /> : <Eye size={14} />}
                       </button>
@@ -173,10 +178,10 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                       disabled={busy === k.provider || !(drafts[k.provider] ?? "").trim()}
                       onClick={() => void submit(k.provider, drafts[k.provider])}
                     >
-                      <Check size={14} /> Save
+                      <Check size={14} /> {t("save")}
                     </button>
                     {k.configured && k.source === "vault" ? (
-                      <button type="button" className="btn-quiet px-2.5" title="Remove key" disabled={busy === k.provider} onClick={() => void submit(k.provider, null)}>
+                      <button type="button" className="btn-quiet px-2.5" title={t("removeKey")} disabled={busy === k.provider} onClick={() => void submit(k.provider, null)}>
                         <Trash size={14} />
                       </button>
                     ) : null}
@@ -186,19 +191,19 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                       <input
                         value={urls[k.provider] ?? k.baseUrl ?? ""}
                         onChange={(e) => setUrls((u) => ({ ...u, [k.provider]: e.target.value }))}
-                        placeholder="Default endpoint — set a proxy or gateway URL to override"
+                        placeholder={t("baseUrlPlaceholder")}
                         autoComplete="off"
                         spellCheck={false}
                         className="field flex-1 font-mono text-xs"
-                        aria-label={`${k.label} base URL`}
+                        aria-label={t("baseUrlAria", { label: k.label })}
                       />
                       <button type="button" className="btn-ink" disabled={busy === k.provider || !k.configured || k.source !== "vault"} onClick={() => void saveUrl(k.provider)}>
-                        Save URL
+                        {t("saveUrl")}
                       </button>
                     </div>
                   ) : (
                     <button type="button" className="self-start font-mono text-[11px] text-faint hover:text-ink" onClick={() => setUrlOpen((o) => ({ ...o, [k.provider]: true }))}>
-                      {k.baseUrl ? `custom URL: ${k.baseUrl}` : "custom base URL…"}
+                      {k.baseUrl ? t("customUrl", { url: k.baseUrl }) : t("customUrlOpen")}
                     </button>
                   )}
                 </li>
@@ -207,7 +212,7 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
             {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
             {checked ? <p className={`mt-3 font-mono text-xs ${checked.ok ? "text-green" : "text-danger"}`}>{checked.message}</p> : null}
             <p className="mt-4 text-[13px] leading-relaxed text-faint">
-              OpenAI and Gemini add image models to Image mode. Every provider adds chat models. Local models keep working without any key.
+              {t("footer")}
             </p>
           </motion.div>
         </motion.div>

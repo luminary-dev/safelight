@@ -1,13 +1,13 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type ThemePref = "light" | "dark";
 const KEY = "safelight.theme";
-const LABEL: Record<ThemePref, string> = { light: "Light", dark: "Dark" };
 
 function apply(pref: ThemePref) {
   document.documentElement.classList.toggle("dark", pref === "dark");
@@ -15,6 +15,7 @@ function apply(pref: ThemePref) {
 
 /** Two states only, light by default. The layout script applies the saved choice before hydration. */
 export function ThemeToggle({ className }: { className?: string }) {
+  const t = useTranslations("themeToggle");
   const [pref, setPref] = useState<ThemePref>(() => {
     if (typeof window === "undefined") return "light";
     try {
@@ -44,12 +45,12 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="outline" size="icon" aria-label={pref === "light" ? "Switch to dark theme" : "Switch to light theme"} onClick={toggle} className={className}>
+        <Button variant="outline" size="icon" aria-label={pref === "light" ? t("switchToDark") : t("switchToLight")} onClick={toggle} className={className}>
           <Icon className="size-3.5" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="rounded-[8px] bg-ink px-2 py-1 font-mono text-[11px] text-paper">
-        {LABEL[pref]} · click to switch
+        {pref === "light" ? t("tooltipLight") : t("tooltipDark")}
       </TooltipContent>
     </Tooltip>
   );

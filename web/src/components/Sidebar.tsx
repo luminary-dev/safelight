@@ -1,15 +1,17 @@
 "use client";
 
 import { Code2, FolderInput, HardDriveDownload, Image as ImageIcon, KeyRound, LibraryBig, MessageSquare, Palette, Pencil, Plug, Plus, RefreshCw, Search, Settings2, Trash2, Workflow } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatNumber } from "@/lib/i18n-format";
 import type { ChatSession, CodeSession, DesignSession, ImageSession, Project, Session } from "@/lib/session-types";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "./ConfirmDelete";
 import { McpDialog } from "./McpDialog";
 import { ModelManagerDialog } from "./ModelManagerDialog";
 import { SettingsDialog } from "./SettingsDialog";
-import { SafelightMark, type SystemRow, type Tone, type TopMode } from "./shell";
+import { SafelightMark, type StatusMessage, type SystemRow, type Tone, type TopMode } from "./shell";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -18,13 +20,13 @@ const TONE_TEXT: Record<Tone, string> = { ok: "text-green", warn: "text-terracot
 
 type ListSession = ChatSession | ImageSession | CodeSession | DesignSession;
 
-function group(sessions: ListSession[]): { label: string; items: ListSession[] }[] {
+function group(sessions: ListSession[]): { key: "today" | "earlier"; items: ListSession[] }[] {
   const dayStart = new Date().setHours(0, 0, 0, 0);
   const today = sessions.filter((s) => s.updatedAt >= dayStart);
   const earlier = sessions.filter((s) => s.updatedAt < dayStart);
   return [
-    { label: "Today", items: today },
-    { label: "Earlier", items: earlier },
+    { key: "today" as const, items: today },
+    { key: "earlier" as const, items: earlier },
   ].filter((g) => g.items.length > 0);
 }
 
@@ -82,12 +84,14 @@ export function Sidebar({
   onCreateProject: () => void;
   onRenameProject: (id: string, title: string) => void;
   onDeleteProject: (id: string) => void;
-  overall: { tone: Tone; label: string };
+  overall: { tone: Tone; label: StatusMessage };
   systems: SystemRow[];
   queueCount: number;
   onRefresh: () => void;
   onKeys: () => void;
 }) {
+  const t = useTranslations("sidebar");
+  const tStatus = useTranslations("systemStatus");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -158,16 +162,16 @@ export function Sidebar({
         </span>
         <span className="flex items-center gap-1">
           <ThemeToggle className="size-7 rounded-full border-0 bg-transparent text-faint shadow-none hover:bg-pill hover:text-ink" />
-          <button type="button" aria-label="API keys" onClick={onKeys} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
+          <button type="button" aria-label={t("apiKeys")} onClick={onKeys} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
             <KeyRound className="size-3.5" />
           </button>
-          <button type="button" aria-label="MCP servers" onClick={() => setMcpOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
+          <button type="button" aria-label={t("mcpServers")} onClick={() => setMcpOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
             <Plug className="size-3.5" />
           </button>
-          <button type="button" aria-label="Model manager" onClick={() => setModelsOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
+          <button type="button" aria-label={t("modelManager")} onClick={() => setModelsOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
             <HardDriveDownload className="size-3.5" />
           </button>
-          <button type="button" aria-label="Settings" onClick={() => setSettingsOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
+          <button type="button" aria-label={t("settings")} onClick={() => setSettingsOpen(true)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
             <Settings2 className="size-3.5" />
           </button>
         </span>
@@ -190,40 +194,40 @@ export function Sidebar({
 
       {localOnly ? (
         <p className="flex items-center gap-2 rounded-[10px] bg-terracotta-wash px-3 py-1.5 font-mono text-[11px] font-medium text-terracotta">
-          <span className="size-1.5 rounded-full bg-terracotta" /> Local only — nothing leaves this machine
+          <span className="size-1.5 rounded-full bg-terracotta" /> {t("localOnlyBadge")}
         </p>
       ) : null}
 
       <label className="flex items-center gap-2.5 rounded-[12px] bg-paper-2 px-3 py-2.5 shadow-[var(--shadow-hairline)]">
         <Search className="size-3.5 shrink-0 text-placeholder" />
-        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" aria-label="Search sessions" className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-placeholder" />
+        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={t("searchAria")} className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-placeholder" />
         <span className="rounded-[5px] bg-terracotta-wash px-1.5 py-0.5 font-mono text-[11px] font-medium text-terracotta">⌘K</span>
       </label>
 
       <nav className="flex flex-col gap-0.5">
         {(
           [
-            ["chat", "Chat", MessageSquare, null],
-            ["image", "Image", ImageIcon, null],
-            ["code", "Code", Code2, null],
-            ["design", "Design", Palette, null],
-            ["library", "Library", LibraryBig, galleryCount],
-            ["blueprints", "Blueprints", Workflow, null],
+            ["chat", MessageSquare, null],
+            ["image", ImageIcon, null],
+            ["code", Code2, null],
+            ["design", Palette, null],
+            ["library", LibraryBig, galleryCount],
+            ["blueprints", Workflow, null],
           ] as const
-        ).map(([value, label, Icon, count]) => (
+        ).map(([value, Icon, count]) => (
           <button
             key={value}
             type="button"
             aria-current={mode === value ? "page" : undefined}
             onClick={() => onMode(value)}
             className={cn(
-              "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-left font-display text-[15px] transition-colors",
+              "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-start font-display text-[15px] transition-colors",
               mode === value ? "bg-paper-2 font-semibold text-ink shadow-[var(--shadow-hairline)]" : "font-medium text-ink-muted hover:bg-pill/60 hover:text-ink",
             )}
           >
             <Icon className="size-4" />
-            {label}
-            {count !== null ? <span className="ml-auto font-mono text-[12px] font-normal text-placeholder">{count}</span> : null}
+            {t(`nav.${value}`)}
+            {count !== null ? <span className="ms-auto font-mono text-[12px] font-normal text-placeholder">{count}</span> : null}
           </button>
         ))}
       </nav>
@@ -231,15 +235,15 @@ export function Sidebar({
       {mode !== "library" && mode !== "blueprints" ? (
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           <div className="flex items-center justify-between px-3 pb-1.5">
-            <span className="text-[12px] font-medium text-placeholder">{mode === "chat" ? "Conversations" : mode === "code" ? "Coding sessions" : mode === "design" ? "Design sessions" : "Sessions"}</span>
+            <span className="text-[12px] font-medium text-placeholder">{mode === "chat" ? t("sectionConversations") : mode === "code" ? t("sectionCoding") : mode === "design" ? t("sectionDesign") : t("sectionSessions")}</span>
             <button type="button" onClick={() => onCreateSession(kind)} className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[12px] font-medium text-faint hover:bg-pill hover:text-ink">
-              <Plus className="size-3" /> New
+              <Plus className="size-3" /> {t("new")}
             </button>
           </div>
-          {filtered.length === 0 ? <p className="px-3 py-4 text-[13px] text-placeholder">{query ? "No matches." : mode === "chat" ? "Your first message starts a chat." : mode === "code" ? "Point a session at a folder to start." : mode === "design" ? "Ask for a theme to start." : "Your first render starts a session."}</p> : null}
+          {filtered.length === 0 ? <p className="px-3 py-4 text-[13px] text-placeholder">{query ? t("emptyNoMatches") : mode === "chat" ? t("emptyChat") : mode === "code" ? t("emptyCode") : mode === "design" ? t("emptyDesign") : t("emptyImage")}</p> : null}
           {group(filtered).map((g) => (
-            <div key={g.label} className="flex flex-col gap-0.5">
-              <span className="px-3 pb-1 pt-2.5 text-[12px] font-medium text-placeholder">{g.label}</span>
+            <div key={g.key} className="flex flex-col gap-0.5">
+              <span className="px-3 pb-1 pt-2.5 text-[12px] font-medium text-placeholder">{t(`group.${g.key}`)}</span>
               {g.items.map((s) =>
                 editing === s.id ? (
                   <form
@@ -261,7 +265,7 @@ export function Sidebar({
                       }}
                       onKeyDown={(e) => e.key === "Escape" && setEditing(null)}
                       className="w-full rounded-[8px] bg-paper-2 px-2 py-1.5 text-[14px] text-ink shadow-[var(--shadow-hairline)] outline-none"
-                      aria-label="Session title"
+                      aria-label={t("sessionTitleAria")}
                     />
                   </form>
                 ) : (
@@ -271,27 +275,27 @@ export function Sidebar({
                       aria-current={s.id === activeId ? "true" : undefined}
                       onClick={() => onSelectSession(s.id)}
                       className={cn(
-                        "flex w-full items-center gap-2 truncate rounded-[10px] px-3 py-2 text-left text-[14px] transition-colors",
+                        "flex w-full items-center gap-2 truncate rounded-[10px] px-3 py-2 text-start text-[14px] transition-colors",
                         s.id === activeId ? "bg-terracotta-wash font-medium text-ink" : "text-ink-muted hover:bg-pill/60",
                       )}
                     >
                       {s.id === activeId ? <span className="size-1.5 shrink-0 rounded-full bg-terracotta" /> : null}
                       <span className="truncate">{s.title}</span>
                     </button>
-                    <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-focus-within/r:opacity-100 group-hover/r:opacity-100">
+                    <span className="absolute end-1.5 top-1/2 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-focus-within/r:opacity-100 group-hover/r:opacity-100">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <button type="button" aria-label="Move to project" className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted shadow-[var(--shadow-hairline)] hover:text-ink">
+                          <button type="button" aria-label={t("moveToProject")} className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted shadow-[var(--shadow-hairline)] hover:text-ink">
                             <FolderInput className="size-3" />
                           </button>
                         </PopoverTrigger>
                         <PopoverContent align="start" sideOffset={6} className="glass w-[220px] gap-0 rounded-[14px] p-1.5 ring-0">
-                          {[{ id: null as string | null, title: "No project" }, ...projects].map((p) => (
+                          {[{ id: null as string | null, title: t("noProject") }, ...projects].map((p) => (
                             <button
                               key={p.id ?? "none"}
                               type="button"
                               onClick={() => onMoveSession(s.id, p.id)}
-                              className={cn("flex w-full items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-left text-[13px]", (s.projectId ?? null) === p.id ? "bg-terracotta-wash text-ink" : "text-ink-muted hover:bg-pill/60")}
+                              className={cn("flex w-full items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-start text-[13px]", (s.projectId ?? null) === p.id ? "bg-terracotta-wash text-ink" : "text-ink-muted hover:bg-pill/60")}
                             >
                               {p.title}
                             </button>
@@ -300,7 +304,7 @@ export function Sidebar({
                       </Popover>
                       <button
                         type="button"
-                        aria-label="Rename"
+                        aria-label={t("rename")}
                         onClick={() => {
                           setDraft(s.title);
                           setEditing(s.id);
@@ -311,16 +315,14 @@ export function Sidebar({
                       </button>
                       <ConfirmDelete
                         filename={s.title}
-                        title={`Delete this ${mode === "chat" ? "chat" : "session"}?`}
-                        description={
-                          <>
-                            <span className="font-medium text-ink">{s.title}</span>
-                            {mode === "chat" ? " and its messages are removed. This cannot be undone." : " and its render history are removed. Images stay in the library."}
-                          </>
-                        }
+                        title={mode === "chat" ? t("deleteChatTitle") : t("deleteSessionTitle")}
+                        description={t.rich(mode === "chat" ? "deleteChatDescription" : "deleteSessionDescription", {
+                          title: s.title,
+                          b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+                        })}
                         onConfirm={() => onDeleteSession(s.id)}
                         trigger={
-                          <button type="button" aria-label="Delete" className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted shadow-[var(--shadow-hairline)] hover:text-danger">
+                          <button type="button" aria-label={t("delete")} className="grid size-6 place-items-center rounded-full bg-paper-2 text-ink-muted shadow-[var(--shadow-hairline)] hover:text-danger">
                             <Trash2 className="size-3" />
                           </button>
                         }
@@ -340,16 +342,16 @@ export function Sidebar({
         <div className="flex items-center justify-between gap-2">
           <Popover open={statusOpen} onOpenChange={setStatusOpen}>
             <PopoverTrigger asChild>
-              <button type="button" className="flex min-w-0 items-center gap-2 text-left font-display text-[13px] font-semibold text-ink" aria-label="System status">
+              <button type="button" className="flex min-w-0 items-center gap-2 text-start font-display text-[13px] font-semibold text-ink" aria-label={t("systemStatusAria")}>
                 <span aria-hidden className={cn("size-[7px] shrink-0 rounded-full", TONE_DOT[overall.tone])} style={overall.tone === "ok" ? { boxShadow: "0 0 0 3px var(--green-wash)" } : undefined} />
                 <span aria-live="polite" aria-atomic="true" className="truncate">
-                  {queueCount > 0 ? `Rendering · ${queueCount} in queue` : overall.label}
+                  {queueCount > 0 ? t("rendering", { count: queueCount }) : tStatus(overall.label.key, overall.label.values)}
                 </span>
               </button>
             </PopoverTrigger>
             <PopoverContent align="start" side="top" sideOffset={8} className="glass w-[320px] gap-0 rounded-[16px] p-0 ring-0">
               <div className="flex items-center justify-between border-b border-line px-4 py-3">
-                <span className="form-label">Systems</span>
+                <span className="form-label">{t("systems")}</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -359,7 +361,7 @@ export function Sidebar({
                   }}
                   className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-muted hover:text-ink"
                 >
-                  <RefreshCw className={cn("size-3", spinning && "animate-spin")} /> Re-check
+                  <RefreshCw className={cn("size-3", spinning && "animate-spin")} /> {t("recheck")}
                 </button>
               </div>
               <ul className="p-1.5">
@@ -368,7 +370,7 @@ export function Sidebar({
                     <span className={cn("size-2 shrink-0 rounded-full", TONE_DOT[s.tone])} />
                     <span className="flex min-w-0 flex-1 flex-col leading-tight">
                       <span className="font-display text-sm font-medium text-ink">{s.label}</span>
-                      <span className={cn("truncate font-mono text-[11px]", TONE_TEXT[s.tone])}>{s.detail}</span>
+                      <span className={cn("truncate font-mono text-[11px]", TONE_TEXT[s.tone])}>{tStatus(s.detail.key, s.detail.values)}</span>
                     </span>
                     {s.action ? (
                       <button
@@ -379,7 +381,7 @@ export function Sidebar({
                         }}
                         className="shrink-0 rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-ink-muted transition-colors hover:border-terracotta hover:text-terracotta"
                       >
-                        {s.action.label}
+                        {tStatus(s.action.label.key, s.action.label.values)}
                       </button>
                     ) : null}
                   </li>
@@ -391,11 +393,11 @@ export function Sidebar({
         </div>
         {ram ? (
           <div className="flex items-center gap-2 font-mono text-[11px] text-faint">
-            RAM
+            {t("ram")}
             <span className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-pill">
               <span className="block h-full rounded-full bg-terracotta transition-[width] duration-700 ease-out" style={{ width: `${Math.min(100, Math.round((usedGb / totalGb) * 100))}%` }} />
             </span>
-            {usedGb.toFixed(0)}/{totalGb.toFixed(0)} GB
+            {t("ramUsage", { used: formatNumber(usedGb, { maximumFractionDigits: 0 }), total: formatNumber(totalGb, { maximumFractionDigits: 0 }) })}
           </div>
         ) : null}
       </div>

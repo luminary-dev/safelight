@@ -2,6 +2,7 @@
 
 import { Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useDialogFocus } from "./shell";
@@ -23,6 +24,7 @@ const STATUS_DOT: Record<McpServerView["status"], string> = { ok: "bg-green", er
 
 /** Add, enable and remove MCP servers whose tools join every agent mode. */
 export function McpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useTranslations("mcpDialog");
   const reduce = useReducedMotion();
   const [servers, setServers] = useState<McpServerView[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -43,8 +45,8 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
           setServers(d.servers);
           setLoaded(true);
         })
-        .catch(() => setError("Could not load MCP servers.")),
-    [],
+        .catch(() => setError(t("loadFailed"))),
+    [t],
   );
 
   useEffect(() => {
@@ -68,12 +70,12 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
       const body = draft.transport === "stdio" ? { name: draft.name, transport: "stdio", command, args } : { name: draft.name, transport: "http", url: draft.url.trim() };
       const res = await fetch("/api/mcp", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not save the server.");
+      if (!res.ok) throw new Error(data.error ?? t("saveFailed"));
       setDraft({ name: "", transport: "stdio", command: "", url: "" });
       setAdding(false);
       void load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save the server.");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -113,21 +115,21 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <span className="eyebrow text-terracotta">MCP servers</span>
-                <h2 id="mcp-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Extend the agents</h2>
-                <p className="mt-1.5 text-sm text-ink-muted">Tools from connected servers appear in Chat, Code and Design. Anything that can change something asks you first.</p>
+                <span className="eyebrow text-terracotta">{t("eyebrow")}</span>
+                <h2 id="mcp-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">{t("heading")}</h2>
+                <p className="mt-1.5 text-sm text-ink-muted">{t("intro")}</p>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label="Close" data-initial-focus onClick={onClose}>
+              <button type="button" className="btn-quiet px-2" aria-label={t("close")} data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
 
             {!loaded && !error ? (
               <p role="status" className="py-3 text-sm text-placeholder">
-                Loading servers…
+                {t("loading")}
               </p>
             ) : null}
-            {servers.length === 0 && loaded ? <p className="py-3 text-sm text-placeholder">No servers yet. Add one below — for example an npx-run filesystem or GitHub server.</p> : null}
+            {servers.length === 0 && loaded ? <p className="py-3 text-sm text-placeholder">{t("emptyList")}</p> : null}
 
             <ul className="flex flex-col divide-y divide-line">
               {servers.map((s) => (
@@ -143,13 +145,13 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
                         type="button"
                         role="switch"
                         aria-checked={s.enabled}
-                        aria-label={`${s.name} enabled`}
+                        aria-label={t("enabledAria", { name: s.name })}
                         onClick={() => void toggle(s)}
                         className={cn("rounded-full px-2.5 py-1 font-mono text-[11px] transition-colors", s.enabled ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
                       >
-                        {s.enabled ? "On" : "Off"}
+                        {s.enabled ? t("on") : t("off")}
                       </button>
-                      <button type="button" aria-label={`Remove ${s.name}`} onClick={() => void remove(s.id)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-danger">
+                      <button type="button" aria-label={t("removeServer", { name: s.name })} onClick={() => void remove(s.id)} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-danger">
                         <Trash2 className="size-3.5" />
                       </button>
                     </span>
@@ -174,16 +176,16 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
 
             {adding ? (
               <div className="mt-4 flex flex-col gap-2 rounded-[14px] bg-paper-2 p-3 shadow-[var(--shadow-hairline)]">
-                <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Name, e.g. Filesystem" className="field text-sm" autoFocus />
+                <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder={t("namePlaceholder")} className="field text-sm" autoFocus />
                 <div className="flex gap-1.5">
-                  {(["stdio", "http"] as const).map((t) => (
+                  {(["stdio", "http"] as const).map((transport) => (
                     <button
-                      key={t}
+                      key={transport}
                       type="button"
-                      onClick={() => setDraft((d) => ({ ...d, transport: t }))}
-                      className={cn("rounded-full px-3 py-1 font-mono text-[11px]", draft.transport === t ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted")}
+                      onClick={() => setDraft((d) => ({ ...d, transport }))}
+                      className={cn("rounded-full px-3 py-1 font-mono text-[11px]", draft.transport === transport ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted")}
                     >
-                      {t === "stdio" ? "Command (stdio)" : "URL (http)"}
+                      {transport === "stdio" ? t("transportStdio") : t("transportHttp")}
                     </button>
                   ))}
                 </div>
@@ -194,26 +196,26 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
                 )}
                 <div className="flex justify-end gap-2">
                   <button type="button" className="btn-quiet h-8 rounded-full px-3.5 text-[13px]" onClick={() => setAdding(false)}>
-                    Cancel
+                    {t("cancel")}
                   </button>
                   <button type="button" className="btn-primary h-8 rounded-full px-4 text-[13px]" disabled={busy || !draft.name.trim() || (draft.transport === "stdio" ? !draft.command.trim() : !draft.url.trim())} onClick={() => void add()}>
-                    {busy ? "Saving…" : "Add server"}
+                    {busy ? t("saving") : t("addServer")}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="mt-4 flex items-center justify-between">
                 <button type="button" className="btn-quiet inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px]" onClick={() => setAdding(true)}>
-                  <Plus className="size-3.5" /> Add server
+                  <Plus className="size-3.5" /> {t("addServer")}
                 </button>
                 <button type="button" className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-muted hover:text-ink" onClick={recheck}>
-                  <RefreshCw className={cn("size-3", spinning && "animate-spin")} /> Re-check
+                  <RefreshCw className={cn("size-3", spinning && "animate-spin")} /> {t("recheck")}
                 </button>
               </div>
             )}
 
             {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
-            <p className="mt-4 text-[12px] leading-relaxed text-placeholder">✳ marks tools that can change things; each of those calls shows an Allow / Deny prompt in the conversation before it runs.</p>
+            <p className="mt-4 text-[12px] leading-relaxed text-placeholder">{t("footnote")}</p>
           </motion.div>
         </motion.div>
       ) : null}

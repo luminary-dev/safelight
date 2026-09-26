@@ -1,8 +1,13 @@
-import type { SystemRow, Tone, TopMode } from "@/components/shell";
+import type { StatusMessage, SystemRow, Tone, TopMode } from "@/components/shell";
 
 /**
  * Pure derivation of the sidebar's system rows and the overall pill from backend health.
  * Kept out of the component tree so it is testable and never re-created per render.
+ *
+ * i18n: this module returns message KEYS (with ICU values) from the catalog's
+ * "systemStatus" namespace instead of English strings; the render site (Sidebar)
+ * translates them. Provider labels (ComfyUI, Ollama, OpenAI, …) are product
+ * names and stay untranslated.
  */
 
 export interface StatusInputs {
@@ -34,42 +39,50 @@ function cloudRow(i: StatusInputs, id: string, label: string): SystemRow {
   const err = i.cloudErrors?.[id];
   const chatN = i.chatCounts[id] ?? 0;
   const imgN = i.imageCounts[id] ?? 0;
-  if (!k?.configured) return { id, label, detail: "No key", tone: "off", action: { label: "Add key", onClick: i.onAddKey } };
-  if (err) return { id, label, detail: err.replace(/^\d+\s*/, "").slice(0, 60), tone: "down", action: { label: "Fix key", onClick: i.onAddKey } };
-  const parts = [chatN ? `${chatN} chat` : null, imgN ? `${imgN} image` : null].filter(Boolean);
-  return { id, label, detail: `${parts.join(" · ") || "connected"} · key ${k.hint ?? ""}`.trim(), tone: "ok" };
+  if (!k?.configured) return { id, label, detail: { key: "noKey" }, tone: "off", action: { label: { key: "addKey" }, onClick: i.onAddKey } };
+  if (err) return { id, label, detail: { key: "cloudError", values: { message: err.replace(/^\d+\s*/, "").slice(0, 60) } }, tone: "down", action: { label: { key: "fixKey" }, onClick: i.onAddKey } };
+  const hint = k.hint ?? "";
+  const detail: StatusMessage =
+    chatN && imgN
+      ? { key: "cloudOkBoth", values: { chat: chatN, image: imgN, hint } }
+      : chatN
+        ? { key: "cloudOkChat", values: { chat: chatN, hint } }
+        : imgN
+          ? { key: "cloudOkImage", values: { image: imgN, hint } }
+          : { key: "cloudOkConnected", values: { hint } };
+  return { id, label, detail, tone: "ok" };
 }
 
-export function deriveStatus(i: StatusInputs): { systems: SystemRow[]; overall: { tone: Tone; label: string } } {
+export function deriveStatus(i: StatusInputs): { systems: SystemRow[]; overall: { tone: Tone; label: StatusMessage } } {
   const systems: SystemRow[] = i.checking
     ? [
-        { id: "comfy", label: "ComfyUI", detail: "Checking…", tone: "checking" },
-        { id: "ollama", label: "Ollama", detail: "Checking…", tone: "checking" },
+        { id: "comfy", label: "ComfyUI", detail: { key: "checking" }, tone: "checking" },
+        { id: "ollama", label: "Ollama", detail: { key: "checking" }, tone: "checking" },
       ]
     : [
         i.online
           ? i.progressConnected
-            ? { id: "comfy", label: "ComfyUI", detail: `${i.localImageCount} local model${i.localImageCount === 1 ? "" : "s"} · live progress on`, tone: "ok" }
-            : { id: "comfy", label: "ComfyUI", detail: "Up · live progress reconnecting", tone: "warn" }
-          : { id: "comfy", label: "ComfyUI", detail: "Offline · run pnpm comfy", tone: "down" },
+            ? { id: "comfy", label: "ComfyUI", detail: { key: "comfyOk", values: { count: i.localImageCount } }, tone: "ok" }
+            : { id: "comfy", label: "ComfyUI", detail: { key: "comfyReconnecting" }, tone: "warn" }
+          : { id: "comfy", label: "ComfyUI", detail: { key: "comfyOffline" }, tone: "down" },
         i.ollamaUp
           ? i.localChatCount
-            ? { id: "ollama", label: "Ollama", detail: `${i.localChatCount} local chat model${i.localChatCount === 1 ? "" : "s"}`, tone: "ok" }
-            : { id: "ollama", label: "Ollama", detail: "Up · no models pulled", tone: "warn" }
-          : { id: "ollama", label: "Ollama", detail: "Offline · run ollama serve", tone: "down" },
+            ? { id: "ollama", label: "Ollama", detail: { key: "ollamaOk", values: { count: i.localChatCount } }, tone: "ok" }
+            : { id: "ollama", label: "Ollama", detail: { key: "ollamaNoModels" }, tone: "warn" }
+          : { id: "ollama", label: "Ollama", detail: { key: "ollamaOffline" }, tone: "down" },
         ...CLOUD_ROWS.map((c) => cloudRow(i, c.id, c.label)),
       ];
 
   const renderish = i.topMode === "image" || i.topMode === "blueprints";
   const relevant = renderish ? ["comfy", "openai", "gemini"] : ["ollama", "openai", "anthropic", "gemini"];
   const relevantRows = systems.filter((r) => relevant.includes(r.id));
-  const overall: { tone: Tone; label: string } = i.checking
-    ? { tone: "checking", label: "Checking" }
+  const overall: { tone: Tone; label: StatusMessage } = i.checking
+    ? { tone: "checking", label: { key: "overallChecking" } }
     : relevantRows.some((r) => r.tone === "ok") && relevantRows.every((r) => r.tone === "ok" || r.tone === "off")
-      ? { tone: "ok", label: renderish ? (i.online ? "Ready to render" : "Cloud ready") : "Ready to chat" }
+      ? { tone: "ok", label: { key: renderish ? (i.online ? "readyToRender" : "cloudReady") : "readyToChat" } }
       : relevantRows.some((r) => r.tone === "ok")
-        ? { tone: "warn", label: "Partly ready" }
-        : { tone: "down", label: renderish ? "Nothing to render with" : "Nothing to chat with" };
+        ? { tone: "warn", label: { key: "partlyReady" } }
+        : { tone: "down", label: { key: renderish ? "nothingToRender" : "nothingToChat" } };
 
   return { systems, overall };
 }

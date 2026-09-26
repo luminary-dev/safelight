@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { Upload, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JobOutput, JobStatus } from "@/lib/comfy/types";
 import type { BlueprintInput, BlueprintListEntry } from "@/lib/blueprints/types";
@@ -26,6 +27,7 @@ function isMediaKind(kind: BlueprintInput["kind"]): boolean {
  * blueprint's models or nodes are missing it says exactly what is needed instead.
  */
 export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; onQueued?: (jobId: string) => void; className?: string }) {
+  const t = useTranslations("blueprintRunner");
   const [spec, setSpec] = useState<BlueprintSpec | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string | number>>({});
@@ -54,16 +56,16 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
     fetch(`/api/blueprints/${encodeURIComponent(id)}`)
       .then(async (res) => {
         const body = (await res.json()) as BlueprintSpec & { error?: string };
-        if (!res.ok) throw new Error(body.error ?? "Failed to load the blueprint.");
+        if (!res.ok) throw new Error(body.error ?? t("loadFailed"));
         if (!cancelled) setSpec(body);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load the blueprint.");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : t("loadFailed"));
       });
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, t]);
 
   useEffect(
     () => () => {
@@ -93,12 +95,12 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
       form.append("files", file, file.name);
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const body = (await res.json()) as { files?: (JobOutput & { ref: string })[]; error?: string };
-      if (!res.ok || !body.files?.length) throw new Error(body.error ?? "Upload failed.");
+      if (!res.ok || !body.files?.length) throw new Error(body.error ?? t("uploadFailed"));
       const uploaded = body.files[0];
       const previewUrl = input.kind === "image" || input.kind === "mask" ? URL.createObjectURL(file) : undefined;
       setMedia((m) => ({ ...m, [input.key]: { ref: uploaded.ref, filename: file.name, previewUrl } }));
     } catch (err) {
-      setRunError(err instanceof Error ? err.message : "Upload failed.");
+      setRunError(err instanceof Error ? err.message : t("uploadFailed"));
     } finally {
       setUploadingKey(null);
     }
@@ -118,19 +120,19 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
         body: JSON.stringify({ values: payload }),
       });
       const body = (await res.json()) as { id?: string; error?: string };
-      if (!res.ok || !body.id) throw new Error(body.error ?? "Failed to queue the blueprint.");
+      if (!res.ok || !body.id) throw new Error(body.error ?? t("queueFailed"));
       setJob({ id: body.id, state: "queued", outputs: [] });
       onQueued?.(body.id);
       startPolling(body.id);
     } catch (err) {
-      setRunError(err instanceof Error ? err.message : "Failed to queue the blueprint.");
+      setRunError(err instanceof Error ? err.message : t("queueFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   if (loadError) return <p className={`break-words font-mono text-[11px] leading-relaxed text-danger ${className}`}>{loadError}</p>;
-  if (!spec) return <span role="status" aria-label="Loading the blueprint" className={`pulse block h-[180px] w-full rounded-[16px] bg-pill ${className}`} />;
+  if (!spec) return <span role="status" aria-label={t("loadingAria")} className={`pulse block h-[180px] w-full rounded-[16px] bg-pill ${className}`} />;
 
   const missing = spec.status === "missing";
   const requiredReady = spec.inputs.filter((i) => isMediaKind(i.kind) && i.required).every((i) => media[i.key]);
@@ -148,10 +150,10 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
 
       {missing ? (
         <div className="flex flex-col gap-2 rounded-[12px] border border-danger/30 bg-danger-wash px-3 py-2.5 text-[13px] leading-relaxed text-ink">
-          <p className="font-medium">This blueprint could run here, but it needs things this machine does not have yet.</p>
+          <p className="font-medium">{t("missingIntro")}</p>
           {spec.missingModels.length > 0 ? (
             <div>
-              <p className="text-[12px] font-medium text-faint">Missing models</p>
+              <p className="text-[12px] font-medium text-faint">{t("missingModels")}</p>
               <ul className="mt-0.5 list-inside list-disc font-mono text-[11px] leading-relaxed">
                 {spec.missingModels.map((m) => (
                   <li key={m}>{m}</li>
@@ -161,7 +163,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
           ) : null}
           {spec.missingNodeClasses.length > 0 ? (
             <div>
-              <p className="text-[12px] font-medium text-faint">Missing node classes</p>
+              <p className="text-[12px] font-medium text-faint">{t("missingNodes")}</p>
               <ul className="mt-0.5 list-inside list-disc font-mono text-[11px] leading-relaxed">
                 {spec.missingNodeClasses.map((c) => (
                   <li key={c}>{c}</li>
@@ -169,18 +171,18 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
               </ul>
             </div>
           ) : null}
-          <p className="text-[12px] text-faint">The model manager can fetch the missing files for you.</p>
+          <p className="text-[12px] text-faint">{t("missingHint")}</p>
         </div>
       ) : null}
       {spec.status === "unknown" ? (
-        <p className="rounded-[12px] border border-line bg-paper px-3 py-2 text-[13px] leading-relaxed text-ink-muted">ComfyUI is offline, so readiness cannot be checked. Start it to run blueprints.</p>
+        <p className="rounded-[12px] border border-line bg-paper px-3 py-2 text-[13px] leading-relaxed text-ink-muted">{t("offline")}</p>
       ) : null}
 
       {mediaInputs.map((input) => (
         <div key={input.key} className="flex flex-col gap-1.5">
           <span className="text-[13px] font-medium text-faint">
             {input.label}
-            {!input.required ? <span className="ml-1.5 font-mono text-[10.5px] text-placeholder">optional</span> : null}
+            {!input.required ? <span className="ms-1.5 font-mono text-[10.5px] text-placeholder">{t("optional")}</span> : null}
           </span>
           {media[input.key] ? (
             <div className="flex items-center gap-2.5 rounded-[12px] border border-line bg-paper p-2">
@@ -192,7 +194,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
               <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink">{media[input.key].filename}</span>
               <button
                 type="button"
-                aria-label={`Remove ${input.label}`}
+                aria-label={t("removeMedia", { label: input.label })}
                 onClick={() =>
                   setMedia((m) => {
                     const next = { ...m };
@@ -208,7 +210,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
           ) : (
             <label className="flex cursor-pointer items-center gap-2 rounded-[12px] border border-dashed border-line px-3 py-2.5 text-[13px] text-ink-muted transition-colors hover:border-faint hover:text-ink">
               <Upload size={14} />
-              {uploadingKey === input.key ? "Uploading…" : `Add ${input.kind === "mask" ? "a mask image" : `a ${input.kind}`}`}
+              {uploadingKey === input.key ? t("uploading") : t("addMedia", { kind: input.kind })}
               <input
                 type="file"
                 accept={MEDIA_ACCEPT[input.kind]}
@@ -233,7 +235,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
             value={String(values[input.key] ?? input.default ?? "")}
             onChange={(e) => setValues((v) => ({ ...v, [input.key]: e.target.value }))}
             rows={input.kind === "prompt" ? 3 : 2}
-            placeholder={input.kind === "negative-prompt" ? "What to avoid" : "Describe what you want"}
+            placeholder={input.kind === "negative-prompt" ? t("negativePlaceholder") : t("promptPlaceholder")}
             className="field min-h-[64px] w-full resize-y text-[14px] leading-[1.5]"
           />
         </div>
@@ -247,7 +249,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
               <input
                 type="number"
                 value={values[input.key] ?? (input.seed ? "" : (input.default ?? ""))}
-                placeholder={input.seed ? "random" : input.default !== undefined ? String(input.default) : ""}
+                placeholder={input.seed ? t("randomPlaceholder") : input.default !== undefined ? String(input.default) : ""}
                 onChange={(e) => {
                   const raw = e.target.value;
                   setValues((v) => {
@@ -267,13 +269,13 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
       {runError ? <p className="break-words font-mono text-[11px] leading-relaxed text-danger">{runError}</p> : null}
 
       <button type="button" disabled={!canRun} onClick={() => void run()} className="btn-primary h-[46px] rounded-[14px] text-[14px]">
-        {submitting ? "Queueing" : missing ? "Missing requirements" : "Run blueprint"}
+        {submitting ? t("queueing") : missing ? t("missingRequirements") : t("run")}
       </button>
 
       {job ? (
         <div className="flex flex-col gap-2 rounded-[12px] bg-paper p-3">
           <div className="flex items-center justify-between font-mono text-[11px] text-faint">
-            <span>job {job.id.slice(0, 8)}</span>
+            <span>{t("jobLabel", { id: job.id.slice(0, 8) })}</span>
             <span role="status" className={job.state === "error" ? "text-danger" : job.state === "done" ? "text-green" : ""}>
               {job.state}
             </span>

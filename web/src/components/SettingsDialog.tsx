@@ -2,7 +2,9 @@
 
 import { Download, KeyRound, Plug, Upload, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { formatNumber, formatTime } from "@/lib/i18n-format";
 import { applyTheme, clearTheme } from "@/lib/theme/apply";
 import type { ThemeColors } from "@/lib/theme/contrast";
 import { cn } from "@/lib/utils";
@@ -18,21 +20,23 @@ interface UsageSummary {
   byProvider?: Record<string, { cost: number }>;
 }
 
+// Field names match /api/runs (camelCase); the previous snake_case shape never
+// matched the payload and rendered "Invalid Date" in the runs list.
 interface RunRow {
   id: string;
   mode: string;
   provider: string;
   model: string;
-  started_at: number;
-  finished_at: number | null;
+  startedAt: number;
+  finishedAt: number | null;
   status: string;
 }
 
 const LIMIT_FIELDS = [
-  { key: "spendLimitDaySoft", label: "Daily warning ($)" },
-  { key: "spendLimitDayHard", label: "Daily stop ($)" },
-  { key: "spendLimitMonthSoft", label: "Monthly warning ($)" },
-  { key: "spendLimitMonthHard", label: "Monthly stop ($)" },
+  { key: "spendLimitDaySoft", labelKey: "limitDaySoft" },
+  { key: "spendLimitDayHard", labelKey: "limitDayHard" },
+  { key: "spendLimitMonthSoft", labelKey: "limitMonthSoft" },
+  { key: "spendLimitMonthHard", labelKey: "limitMonthHard" },
 ] as const;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -58,6 +62,7 @@ export function SettingsDialog({
   onOpenMcp: () => void;
   onLocalOnlyChange?: (on: boolean) => void;
 }) {
+  const t = useTranslations("settingsDialog");
   const reduce = useReducedMotion();
   const [themes, setThemes] = useState<ThemeRow[]>([]);
   const [activeTheme, setActiveTheme] = useState<string | null>(null);
@@ -116,20 +121,20 @@ export function SettingsDialog({
       const raw = (limits[f.key] ?? "").trim();
       patch[f.key] = raw === "" ? null : Number(raw);
       if (raw !== "" && (!Number.isFinite(patch[f.key]) || (patch[f.key] as number) < 0)) {
-        setSavedNote(`${f.label} must be a non-negative number.`);
+        setSavedNote(t("limitInvalid", { label: t(f.labelKey) }));
         return;
       }
     }
     const res = await fetch("/api/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
-    setSavedNote(res?.ok ? "Saved." : "Could not save limits.");
+    setSavedNote(res?.ok ? t("saved") : t("saveLimitsFailed"));
     setTimeout(() => setSavedNote(null), 2500);
   };
 
-  const applyRow = async (t: ThemeRow) => {
-    if (!t.data?.colors) return;
-    await fetch(`/api/themes/${encodeURIComponent(t.name)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "apply" }) }).catch(() => undefined);
-    applyTheme(t.name, t.data.colors);
-    setActiveTheme(t.name);
+  const applyRow = async (row: ThemeRow) => {
+    if (!row.data?.colors) return;
+    await fetch(`/api/themes/${encodeURIComponent(row.name)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "apply" }) }).catch(() => undefined);
+    applyTheme(row.name, row.data.colors);
+    setActiveTheme(row.name);
   };
   const clearRow = async (name: string) => {
     await fetch(`/api/themes/${encodeURIComponent(name)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "clear" }) }).catch(() => undefined);
@@ -154,7 +159,7 @@ export function SettingsDialog({
     const text = await file.text();
     const res = await fetch("/api/import", { method: "POST", headers: { "content-type": "application/json" }, body: text }).catch(() => null);
     const body = res ? ((await res.json().catch(() => ({}))) as { error?: string }) : {};
-    setImportNote(res?.ok ? "Imported. Reload to see everything." : (body.error ?? "Import failed."));
+    setImportNote(res?.ok ? t("imported") : (body.error ?? t("importFailed")));
   };
 
   return (
@@ -181,43 +186,43 @@ export function SettingsDialog({
           >
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <span className="eyebrow text-terracotta">Settings</span>
-                <h2 id="settings-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Everything in one place</h2>
+                <span className="eyebrow text-terracotta">{t("eyebrow")}</span>
+                <h2 id="settings-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">{t("heading")}</h2>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label="Close" data-initial-focus onClick={onClose}>
+              <button type="button" className="btn-quiet px-2" aria-label={t("close")} data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
 
-            <Section title="Providers & connections">
+            <Section title={t("sectionProviders")}>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={onOpenKeys}>
-                  <KeyRound className="size-3.5" /> API keys
+                  <KeyRound className="size-3.5" /> {t("apiKeys")}
                 </button>
                 <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={onOpenMcp}>
-                  <Plug className="size-3.5" /> MCP servers
+                  <Plug className="size-3.5" /> {t("mcpServers")}
                 </button>
               </div>
             </Section>
 
-            <Section title="Appearance & themes">
-              {themes.length === 0 ? <p className="text-[13px] text-placeholder">No saved themes yet — ask Design mode for one.</p> : null}
+            <Section title={t("sectionAppearance")}>
+              {themes.length === 0 ? <p className="text-[13px] text-placeholder">{t("noThemes")}</p> : null}
               <ul className="flex flex-col gap-1.5">
-                {themes.map((t) => (
-                  <li key={t.name} className="flex items-center gap-2.5">
+                {themes.map((row) => (
+                  <li key={row.name} className="flex items-center gap-2.5">
                     <span className="flex gap-1">
                       {(["bg", "surface", "accent"] as const).map((c) => (
-                        <span key={c} className="size-4 rounded-full border border-line" style={{ background: t.data?.colors?.[c] }} />
+                        <span key={c} className="size-4 rounded-full border border-line" style={{ background: row.data?.colors?.[c] }} />
                       ))}
                     </span>
-                    <span className={cn("min-w-0 flex-1 truncate text-[13.5px]", activeTheme === t.name ? "font-medium text-ink" : "text-ink-muted")}>{t.name}</span>
-                    {activeTheme === t.name ? (
-                      <button type="button" className="btn-quiet h-7 rounded-full px-3 text-[12px]" onClick={() => void clearRow(t.name)}>
-                        Reset
+                    <span className={cn("min-w-0 flex-1 truncate text-[13.5px]", activeTheme === row.name ? "font-medium text-ink" : "text-ink-muted")}>{row.name}</span>
+                    {activeTheme === row.name ? (
+                      <button type="button" className="btn-quiet h-7 rounded-full px-3 text-[12px]" onClick={() => void clearRow(row.name)}>
+                        {t("reset")}
                       </button>
                     ) : (
-                      <button type="button" className="btn-quiet h-7 rounded-full px-3 text-[12px]" onClick={() => void applyRow(t)}>
-                        Apply
+                      <button type="button" className="btn-quiet h-7 rounded-full px-3 text-[12px]" onClick={() => void applyRow(row)}>
+                        {t("apply")}
                       </button>
                     )}
                   </li>
@@ -225,16 +230,16 @@ export function SettingsDialog({
               </ul>
             </Section>
 
-            <Section title="Limits & spend">
+            <Section title={t("sectionLimits")}>
               <div className="grid grid-cols-2 gap-2.5">
                 {LIMIT_FIELDS.map((f) => (
                   <label key={f.key} className="flex flex-col gap-1 text-[12px] text-ink-muted">
-                    {f.label}
+                    {t(f.labelKey)}
                     <input
                       inputMode="decimal"
                       value={limits[f.key] ?? ""}
                       onChange={(e) => setLimits((l) => ({ ...l, [f.key]: e.target.value }))}
-                      placeholder="off"
+                      placeholder={t("limitOff")}
                       className="field font-mono text-xs"
                     />
                   </label>
@@ -242,29 +247,37 @@ export function SettingsDialog({
               </div>
               <div className="flex items-center gap-3">
                 <button type="button" className="btn-primary h-8 rounded-full px-4 text-[13px]" onClick={() => void saveLimits()}>
-                  Save limits
+                  {t("saveLimits")}
                 </button>
                 {savedNote ? <span role="status" className="font-mono text-[11px] text-ink-muted">{savedNote}</span> : null}
               </div>
               {usage && usage !== "unavailable" && usage.totals ? (
                 <p className="font-mono text-[12px] text-ink-muted">
-                  Last 30 days: ${usage.totals.cost.toFixed(2)} · {usage.totals.inputTokens.toLocaleString()} in / {usage.totals.outputTokens.toLocaleString()} out tokens · {usage.totals.images} images
+                  {t("usageLine", {
+                    cost: formatNumber(usage.totals.cost, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                    input: formatNumber(usage.totals.inputTokens),
+                    output: formatNumber(usage.totals.outputTokens),
+                    images: usage.totals.images,
+                  })}
                 </p>
               ) : (
-                <p className="text-[12px] text-placeholder">{usage === "unavailable" ? "The usage ledger is not available yet." : "Loading usage…"}</p>
+                <p className="text-[12px] text-placeholder">{usage === "unavailable" ? t("usageUnavailable") : t("usageLoading")}</p>
               )}
             </Section>
 
-            <Section title="Privacy">
+            <Section title={t("sectionPrivacy")}>
               <div className="flex items-start justify-between gap-4">
                 <p className="text-[13px] leading-relaxed text-ink-muted">
-                  <span className="font-medium text-ink">Local only</span> — hard-disables every outbound call: cloud models, web search, page fetches, model downloads, key checks, and remote MCP servers. Local renders and Ollama keep working. Blocked attempts are listed in <code className="code">data/logs/</code>.
+                  {t.rich("privacyBody", {
+                    b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+                    code: (chunks) => <code className="code">{chunks}</code>,
+                  })}
                 </p>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={localOnly}
-                  aria-label="Local only"
+                  aria-label={t("localOnlyAria")}
                   onClick={async () => {
                     const next = !localOnly;
                     const res = await fetch("/api/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ localOnly: next ? true : null }) }).catch(() => null);
@@ -275,13 +288,13 @@ export function SettingsDialog({
                   }}
                   className={cn("shrink-0 rounded-full px-3.5 py-1.5 font-mono text-[12px] transition-colors", localOnly ? "bg-terracotta text-white" : "border border-line text-ink-muted hover:text-ink")}
                 >
-                  {localOnly ? "On" : "Off"}
+                  {localOnly ? t("on") : t("off")}
                 </button>
               </div>
             </Section>
 
-            <Section title="Agent runs">
-              {runs.length === 0 ? <p className="text-[13px] text-placeholder">No agent runs recorded yet.</p> : null}
+            <Section title={t("sectionRuns")}>
+              {runs.length === 0 ? <p className="text-[13px] text-placeholder">{t("noRuns")}</p> : null}
               <ul className="flex flex-col gap-1">
                 {runs.map((r) => (
                   <li key={r.id} className="flex items-center gap-2.5 font-mono text-[11.5px] text-ink-muted">
@@ -293,14 +306,14 @@ export function SettingsDialog({
                     />
                     <span className="w-[52px] shrink-0">{r.mode}</span>
                     <span className="min-w-0 flex-1 truncate">{r.model}</span>
-                    <span className="shrink-0">{r.finished_at ? `${Math.max(1, Math.round((r.finished_at - r.started_at) / 1000))}s` : r.status}</span>
-                    <span className="shrink-0 text-faint">{new Date(r.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="shrink-0">{r.finishedAt ? t("runSeconds", { seconds: Math.max(1, Math.round((r.finishedAt - r.startedAt) / 1000)) }) : r.status}</span>
+                    <span className="shrink-0 text-faint">{formatTime(r.startedAt)}</span>
                   </li>
                 ))}
               </ul>
             </Section>
 
-            <Section title="Logs">
+            <Section title={t("sectionLogs")}>
               {logLines === null ? (
                 <button
                   type="button"
@@ -312,28 +325,28 @@ export function SettingsDialog({
                       .catch(() => setLogLines([]));
                   }}
                 >
-                  Show recent log
+                  {t("showLog")}
                 </button>
               ) : (
                 <pre className="max-h-[180px] overflow-auto rounded-[10px] bg-pill/60 p-2.5 font-mono text-[10.5px] leading-relaxed text-ink-muted">
-                  {logLines.length ? logLines.join("\n") : "The log is empty."}
+                  {logLines.length ? logLines.join("\n") : t("logEmpty")}
                 </pre>
               )}
               <p className="text-[12px] text-placeholder">
-                Structured, secret-redacted, rotating at 10 MB in <code className="code">data/logs/</code>.
+                {t.rich("logsNote", { code: (chunks) => <code className="code">{chunks}</code> })}
               </p>
             </Section>
 
-            <Section title="Backups & data">
+            <Section title={t("sectionBackups")}>
               <p className="text-[13px] leading-relaxed text-ink-muted">
-                Sessions, projects, themes and settings live in <code className="code">data/safelight.db</code>; the last 7 daily backups sit beside it. Keys stay encrypted and are never exported.
+                {t.rich("backupsBody", { code: (chunks) => <code className="code">{chunks}</code> })}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={() => void exportAll()}>
-                  <Download className="size-3.5" /> Export everything
+                  <Download className="size-3.5" /> {t("exportAll")}
                 </button>
                 <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px]" onClick={() => fileRef.current?.click()}>
-                  <Upload className="size-3.5" /> Import
+                  <Upload className="size-3.5" /> {t("import")}
                 </button>
                 <input
                   ref={fileRef}

@@ -2,8 +2,10 @@
 
 import { Download, Search, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { KIND_LABEL, SELECTABLE_KINDS, folderForKind, formatBytes } from "@/lib/models/kinds";
+import { formatBytes } from "@/lib/i18n-format";
+import { KIND_LABEL, SELECTABLE_KINDS, folderForKind } from "@/lib/models/kinds";
 import { STARTER_PICKS } from "@/lib/models/registry";
 import type { DownloadProgress, FileKind, RemoteFile, SearchResult } from "@/lib/models/types";
 import { cn } from "@/lib/utils";
@@ -16,10 +18,12 @@ interface DownloadView extends DownloadProgress {
   fileName: string;
 }
 
-const STATE_LABEL: Record<DownloadProgress["state"], string> = { downloading: "Downloading", done: "Done", error: "Failed", cancelled: "Cancelled" };
+/** Catalog keys for the download states, translated at render. */
+const STATE_KEY: Record<DownloadProgress["state"], string> = { downloading: "stateDownloading", done: "stateDone", error: "stateFailed", cancelled: "stateCancelled" };
 
 /** Browse and download models from Hugging Face and Civitai into the right models subfolder. */
 export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useTranslations("modelManager");
   const reduce = useReducedMotion();
   const [tab, setTab] = useState<Tab>("starter");
   const [source, setSource] = useState<Source>("hf");
@@ -68,11 +72,11 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
     try {
       const res = await fetch(`/api/models/search?q=${encodeURIComponent(q)}&source=${source}`);
       const data = (await res.json()) as { root?: string; results?: SearchResult[]; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Search failed.");
+      if (!res.ok) throw new Error(data.error ?? t("searchFailed"));
       if (data.root) setRoot(data.root);
       setResults(data.results ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed.");
+      setError(err instanceof Error ? err.message : t("searchFailed"));
       setResults(null);
     } finally {
       setSearching(false);
@@ -82,7 +86,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
   const start = async (file: RemoteFile) => {
     const kind = file.kind === "unknown" ? kindChoice[file.downloadUrl] : file.kind;
     if (!kind || kind === "unknown") {
-      setError(`Pick a folder for ${file.name.split("/").pop()} first.`);
+      setError(t("pickFolderFirst", { name: file.name.split("/").pop() ?? file.name }));
       return;
     }
     setError(null);
@@ -93,10 +97,10 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
         body: JSON.stringify({ url: file.downloadUrl, fileName: file.name.split("/").pop(), kind, sizeBytes: file.sizeBytes, sha256: file.sha256 }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not start the download.");
+      if (!res.ok) throw new Error(data.error ?? t("startFailed"));
       void poll();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start the download.");
+      setError(err instanceof Error ? err.message : t("startFailed"));
     }
   };
 
@@ -126,13 +130,13 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
         <span className="flex shrink-0 items-center gap-1.5">
           {file.kind === "unknown" ? (
             <select
-              aria-label={`Folder for ${shortName}`}
+              aria-label={t("folderFor", { name: shortName })}
               className="field h-7 rounded-full px-2 font-mono text-[10.5px]"
               value={kindChoice[file.downloadUrl] ?? ""}
               onChange={(e) => setKindChoice((m) => ({ ...m, [file.downloadUrl]: e.target.value as FileKind }))}
             >
               <option value="" disabled>
-                Folder…
+                {t("folderOption")}
               </option>
               {SELECTABLE_KINDS.map((k) => (
                 <option key={k} value={k}>
@@ -147,7 +151,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
             disabled={busyFiles.has(shortName)}
             onClick={() => void start(file)}
           >
-            <Download className="size-3" /> {busyFiles.has(shortName) ? "Downloading…" : "Download"}
+            <Download className="size-3" /> {busyFiles.has(shortName) ? t("downloading") : t("download")}
           </button>
         </span>
       </div>
@@ -158,8 +162,8 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
     <li key={`${r.source}:${r.id}`} className="flex flex-col gap-1 py-4">
       <div className="flex items-center gap-2">
         <span className="truncate font-display text-[15px] font-medium">{r.name}</span>
-        <span className="shrink-0 font-mono text-[11px] text-faint">{r.source === "hf" ? "Hugging Face" : r.source === "civitai" ? "Civitai" : "curated"}</span>
-        {r.nsfw ? <span className="shrink-0 rounded-[6px] bg-pill px-1.5 py-0.5 font-mono text-[10px] text-ink-muted">NSFW</span> : null}
+        <span className="shrink-0 font-mono text-[11px] text-faint">{r.source === "hf" ? "Hugging Face" : r.source === "civitai" ? "Civitai" : t("sourceCurated")}</span>
+        {r.nsfw ? <span className="shrink-0 rounded-[6px] bg-pill px-1.5 py-0.5 font-mono text-[10px] text-ink-muted">{t("nsfw")}</span> : null}
       </div>
       {whatFor ? <p className="text-[12.5px] leading-relaxed text-ink">{whatFor}</p> : null}
       {r.description ? <p className="line-clamp-2 text-[12px] leading-relaxed text-ink-muted">{r.description}</p> : null}
@@ -191,25 +195,25 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <span className="eyebrow text-terracotta">Model manager</span>
-                <h2 id="models-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Get models</h2>
-                <p className="mt-1.5 text-sm text-ink-muted">Downloads land in the right models folder automatically, with checksum verification and a disk-space check.</p>
+                <span className="eyebrow text-terracotta">{t("eyebrow")}</span>
+                <h2 id="models-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">{t("heading")}</h2>
+                <p className="mt-1.5 text-sm text-ink-muted">{t("intro")}</p>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label="Close" data-initial-focus onClick={onClose}>
+              <button type="button" className="btn-quiet px-2" aria-label={t("close")} data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
 
             <div className="flex gap-1.5">
-              {(["starter", "search"] as const).map((t) => (
+              {(["starter", "search"] as const).map((tabId) => (
                 <button
-                  key={t}
+                  key={tabId}
                   type="button"
-                  aria-pressed={tab === t}
-                  onClick={() => setTab(t)}
-                  className={cn("rounded-full px-3 py-1 font-mono text-[11px]", tab === t ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
+                  aria-pressed={tab === tabId}
+                  onClick={() => setTab(tabId)}
+                  className={cn("rounded-full px-3 py-1 font-mono text-[11px]", tab === tabId ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
                 >
-                  {t === "starter" ? "Starter picks" : "Search"}
+                  {tabId === "starter" ? t("tabStarter") : t("tabSearch")}
                 </button>
               ))}
             </div>
@@ -221,13 +225,13 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void search()}
-                    placeholder={source === "hf" ? "Search Hugging Face (GGUF)…" : "Search Civitai…"}
-                    aria-label="Search models"
+                    placeholder={source === "hf" ? t("searchPlaceholderHf") : t("searchPlaceholderCivitai")}
+                    aria-label={t("searchAria")}
                     className="field flex-1 text-sm"
                     autoFocus
                   />
                   <button type="button" className="btn-primary inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px]" disabled={searching || !query.trim()} onClick={() => void search()}>
-                    <Search className="size-3.5" /> {searching ? "Searching…" : "Search"}
+                    <Search className="size-3.5" /> {searching ? t("searching") : t("search")}
                   </button>
                 </div>
                 <div className="flex gap-1.5">
@@ -246,7 +250,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                     </button>
                   ))}
                 </div>
-                {results && results.length === 0 ? <p className="py-3 text-sm text-placeholder">Nothing found — try another spelling or the other source.</p> : null}
+                {results && results.length === 0 ? <p className="py-3 text-sm text-placeholder">{t("noResults")}</p> : null}
                 <ul className="flex flex-col divide-y divide-line">{results?.map((r) => resultRow(r))}</ul>
               </div>
             ) : (
@@ -255,7 +259,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
 
             {downloads.length > 0 ? (
               <div className="mt-5 border-t border-line pt-4">
-                <span className="eyebrow">Downloads</span>
+                <span className="eyebrow">{t("downloadsHeader")}</span>
                 <ul className="mt-2 flex flex-col gap-3">
                   {downloads.map((d) => (
                     <li key={d.id} className="flex flex-col gap-1">
@@ -265,9 +269,9 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           <span className={cn("font-mono text-[10.5px]", d.state === "error" ? "text-danger" : "text-ink-muted")}>
-                            {d.state === "downloading" ? `${formatBytes(d.received)} / ${formatBytes(d.total)}` : STATE_LABEL[d.state]}
+                            {d.state === "downloading" ? t("progressOf", { received: formatBytes(d.received), total: formatBytes(d.total) }) : t(STATE_KEY[d.state])}
                           </span>
-                          <button type="button" aria-label={d.state === "downloading" ? `Cancel ${d.fileName}` : `Clear ${d.fileName}`} onClick={() => void cancel(d.id)} className="grid size-6 place-items-center rounded-full text-faint hover:bg-pill hover:text-danger">
+                          <button type="button" aria-label={d.state === "downloading" ? t("cancelFile", { name: d.fileName }) : t("clearFile", { name: d.fileName })} onClick={() => void cancel(d.id)} className="grid size-6 place-items-center rounded-full text-faint hover:bg-pill hover:text-danger">
                             <X className="size-3" />
                           </button>
                         </span>
@@ -290,11 +294,12 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
             {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
             <p className="mt-4 text-[12px] leading-relaxed text-placeholder">
               {root ? (
-                <>
-                  Models are saved under <span className="font-mono text-[11px]">{root}</span> where the render engine finds them.
-                </>
+                t.rich("footerWithRoot", {
+                  root,
+                  mono: (chunks) => <span className="font-mono text-[11px]">{chunks}</span>,
+                })
               ) : (
-                "Models are saved where the render engine finds them."
+                t("footerNoRoot")
               )}
             </p>
           </motion.div>
