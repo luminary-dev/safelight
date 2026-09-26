@@ -1,0 +1,43 @@
+import sharp from "sharp";
+import { describe, expect, it } from "vitest";
+import { dhash, dhashFromRaw, hamming } from "./dhash";
+import { stripePng } from "./test-images";
+
+describe("dhash", () => {
+  it("is a deterministic 16-hex-char hash", async () => {
+    const img = await stripePng(1, 0.3);
+    const a = await dhash(img);
+    const b = await dhash(img);
+    expect(a).toMatch(/^[0-9a-f]{16}$/);
+    expect(a).toBe(b);
+  });
+
+  it("stays close for a brightened and a resized copy", async () => {
+    const base = await stripePng(1, 0.3);
+    const h0 = await dhash(base);
+    const brighter = await sharp(base).linear(1, 18).png().toBuffer();
+    const resized = await sharp(base).resize(128, 128).png().toBuffer();
+    expect(hamming(h0, await dhash(brighter))).toBeLessThanOrEqual(6);
+    expect(hamming(h0, await dhash(resized))).toBeLessThanOrEqual(6);
+  });
+
+  it("is far for a structurally different image", async () => {
+    const a = await dhash(await stripePng(1, 0.3));
+    const b = await dhash(await stripePng(0.2, 1.4));
+    expect(hamming(a, b)).toBeGreaterThan(6);
+  });
+
+  it("computes hamming distance per bit, penalising length mismatch", () => {
+    expect(hamming("00", "00")).toBe(0);
+    expect(hamming("00", "07")).toBe(3);
+    expect(hamming("f0", "0f")).toBe(8);
+    expect(hamming("00", "000")).toBe(4);
+  });
+
+  it("dhashFromRaw sets a bit when the left pixel is brighter", () => {
+    // Row pattern 9 wide: strictly decreasing → every comparison true → all ones.
+    const px = new Uint8Array(72);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 9; x++) px[y * 9 + x] = 200 - x * 10;
+    expect(dhashFromRaw(px)).toBe("ffffffffffffffff");
+  });
+});

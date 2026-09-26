@@ -12,6 +12,11 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Library (Workstream L): rebuilt as a real asset manager — outputs indexed into SQLite with
+  FTS5 prompt search, model/tag/favorite/date filters with facet counts, index-time webp
+  thumbnails, a hand-rolled virtualized grid, a metadata inspector fed by render sidecars, a
+  compare slider, perceptual-hash duplicate detection, and bulk export/delete with home-
+  confined destinations.
 - Blueprints (Workstream K): all 116 workflow templates the vendored render engine ships are
   parsed into runnable capabilities — classified inputs (prompts, media slots, salient
   numerics), honest ready/missing gating against installed nodes and models (24 ready on this
