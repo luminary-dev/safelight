@@ -67,8 +67,9 @@ describe("LibraryGrid", () => {
 
     // The scroll handler waits for a frame before re-rendering the window.
     await waitFor(() => expect(screen.getAllByTestId("tile")[0]).toHaveTextContent(loaded[33].path));
-    // The window now ends past the 40 loaded items, so the next page is requested.
-    expect(onNeedMore).toHaveBeenCalled();
+    // The window now ends past the 40 loaded items, so the next page is requested —
+    // possibly a frame after the window re-render, so poll rather than assert instantly.
+    await waitFor(() => expect(onNeedMore).toHaveBeenCalled());
     expect(screen.getAllByTestId("tile")).toHaveLength(7); // items 33..39 are all that exist yet
     expect(screen.queryByText(loaded[0].path)).not.toBeInTheDocument();
   });
