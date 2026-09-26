@@ -5,6 +5,12 @@ All notable changes to Safelight are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Performance (Workstream O, core): the 936-line Safelight component split into focused
+  hooks — sessions store, image studio, backends — plus a pure, tested status derivation;
+  the sidebar and every workspace are memoized with stable callbacks, so a keystroke in the
+  composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
+
 ### Added
 - MCP client (Workstream G): add Model Context Protocol servers (stdio or HTTP) from the new
   plug icon in the sidebar and their tools join Chat, Code, and Design as
