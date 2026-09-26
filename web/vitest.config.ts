@@ -75,13 +75,13 @@ export default defineConfig({
       // Thresholds are set from the measured baseline over the widened denominator
       // (floor(measured) - 2) and ratchet up, never down. TEST-BRIEF §20 has the
       // per-area targets this is climbing toward.
-      // Measured 2026-09-26 (post TEST-BRIEF phases 0-6) over the full surface:
-      // lines 77.74 %, statements 74.51 %, functions 64.87 %, branches 65.11 %.
+      // Measured 2026-09-26 (post TEST-BRIEF phases 0-6 + responsive tiers + license) over
+      // the full surface: lines 78.65 %, statements 75.27 %, functions 66.04 %, branches 66.05 %.
       thresholds: {
-        lines: 75,
-        statements: 72,
-        functions: 62,
-        branches: 63,
+        lines: 76,
+        statements: 73,
+        functions: 64,
+        branches: 64,
       },
     },
   },

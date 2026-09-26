@@ -205,7 +205,14 @@
     "exportAll": "Export everything",
     "import": "Import",
     "imported": "Imported. Reload to see everything.",
-    "importFailed": "Import failed."
+    "importFailed": "Import failed.",
+    "sectionLicense": "License",
+    "licensedTo": "Licensed to {name}",
+    "licenseDetail": "Covers Safelight {major}.x — issued {issued}. Thank you for supporting the product.",
+    "licenseRemove": "Remove license",
+    "licenseUnlicensed": "Personal use — fully functional. Nothing is locked; a license records your support and covers updates for the major version you buy.",
+    "licenseAdd": "Add license file",
+    "licenseInvalid": "That license file could not be validated."
   },
   "modelManager": {
     "eyebrow": "Model manager",

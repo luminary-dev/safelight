@@ -10,8 +10,11 @@ function baseRoutes(settings: Record<string, number | boolean> = {}): FetchRoute
     { url: "/api/settings", reply: { settings } },
     { url: "/api/usage", reply: { totals: { cost: 1.5, inputTokens: 12000, outputTokens: 3400, images: 7 } } },
     { url: "/api/runs", reply: { runs: [] } },
+    { url: "/api/license", reply: { licensed: false } },
   ];
 }
+
+const LICENSED = { licensed: true, payload: { v: 1, name: "Alice Example", majorVersion: 1, issued: "2026-09-26" } };
 
 function dialog(overrides: Partial<Parameters<typeof SettingsDialog>[0]> = {}) {
   return <SettingsDialog open onClose={() => {}} onOpenKeys={() => {}} onOpenMcp={() => {}} {...overrides} />;
@@ -109,5 +112,64 @@ describe("SettingsDialog", () => {
 
     await user.click(toggle);
     expect(toggle).not.toBeChecked();
+  });
+
+  it("unlicensed is presented as the normal state, not a nag", async () => {
+    stubFetch(...baseRoutes());
+    renderApp(dialog());
+    await screen.findByText(/Personal use — fully functional/);
+    expect(screen.getByRole("button", { name: /Add license file/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Licensed to/)).not.toBeInTheDocument();
+  });
+
+  it("a licensed install shows who it is licensed to and can remove it", async () => {
+    const routes = baseRoutes().filter((r) => r.url !== "/api/license");
+    const { of } = stubFetch(
+      ...routes,
+      { url: "/api/license", reply: LICENSED },
+      { method: "DELETE", url: "/api/license", reply: { licensed: false } },
+    );
+    const user = userEvent.setup();
+    renderApp(dialog());
+
+    await screen.findByText("Licensed to Alice Example");
+    expect(screen.getByText(/Covers Safelight 1\.x — issued 2026-09-26/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove license" }));
+    await screen.findByText(/Personal use — fully functional/);
+    expect(of("DELETE", "/api/license")).toHaveLength(1);
+  });
+
+  it("an invalid license file surfaces the server's reason and stays unlicensed", async () => {
+    stubFetch(...baseRoutes(), {
+      method: "POST",
+      url: "/api/license",
+      reply: new Response(JSON.stringify({ error: "The signature does not match — the file was altered or not issued by Luminary." }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }),
+    });
+    const user = userEvent.setup();
+    const { container } = renderApp(dialog());
+    await screen.findByText(/Personal use — fully functional/);
+
+    const input = container.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    await user.upload(input, new File(["{}"], "license.json", { type: "application/json" }));
+
+    await screen.findByText(/signature does not match/);
+    expect(screen.getByText(/Personal use — fully functional/)).toBeInTheDocument();
+  });
+
+  it("a genuine license file flips the section to licensed", async () => {
+    const { of } = stubFetch(...baseRoutes(), { method: "POST", url: "/api/license", reply: LICENSED });
+    const user = userEvent.setup();
+    const { container } = renderApp(dialog());
+    await screen.findByText(/Personal use — fully functional/);
+
+    const input = container.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    await user.upload(input, new File(['{"payload":{},"sig":"x"}'], "license.json", { type: "application/json" }));
+
+    await screen.findByText("Licensed to Alice Example");
+    expect((of("POST", "/api/license")[0].body as { license: string }).license).toContain('"sig"');
   });
 });

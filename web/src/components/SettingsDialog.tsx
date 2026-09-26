@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, KeyRound, Plug, Upload, X } from "lucide-react";
+import { BadgeCheck, Download, KeyRound, Plug, Upload, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -31,6 +31,8 @@ interface RunRow {
   finishedAt: number | null;
   status: string;
 }
+
+type LicenseState = { licensed: true; payload: { name: string; majorVersion: number; issued: string } } | { licensed: false; reason?: string };
 
 const LIMIT_FIELDS = [
   { key: "spendLimitDaySoft", labelKey: "limitDaySoft" },
@@ -73,6 +75,9 @@ export function SettingsDialog({
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [logLines, setLogLines] = useState<string[] | null>(null);
   const [importNote, setImportNote] = useState<string | null>(null);
+  const [license, setLicense] = useState<LicenseState | null>(null);
+  const [licenseNote, setLicenseNote] = useState<string | null>(null);
+  const licenseFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   useDialogFocus(open, cardRef);
@@ -102,6 +107,10 @@ export function SettingsDialog({
         fetch("/api/runs?limit=8")
           .then((r) => (r.ok ? (r.json() as Promise<{ runs: RunRow[] }>) : Promise.reject(new Error())))
           .then((d) => setRuns(d.runs))
+          .catch(() => undefined),
+        fetch("/api/license")
+          .then((r) => r.json() as Promise<LicenseState>)
+          .then(setLicense)
           .catch(() => undefined),
       ]),
     [],
@@ -152,6 +161,26 @@ export function SettingsDialog({
     a.download = `safelight-export-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const addLicense = async (file: File) => {
+    setLicenseNote(null);
+    const text = await file.text();
+    const res = await fetch("/api/license", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ license: text }) }).catch(() => null);
+    if (res?.ok) {
+      setLicense((await res.json()) as LicenseState);
+    } else {
+      const body = res ? ((await res.json().catch(() => ({}))) as { error?: string }) : {};
+      setLicenseNote(body.error ?? t("licenseInvalid"));
+    }
+  };
+
+  const dropLicense = async () => {
+    const res = await fetch("/api/license", { method: "DELETE" }).catch(() => null);
+    if (res?.ok) {
+      setLicense((await res.json()) as LicenseState);
+      setLicenseNote(null);
+    }
   };
 
   const importAll = async (file: File) => {
@@ -336,6 +365,41 @@ export function SettingsDialog({
               <p className="text-[12px] text-placeholder">
                 {t.rich("logsNote", { code: (chunks) => <code className="code">{chunks}</code> })}
               </p>
+            </Section>
+
+            <Section title={t("sectionLicense")}>
+              {license?.licensed ? (
+                <>
+                  <p className="text-[13px] leading-relaxed text-ink">
+                    <span className="font-medium">{t("licensedTo", { name: license.payload.name })}</span>
+                  </p>
+                  <p className="text-[12px] text-ink-muted">{t("licenseDetail", { major: license.payload.majorVersion, issued: license.payload.issued })}</p>
+                  <button type="button" className="btn-quiet h-8 self-start rounded-full px-3.5 text-[13px] max-lg:min-h-11" onClick={() => void dropLicense()}>
+                    {t("licenseRemove")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-[13px] leading-relaxed text-ink-muted">{t("licenseUnlicensed")}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" className="btn-quiet inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13.5px] max-lg:min-h-11" onClick={() => licenseFileRef.current?.click()}>
+                      <BadgeCheck className="size-3.5" /> {t("licenseAdd")}
+                    </button>
+                    <input
+                      ref={licenseFileRef}
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void addLicense(f);
+                        e.target.value = "";
+                      }}
+                    />
+                    {licenseNote ? <span role="status" className="font-mono text-[11px] text-danger">{licenseNote}</span> : null}
+                  </div>
+                </>
+              )}
             </Section>
 
             <Section title={t("sectionBackups")}>
