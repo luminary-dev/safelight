@@ -4,7 +4,9 @@ useDefault = true
 # The log-redaction test plants a FAKE sk-style key precisely to assert it gets
 # scrubbed; fixture data, not a credential.
 [allowlist]
+# Redaction/vault tests seed fake keys precisely to assert they never leak.
 paths = [
   '''web/src/lib/log\.test\.ts''',
   '''web/src/lib/secrets/vault\.test\.ts''',
+  '''web/src/app/api/logs/route\.test\.ts''',
 ]
