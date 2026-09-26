@@ -1,10 +1,10 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { ModelCatalog, ModelEntry } from "@/lib/comfy/types";
+import type { ControlType, ImageCapabilities, ModelCatalog, ModelEntry } from "@/lib/comfy/types";
 import { SIZE_PRESETS, SIZE_SCALES, randomSeed, scaledSize } from "@/lib/presets";
 import type { Settings } from "@/lib/safelight-state";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,86 @@ import { ModelPicker, type PickerOption } from "./ModelPicker";
 import { Select, Slider, Toggle } from "./ui";
 
 const SEGMENT_ON = "h-8 rounded-[9px]! px-3 font-display text-[13px] font-medium text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:font-semibold data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]";
+
+const CONTROL_PATCH_FILE = "Z-Image-Turbo-Fun-Controlnet-Union.safetensors";
+
+/**
+ * ControlNet guidance for image edits, collapsed by default. The uploaded reference image
+ * becomes the control map (canny is traced automatically; depth/pose expect a ready-made map),
+ * gated on the control patch the connected ComfyUI actually has.
+ */
+function ControlNetSection({ modelName, controlType, controlStrength, onChange }: { modelName: string; controlType: "" | ControlType; controlStrength: number; onChange: (patch: { controlType?: "" | ControlType; controlStrength?: number }) => void }) {
+  const [open, setOpen] = useState(false);
+  const [caps, setCaps] = useState<ImageCapabilities | null>(null);
+  useEffect(() => {
+    if (!open || caps) return;
+    let stale = false;
+    fetch("/api/generate")
+      .then((r) => (r.ok ? (r.json() as Promise<ImageCapabilities>) : null))
+      .then((c) => !stale && c && setCaps(c))
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [open, caps]);
+
+  const isZ = /z[-_]?image/i.test(modelName);
+  const fitting = (caps?.controlnet.patches ?? []).filter((p) => (isZ ? /z[-_]?image/i.test(p) : /qwen/i.test(p) && !/z[-_]?image/i.test(p)));
+  const reason = !caps
+    ? "Checking what ComfyUI has installed…"
+    : !caps.online
+      ? "ComfyUI is offline."
+      : !caps.controlnet.node
+        ? "The local ComfyUI is missing the QwenImageDiffsynthControlnet node — update it to a build that ships ControlNet patches."
+        : fitting.length === 0
+          ? `No control patch fits this model. Download "${CONTROL_PATCH_FILE}" into ComfyUI's "model_patches" folder (the model manager can fetch it) and pick a Z-Image-Turbo model.`
+          : null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 self-start text-[12px] font-medium text-faint hover:text-ink">
+        <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} /> ControlNet
+        {controlType ? <span className="rounded-full bg-pill px-2 py-0.5 font-mono text-[10px] text-ink">{controlType}</span> : null}
+      </button>
+      {open ? (
+        <div className="flex flex-col gap-2 rounded-[12px] bg-paper p-3">
+          {reason ? <p className="text-[12px] leading-relaxed text-ink-muted [text-wrap:pretty]">{reason}</p> : null}
+          <div className="form-row">
+            <span className="form-label">Guide by</span>
+            <Select
+              value={controlType}
+              onChange={(v) => onChange({ controlType: v as "" | ControlType })}
+              placeholder="Off"
+              options={[
+                { value: "", label: "Off" },
+                { value: "canny", label: "Edges (canny)" },
+                { value: "depth", label: "Depth map" },
+                { value: "pose", label: "Pose map" },
+              ]}
+              ariaLabel="ControlNet type"
+              className={reason ? "pointer-events-none opacity-50" : ""}
+            />
+          </div>
+          {controlType && !reason ? (
+            <div className="form-row">
+              <span className="form-label">Strength</span>
+              <Slider value={controlStrength} min={0} max={2} step={0.05} onChange={(v) => onChange({ controlStrength: v })} />
+            </div>
+          ) : null}
+          {controlType && !reason ? (
+            <p className="text-[11.5px] leading-relaxed text-faint [text-wrap:pretty]">
+              {controlType === "canny"
+                ? "The first input image is traced into edges that guide the render."
+                : `The first input image must already be a ${controlType} map — the ${controlType === "depth" ? "Depth Estimation" : "Pose Map"} blueprints make one.`}
+              {" Using patch "}
+              <code className="code">{fitting[0]}</code>.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** The left settings column in Image mode: prompt, shape, count, model, and the create button. */
 export function Composer({
@@ -142,6 +222,8 @@ export function Composer({
       ) : null}
 
       {isEdit && isQwen ? <Toggle checked={settings.matchInputSize} onChange={(v) => onChange({ matchInputSize: v })} label="Match the input image" /> : null}
+
+      {isEdit && !isCloud ? <ControlNetSection modelName={settings.model?.name ?? ""} controlType={settings.controlType} controlStrength={settings.controlStrength} onChange={onChange} /> : null}
 
       <div className="flex items-center justify-between gap-3">
         <span className="text-[13px] font-medium text-faint">How many</span>

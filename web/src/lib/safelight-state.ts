@@ -1,4 +1,4 @@
-import type { GenerateRequest, JobOutput, ModelCatalog, ModelEntry, Mode } from "@/lib/comfy/types";
+import type { ControlType, GenerateRequest, JobOutput, ModelCatalog, ModelEntry, Mode } from "@/lib/comfy/types";
 
 export interface UploadedImage {
   ref: string;
@@ -31,6 +31,9 @@ export interface Settings {
   refResolution: number;
   matchInputSize: boolean;
   images: UploadedImage[];
+  /** ControlNet guidance for img2img: "" is off; the reference image becomes the control map. */
+  controlType: "" | ControlType;
+  controlStrength: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -57,6 +60,8 @@ export const DEFAULT_SETTINGS: Settings = {
   refResolution: 1024,
   matchInputSize: true,
   images: [],
+  controlType: "",
+  controlStrength: 1,
 };
 
 /** Family-aware defaults so a fresh model selection produces a sane first render. */
@@ -120,6 +125,7 @@ export function toRequest(s: Settings, seed: number): GenerateRequest {
     images: s.images.map((i) => i.ref),
     refResolution: s.refResolution,
     matchInputSize: s.matchInputSize,
+    control: s.mode === "img2img" && s.controlType ? { type: s.controlType, strength: s.controlStrength } : null,
   };
 }
 
@@ -162,15 +168,62 @@ export function stageLabel(classType: string | undefined): string {
       return "Encoding prompt";
     case "LoadImage":
     case "ImageScale":
+    case "ImageScaleToMaxDimension":
+    case "ImageScaleToTotalPixels":
+    case "FluxKontextImageScale":
     case "VAEEncode":
     case "ReferenceLatent":
+    case "GetImageSize":
       return "Preparing references";
+    case "UpscaleModelLoader":
+      return "Loading upscale model";
+    case "ImageUpscaleWithModel":
+      return "Upscaling";
+    case "LoadBackgroundRemovalModel":
+    case "RemoveBackground":
+      return "Removing background";
+    case "InvertMask":
+    case "JoinImageWithAlpha":
+    case "ImageCompositeMasked":
+      return "Compositing";
+    case "ImageToMask":
+    case "MaskToImage":
+    case "GrowMask":
+    case "ImageBlur":
+    case "SetLatentNoiseMask":
+      return "Preparing mask";
+    case "ImagePadForOutpaint":
+      return "Extending canvas";
+    case "ControlNetLoader":
+    case "ModelPatchLoader":
+      return "Loading ControlNet";
+    case "ControlNetInpaintingAliMamaApply":
+    case "ControlNetApplyAdvanced":
+    case "QwenImageDiffsynthControlnet":
+      return "Applying ControlNet";
+    case "Canny":
+      return "Tracing edges";
     case "KSampler":
+    case "KSamplerAdvanced":
+    case "SamplerCustomAdvanced":
       return "Rendering";
     case "VAEDecode":
+    case "VAEDecodeTiled":
       return "Decoding image";
+    case "VAEDecodeAudio":
+      return "Decoding audio";
     case "SaveImage":
+    case "SaveAnimatedWEBP":
+    case "SaveAnimatedPNG":
       return "Saving";
+    case "CreateVideo":
+    case "SaveVideo":
+    case "SaveWEBM":
+      return "Encoding video";
+    case "SaveAudio":
+    case "SaveAudioMP3":
+    case "SaveAudioOpus":
+      return "Saving audio";
     default:
       return "Preparing";
   }

@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { Download, Eraser, ExternalLink, Pencil, RefreshCw, Shuffle, Trash2, X, ZoomIn } from "lucide-react";
+import { Brush, Download, Eraser, ExternalLink, Pencil, RefreshCw, Shuffle, Trash2, UnfoldHorizontal, X, ZoomIn } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -9,6 +9,7 @@ import type { GalleryItem, ImageCapabilities, JobOutput, JobStatus } from "@/lib
 import { viewUrl, type Job } from "@/lib/safelight-state";
 import type { ProgressState } from "@/hooks/useComfySocket";
 import { ConfirmDelete } from "./ConfirmDelete";
+import { MaskCanvas, OutpaintControls, type InpaintSubmission, type OutpaintSubmission } from "./MaskCanvas";
 import { liveStage, RunQueue, type QueueEntry } from "./RunQueue";
 
 export { liveStage, type QueueEntry };
@@ -111,21 +112,22 @@ export function Stage({
     };
   }, []);
 
-  // Whether the selected image has a metadata sidecar (enables Recreate/Vary).
+  // Whether the selected image has a metadata sidecar, and which mode wrote it (enables Recreate/Vary/Inpaint/Outpaint).
   const selectedRef = selected ? imageRef(selected) : null;
-  const [sidecarByRef, setSidecarByRef] = useState<Record<string, boolean>>({});
+  const [sidecarByRef, setSidecarByRef] = useState<Record<string, { present: boolean; mode?: string }>>({});
   useEffect(() => {
     if (!selectedRef || selectedRef in sidecarByRef) return;
     let stale = false;
     fetch(`/api/generate?sidecar=${encodeURIComponent(selectedRef)}`)
-      .then((r) => (r.ok ? (r.json() as Promise<{ sidecar: unknown }>) : null))
-      .then((d) => !stale && d && setSidecarByRef((m) => ({ ...m, [selectedRef]: Boolean(d.sidecar) })))
+      .then((r) => (r.ok ? (r.json() as Promise<{ sidecar: { mode?: string } | null }>) : null))
+      .then((d) => !stale && d && setSidecarByRef((m) => ({ ...m, [selectedRef]: { present: Boolean(d.sidecar), mode: d.sidecar?.mode } })))
       .catch(() => undefined);
     return () => {
       stale = true;
     };
   }, [selectedRef, sidecarByRef]);
-  const hasSidecar = selectedRef ? sidecarByRef[selectedRef] === true : false;
+  const sidecarInfo = selectedRef ? sidecarByRef[selectedRef] : undefined;
+  const hasSidecar = sidecarInfo?.present === true;
 
   const [actions, setActions] = useState<StageAction[]>([]);
   const actionTimers = useRef(new Map<string, ReturnType<typeof setInterval>>());
@@ -231,7 +233,70 @@ export function Stage({
         : caps.removeBackground.models.length === 0
           ? 'No BiRefNet model installed — add birefnet.safetensors to ComfyUI\'s "background_removal" folder.'
           : null;
-  const recreateReason = selectedRef && selectedRef in sidecarByRef ? (hasSidecar ? null : "This image has no render settings sidecar.") : "Checking for this image's render settings…";
+  const actionMode = sidecarInfo?.mode && sidecarInfo.mode !== "txt2img" && sidecarInfo.mode !== "img2img" ? sidecarInfo.mode : null;
+  const recreateReason =
+    selectedRef && selectedRef in sidecarByRef
+      ? !hasSidecar
+        ? "This image has no render settings sidecar."
+        : actionMode
+          ? `This image came from ${actionMode === "rmbg" ? "a background removal" : `an ${actionMode}`} action, which Recreate cannot rerun.`
+          : null
+      : "Checking for this image's render settings…";
+  // Mask edits rebuild the model settings from the sidecar, whatever mode wrote it.
+  const maskEditReason = !caps
+    ? "Checking what ComfyUI has installed…"
+    : !caps.online
+      ? "ComfyUI is offline."
+      : selectedRef && selectedRef in sidecarByRef
+        ? hasSidecar
+          ? null
+          : "This image has no render settings sidecar, so the model to edit with is unknown."
+        : "Checking for this image's render settings…";
+
+  // ---------- mask edits (inpaint / outpaint) ----------
+  const [maskEditor, setMaskEditor] = useState<"inpaint" | "outpaint" | null>(null);
+  const [maskBusy, setMaskBusy] = useState(false);
+
+  const failAction = useCallback((label: string, message: string) => {
+    setActions((list) => [...list, { id: `pending-${crypto.randomUUID()}`, label, state: "error", error: message }]);
+  }, []);
+
+  const submitInpaint = useCallback(
+    async (s: InpaintSubmission) => {
+      if (!selectedRef) return;
+      setMaskBusy(true);
+      try {
+        const form = new FormData();
+        form.append("files", new File([s.mask], "inpaint-mask.png", { type: "image/png" }));
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const data = (await res.json()) as { files?: { ref: string }[]; error?: string };
+        const mask = data.files?.[0]?.ref;
+        if (!res.ok || !mask) throw new Error(data.error ?? "Uploading the mask failed.");
+        setMaskEditor(null);
+        await runAction("Inpaint", { mode: "inpaint", image: selectedRef, mask, prompt: s.prompt, denoise: s.denoise });
+      } catch (err) {
+        setMaskEditor(null);
+        failAction("Inpaint", err instanceof Error ? err.message : "Uploading the mask failed.");
+      } finally {
+        setMaskBusy(false);
+      }
+    },
+    [selectedRef, runAction, failAction],
+  );
+
+  const submitOutpaint = useCallback(
+    async (s: OutpaintSubmission) => {
+      if (!selectedRef) return;
+      setMaskBusy(true);
+      try {
+        setMaskEditor(null);
+        await runAction("Outpaint", { mode: "outpaint", image: selectedRef, prompt: s.prompt, left: s.left, top: s.top, right: s.right, bottom: s.bottom, feathering: s.feathering });
+      } finally {
+        setMaskBusy(false);
+      }
+    },
+    [selectedRef, runAction],
+  );
 
   useEffect(() => {
     if (!viewer) return;
@@ -278,6 +343,24 @@ export function Stage({
               onClick={() => void runAction("Vary", { fromSidecar: selectedRef, vary: true })}
             >
               <Shuffle className="size-3.5" /> Vary
+            </button>
+            <button
+              type="button"
+              className="btn-quiet"
+              disabled={Boolean(maskEditReason)}
+              title={maskEditReason ?? "Paint over an area and describe what should replace it"}
+              onClick={() => setMaskEditor("inpaint")}
+            >
+              <Brush className="size-3.5" /> Inpaint
+            </button>
+            <button
+              type="button"
+              className="btn-quiet"
+              disabled={Boolean(maskEditReason)}
+              title={maskEditReason ?? "Extend the image beyond its edges"}
+              onClick={() => setMaskEditor("outpaint")}
+            >
+              <UnfoldHorizontal className="size-3.5" /> Outpaint
             </button>
             <button
               type="button"
@@ -416,6 +499,9 @@ export function Stage({
           })}
         </div>
       ) : null}
+
+      {maskEditor === "inpaint" && selected ? <MaskCanvas imageUrl={viewUrl(selected)} imageName={selected.filename} busy={maskBusy} onClose={() => setMaskEditor(null)} onSubmit={(s) => void submitInpaint(s)} /> : null}
+      {maskEditor === "outpaint" && selected ? <OutpaintControls imageUrl={viewUrl(selected)} imageName={selected.filename} busy={maskBusy} onClose={() => setMaskEditor(null)} onSubmit={(s) => void submitOutpaint(s)} /> : null}
 
       <AnimatePresence>
         {viewer && selected ? (

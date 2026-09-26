@@ -1,14 +1,15 @@
 import "server-only";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getHistory, getQueue, hasNode, listFolder, queuePrompt } from "@/lib/comfy/client";
-import { buildGraph, buildRemoveBackgroundGraph, buildUpscaleGraph } from "@/lib/comfy/graph";
-import type { GenerateRequest, ImageCapabilities, JobOutput, JobStatus } from "@/lib/comfy/types";
+import { getHistory, getQueue, hasNode, listFolder, queuePrompt, type HistoryEntry } from "@/lib/comfy/client";
+import { buildGraph, buildInpaintGraph, buildOutpaintGraph, buildRemoveBackgroundGraph, buildUpscaleGraph } from "@/lib/comfy/graph";
+import type { ControlType, GenerateRequest, ImageCapabilities, JobOutput, JobStatus, MaskEditRequest } from "@/lib/comfy/types";
 import { unloadOllamaModels } from "@/lib/ollama/client";
+import { randomSeed } from "@/lib/presets";
 import { generateCloudImages } from "@/lib/providers";
 import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 import { OUTPUT_DIR, parseImageRef, safeJoin } from "@/lib/safelight-files";
-import { readSidecar, sidecarForRequest, sidecarToRequest, writeSidecar } from "@/lib/sidecars";
+import { readSidecar, sidecarForAction, sidecarForRequest, sidecarSettings, sidecarToRequest, writeSidecar, type RenderSidecar } from "@/lib/sidecars";
 
 function clampInt(n: unknown, min: number, max: number, fallback: number): number {
   const v = typeof n === "number" && Number.isFinite(n) ? Math.round(n) : fallback;
@@ -42,6 +43,20 @@ export function sanitizeRequest(body: Partial<GenerateRequest>): GenerateRequest
     images: Array.isArray(body.images) ? body.images.filter(Boolean).map(String).slice(0, 16) : [],
     refResolution: clampInt(body.refResolution, 0, 4096, 1024),
     matchInputSize: body.matchInputSize !== false,
+    control: sanitizeControl(body.control),
+  };
+}
+
+const CONTROL_TYPES: ControlType[] = ["canny", "depth", "pose"];
+
+function sanitizeControl(control: GenerateRequest["control"]): GenerateRequest["control"] {
+  if (!control || !CONTROL_TYPES.includes(control.type)) return null;
+  return {
+    type: control.type,
+    strength: clampFloat(control.strength, 0, 2, 1),
+    patch: control.patch ? String(control.patch) : undefined,
+    cannyLow: clampFloat(control.cannyLow, 0, 0.99, 0.3),
+    cannyHigh: clampFloat(control.cannyHigh, 0.01, 1, 0.4),
   };
 }
 
@@ -51,14 +66,14 @@ const EXT_BY_MIME: Record<string, string> = { "image/png": ".png", "image/jpeg":
 // ---------- sidecars ----------
 
 /**
- * Requests for local renders still in flight, so their sidecars can be written when the job
+ * Sidecar documents for local jobs still in flight, written beside the outputs when the job
  * completes. Kept on globalThis to survive Next.js dev-mode module reloads.
  */
-const pendingSidecars: Map<string, GenerateRequest> = ((globalThis as Record<string, unknown>).__safelightPendingSidecars ??= new Map()) as Map<string, GenerateRequest>;
+const pendingSidecars: Map<string, RenderSidecar> = ((globalThis as Record<string, unknown>).__safelightPendingSidecarDocs ??= new Map()) as Map<string, RenderSidecar>;
 const PENDING_SIDECAR_CAP = 200;
 
-function rememberPendingSidecar(id: string, req: GenerateRequest) {
-  pendingSidecars.set(id, req);
+function rememberPendingSidecar(id: string, sidecar: RenderSidecar) {
+  pendingSidecars.set(id, sidecar);
   while (pendingSidecars.size > PENDING_SIDECAR_CAP) {
     const oldest = pendingSidecars.keys().next().value;
     if (oldest === undefined) break;
@@ -68,12 +83,11 @@ function rememberPendingSidecar(id: string, req: GenerateRequest) {
 
 /** Writes `<image>.json` beside each output of a finished local render. Never throws. */
 async function writeSidecarsForJob(id: string, outputs: JobOutput[]): Promise<void> {
-  const req = pendingSidecars.get(id);
-  if (!req) return;
+  const sidecar = pendingSidecars.get(id);
+  if (!sidecar) return;
   pendingSidecars.delete(id);
-  const sidecar = sidecarForRequest(req);
   for (const out of outputs) {
-    if ((out.type ?? "output") !== "output") continue;
+    if ((out.type ?? "output") !== "output" || (out.kind ?? "image") !== "image") continue;
     const full = safeJoin(OUTPUT_DIR, out.subfolder, out.filename);
     if (full) await writeSidecar(full, sidecar);
     else console.warn(`[sidecar] refusing to write outside the output folder: ${out.subfolder}/${out.filename}`);
@@ -134,13 +148,104 @@ export async function runCloud(req: GenerateRequest): Promise<JobOutput[]> {
   return outputs;
 }
 
+/** The exact file the ControlNet UI/errors tell the user to fetch. */
+const CONTROL_PATCH_HINT = 'Download "Z-Image-Turbo-Fun-Controlnet-Union.safetensors" into ComfyUI\'s "model_patches" folder (the model manager can fetch it).';
+
+/** Picks the installed control patch that fits the selected model, or explains what to fetch. */
+function resolveControlPatch(modelName: string, patches: string[]): string {
+  const isZ = /z[-_]?image/i.test(modelName);
+  const fits = (p: string) => (isZ ? /z[-_]?image/i.test(p) : /qwen/i.test(p) && !/z[-_]?image/i.test(p));
+  const match = patches.find((p) => /controlnet|control[-_ ]?net|control/i.test(p) && fits(p)) ?? patches.find(fits);
+  if (match) return match;
+  if (patches.length > 0) {
+    throw new Error(`None of the installed control patches (${patches.join(", ")}) fit "${modelName}". ${CONTROL_PATCH_HINT}`);
+  }
+  throw new Error(`No ControlNet patch is installed. ${CONTROL_PATCH_HINT}`);
+}
+
+/** Gates a ControlNet request on the node and a fitting patch file being present. */
+async function gateControl(req: GenerateRequest): Promise<GenerateRequest> {
+  if (!req.control || req.mode !== "img2img") return req;
+  const [node, patches] = await Promise.all([hasNode("QwenImageDiffsynthControlnet"), listFolder("model_patches")]);
+  if (!node) throw new Error("ControlNet requires the QwenImageDiffsynthControlnet node — update the local ComfyUI.");
+  const patch = req.control.patch && patches.includes(req.control.patch) ? req.control.patch : resolveControlPatch(req.model.name, patches);
+  return { ...req, control: { ...req.control, patch } };
+}
+
 /** Queues a local render on ComfyUI, freeing Ollama's memory first. Returns the prompt id. */
 export async function queueLocal(req: GenerateRequest, clientId: string) {
+  req = await gateControl(req);
   const graph = buildGraph(req);
   const freed = await unloadOllamaModels();
   const result = await queuePrompt(graph, clientId);
-  rememberPendingSidecar(result.prompt_id, req);
+  rememberPendingSidecar(result.prompt_id, sidecarForRequest(req));
   return { id: result.prompt_id, graph, freed };
+}
+
+/** A mask-edit request that may also carry explicit render settings (model, steps, …). */
+export type MaskEditBody = Omit<Partial<GenerateRequest>, "mode"> & MaskEditRequest;
+
+/** The mask edit base: the target image's sidecar settings, unless the body names a model itself. */
+async function maskEditBase(body: MaskEditBody): Promise<GenerateRequest> {
+  if (!body.image) throw new Error(`${body.mode === "outpaint" ? "Outpainting" : "Inpainting"} needs the image to edit.`);
+  let settings: Partial<GenerateRequest>;
+  if (body.model?.name) {
+    const rest: Omit<MaskEditBody, "mode"> & { mode?: undefined } = { ...body, mode: undefined };
+    settings = rest;
+  } else {
+    const sidecar = await readSidecarForRef(body.image);
+    if (!sidecar) throw new Error("This image has no render settings sidecar, so Safelight cannot tell which model to edit it with. Render it in Safelight first, or generate with a model selected.");
+    settings = sidecarSettings(sidecar);
+  }
+  return sanitizeRequest({
+    ...settings,
+    mode: "img2img",
+    images: [body.image],
+    prompt: String(body.prompt ?? ""),
+    negativePrompt: typeof body.negativePrompt === "string" ? body.negativePrompt : (settings.negativePrompt ?? ""),
+    seed: randomSeed(),
+    denoise: typeof body.denoise === "number" ? body.denoise : 1,
+    control: null,
+  });
+}
+
+/** The installed inpainting ControlNets (an optional quality boost for inpaint/outpaint). */
+async function installedInpaintControlNets(): Promise<string[]> {
+  const files = await listFolder("controlnet");
+  return files.filter((f) => /inpaint/i.test(f));
+}
+
+const clampMaskPx = (n: unknown, fallback: number) => clampInt(n, 0, 256, fallback);
+
+/** Queues a mask-brush inpaint. Model settings come from the image's sidecar (or the body). */
+export async function queueInpaint(body: MaskEditBody, clientId: string) {
+  const req = await maskEditBase(body);
+  const mask = typeof body.mask === "string" ? body.mask : "";
+  const [controlNet] = await installedInpaintControlNets();
+  const graph = buildInpaintGraph(req, { mask, maskExpand: clampMaskPx(body.maskExpand, 0), maskBlur: clampMaskPx(body.maskBlur, 8), controlNet });
+  const freed = await unloadOllamaModels();
+  const result = await queuePrompt(graph, clientId);
+  rememberPendingSidecar(result.prompt_id, sidecarForRequest(req, undefined, { mode: "inpaint", mask }));
+  return { id: result.prompt_id, graph, freed, seed: req.seed, controlNet: controlNet ?? null };
+}
+
+/** Queues a direction/percent outpaint. Model settings come from the image's sidecar (or the body). */
+export async function queueOutpaint(body: MaskEditBody, clientId: string) {
+  const req = await maskEditBase(body);
+  const pad = (n: unknown) => clampInt(n, 0, 2048, 0);
+  const [controlNet] = await installedInpaintControlNets();
+  const graph = buildOutpaintGraph(req, {
+    left: pad(body.left),
+    top: pad(body.top),
+    right: pad(body.right),
+    bottom: pad(body.bottom),
+    feathering: clampInt(body.feathering, 0, 512, 24),
+    controlNet,
+  });
+  const freed = await unloadOllamaModels();
+  const result = await queuePrompt(graph, clientId);
+  rememberPendingSidecar(result.prompt_id, sidecarForRequest(req, undefined, { mode: "outpaint" }));
+  return { id: result.prompt_id, graph, freed, seed: req.seed, controlNet: controlNet ?? null };
 }
 
 /** Queues an ESRGAN-style model upscale of one image. Errors clearly when no upscale model is installed. */
@@ -153,6 +258,7 @@ export async function queueUpscale(opts: { image: string; upscaleModel?: string 
   const graph = buildUpscaleGraph({ image: opts.image, upscaleModel: model });
   const freed = await unloadOllamaModels();
   const result = await queuePrompt(graph, clientId);
+  rememberPendingSidecar(result.prompt_id, sidecarForAction("upscale", { image: opts.image, model, folder: "upscale_models" }));
   return { id: result.prompt_id, graph, freed, model };
 }
 
@@ -167,23 +273,66 @@ export async function queueRemoveBackground(opts: { image: string; model?: strin
   const graph = buildRemoveBackgroundGraph({ image: opts.image, model });
   const freed = await unloadOllamaModels();
   const result = await queuePrompt(graph, clientId);
+  rememberPendingSidecar(result.prompt_id, sidecarForAction("rmbg", { image: opts.image, model, folder: "background_removal" }));
   return { id: result.prompt_id, graph, freed, model };
 }
 
 /** What the connected ComfyUI can do for Stage actions right now. */
 export async function imageCapabilities(): Promise<ImageCapabilities> {
   try {
-    const [upscaleModels, rmbgModels, rmbgNode] = await Promise.all([listFolder("upscale_models"), listFolder("background_removal"), hasNode("RemoveBackground")]);
-    return { online: true, upscaleModels, removeBackground: { node: rmbgNode, models: rmbgModels } };
+    const [upscaleModels, rmbgModels, rmbgNode, inpaintControlNets, controlNode, controlPatches] = await Promise.all([
+      listFolder("upscale_models"),
+      listFolder("background_removal"),
+      hasNode("RemoveBackground"),
+      installedInpaintControlNets(),
+      hasNode("QwenImageDiffsynthControlnet"),
+      listFolder("model_patches"),
+    ]);
+    return {
+      online: true,
+      upscaleModels,
+      removeBackground: { node: rmbgNode, models: rmbgModels },
+      inpaint: { controlNets: inpaintControlNets },
+      controlnet: { node: controlNode, patches: controlPatches },
+    };
   } catch {
-    return { online: false, upscaleModels: [], removeBackground: { node: false, models: [] } };
+    return { online: false, upscaleModels: [], removeBackground: { node: false, models: [] }, inpaint: { controlNets: [] }, controlnet: { node: false, patches: [] } };
   }
+}
+
+const VIDEO_EXT = /\.(mp4|webm|mov|mkv|avi|gif)$/i;
+const AUDIO_EXT = /\.(flac|mp3|wav|ogg|opus|m4a|aac)$/i;
+
+function outputKind(key: string, filename: string, animated: boolean): NonNullable<JobOutput["kind"]> {
+  if (key === "audio" || AUDIO_EXT.test(filename)) return "audio";
+  if (key === "gifs" || key === "videos" || animated || VIDEO_EXT.test(filename)) return "video";
+  return "image";
+}
+
+/**
+ * Collects every output-bearing key from a ComfyUI history entry: SaveImage/SaveVideo report
+ * under `images` (videos also set `animated`), SaveAudio* under `audio`, and VHS-style custom
+ * nodes under `gifs`/`videos`. Each output is tagged with its kind (image is the default).
+ */
+export function collectOutputs(outputs: HistoryEntry["outputs"] | undefined): JobOutput[] {
+  const collected: JobOutput[] = [];
+  for (const node of Object.values(outputs ?? {})) {
+    // `animated` is a single-element tuple flagging the whole images list (SaveVideo, animated WEBP).
+    const animated = Array.isArray(node.animated) && node.animated.some(Boolean);
+    for (const key of ["images", "gifs", "videos", "audio"] as const) {
+      for (const out of node[key] ?? []) {
+        if (!out || typeof out.filename !== "string") continue;
+        collected.push({ ...out, kind: outputKind(key, out.filename, key === "images" && animated) });
+      }
+    }
+  }
+  return collected;
 }
 
 export async function jobStatus(id: string): Promise<JobStatus> {
   const entry = await getHistory(id);
   if (entry) {
-    const outputs = Object.values(entry.outputs ?? {}).flatMap((o) => o.images ?? []);
+    const outputs = collectOutputs(entry.outputs);
     const failed = entry.status?.status_str === "error";
     let error: string | undefined;
     if (failed) {

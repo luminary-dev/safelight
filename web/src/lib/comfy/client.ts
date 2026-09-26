@@ -91,9 +91,23 @@ export async function queuePrompt(graph: Record<string, unknown>, clientId: stri
   }
 }
 
+/**
+ * One node's UI outputs in ComfyUI history. Core SaveImage/SaveVideo report under `images`
+ * (videos additionally set `animated`), SaveAudio* report under `audio`, and popular custom
+ * video nodes (VHS) use `gifs`; `videos` is kept for forks that use it.
+ */
+export interface HistoryNodeOutputs {
+  images?: JobOutput[];
+  gifs?: JobOutput[];
+  videos?: JobOutput[];
+  audio?: JobOutput[];
+  /** Parallel to `images`; true marks an animated/video result saved through the images key. */
+  animated?: boolean[];
+}
+
 export interface HistoryEntry {
   status?: { status_str: "success" | "error"; completed: boolean; messages: [string, Record<string, unknown>][] };
-  outputs: Record<string, { images?: JobOutput[] }>;
+  outputs: Record<string, HistoryNodeOutputs>;
 }
 
 export async function getHistory(promptId: string): Promise<HistoryEntry | undefined> {

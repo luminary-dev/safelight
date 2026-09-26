@@ -91,13 +91,201 @@ describe("queueRemoveBackground", () => {
 
 describe("imageCapabilities", () => {
   it("reports what is installed", async () => {
-    comfy.listFolder.mockImplementation(async (folder: string) => (folder === "upscale_models" ? ["4x.pth"] : []));
-    expect(await core.imageCapabilities()).toEqual({ online: true, upscaleModels: ["4x.pth"], removeBackground: { node: true, models: [] } });
+    comfy.listFolder.mockImplementation(async (folder: string) => {
+      if (folder === "upscale_models") return ["4x.pth"];
+      if (folder === "controlnet") return ["Qwen-Image-InstantX-ControlNet-Inpainting.safetensors", "canny-lora.safetensors"];
+      if (folder === "model_patches") return ["Z-Image-Turbo-Fun-Controlnet-Union.safetensors"];
+      return [];
+    });
+    expect(await core.imageCapabilities()).toEqual({
+      online: true,
+      upscaleModels: ["4x.pth"],
+      removeBackground: { node: true, models: [] },
+      inpaint: { controlNets: ["Qwen-Image-InstantX-ControlNet-Inpainting.safetensors"] },
+      controlnet: { node: true, patches: ["Z-Image-Turbo-Fun-Controlnet-Union.safetensors"] },
+    });
   });
 
   it("degrades to offline when ComfyUI is unreachable", async () => {
     comfy.listFolder.mockRejectedValue(new Error("connect ECONNREFUSED"));
-    expect(await core.imageCapabilities()).toEqual({ online: false, upscaleModels: [], removeBackground: { node: false, models: [] } });
+    expect(await core.imageCapabilities()).toEqual({
+      online: false,
+      upscaleModels: [],
+      removeBackground: { node: false, models: [] },
+      inpaint: { controlNets: [] },
+      controlnet: { node: false, patches: [] },
+    });
+  });
+});
+
+describe("collectOutputs", () => {
+  it("collects images, videos, audio, and VHS gifs with their kinds", () => {
+    // Shapes as the vendored ComfyUI writes them: SaveImage → images, SaveVideo → images + animated, SaveAudio → audio, VHS → gifs.
+    const outputs = core.collectOutputs({
+      "9": { images: [{ filename: "render_00001_.png", subfolder: "safelight", type: "output" }] },
+      "12": { images: [{ filename: "video_00001_.mp4", subfolder: "video", type: "output" }], animated: [true] },
+      "15": { audio: [{ filename: "song_00001_.flac", subfolder: "audio", type: "output" }] },
+      "18": { gifs: [{ filename: "anim_00001_.webp", subfolder: "", type: "output" }] },
+    });
+    expect(outputs).toEqual([
+      { filename: "render_00001_.png", subfolder: "safelight", type: "output", kind: "image" },
+      { filename: "video_00001_.mp4", subfolder: "video", type: "output", kind: "video" },
+      { filename: "song_00001_.flac", subfolder: "audio", type: "output", kind: "audio" },
+      { filename: "anim_00001_.webp", subfolder: "", type: "output", kind: "video" },
+    ]);
+  });
+
+  it("classifies by extension when a video or audio file arrives under the images key un-flagged", () => {
+    const outputs = core.collectOutputs({
+      "1": { images: [{ filename: "clip.webm", subfolder: "", type: "output" }, { filename: "voice.mp3", subfolder: "", type: "output" }] },
+    });
+    expect(outputs.map((o) => o.kind)).toEqual(["video", "audio"]);
+  });
+
+  it("jobStatus surfaces every output-bearing key, not just images", async () => {
+    comfy.getHistory.mockResolvedValue({
+      status: { status_str: "success", completed: true, messages: [] },
+      outputs: { "3": { audio: [{ filename: "tune.flac", subfolder: "audio", type: "output" }] } },
+    });
+    const status = await core.jobStatus("some-id");
+    expect(status.state).toBe("done");
+    expect(status.outputs).toEqual([{ filename: "tune.flac", subfolder: "audio", type: "output", kind: "audio" }]);
+  });
+});
+
+describe("queueLocal ControlNet gating", () => {
+  const controlBody = {
+    mode: "img2img" as const,
+    model: { name: "z_image_turbo_bf16.safetensors", folder: "diffusion_models" as const },
+    textEncoders: ["qwen_3_4b.safetensors"],
+    vae: "ae.safetensors",
+    prompt: "a poster",
+    images: ["safelight/ref.png"],
+    control: { type: "canny" as const, strength: 1 },
+  };
+
+  it("names the exact patch file to fetch when none is installed", async () => {
+    await expect(core.queueLocal(core.sanitizeRequest(controlBody), "c1")).rejects.toThrow(/Z-Image-Turbo-Fun-Controlnet-Union\.safetensors.*model_patches/);
+    expect(comfy.queuePrompt).not.toHaveBeenCalled();
+  });
+
+  it("refuses a patch that does not fit the selected model", async () => {
+    comfy.listFolder.mockImplementation(async (folder: string) => (folder === "model_patches" ? ["Qwen-Image-Fun-Controlnet-Union.safetensors"] : []));
+    await expect(core.queueLocal(core.sanitizeRequest(controlBody), "c1")).rejects.toThrow(/does not fit|None of the installed/i);
+  });
+
+  it("resolves the fitting installed patch and queues the graph", async () => {
+    comfy.listFolder.mockImplementation(async (folder: string) => (folder === "model_patches" ? ["Z-Image-Turbo-Fun-Controlnet-Union.safetensors"] : []));
+    const { graph } = await core.queueLocal(core.sanitizeRequest(controlBody), "c1");
+    const patch = Object.values(graph).find((n) => (n as { class_type: string }).class_type === "ModelPatchLoader");
+    expect(patch?.inputs).toMatchObject({ name: "Z-Image-Turbo-Fun-Controlnet-Union.safetensors" });
+  });
+
+  it("requires the QwenImageDiffsynthControlnet node", async () => {
+    comfy.hasNode.mockResolvedValue(false);
+    await expect(core.queueLocal(core.sanitizeRequest(controlBody), "c1")).rejects.toThrow(/QwenImageDiffsynthControlnet/);
+  });
+});
+
+describe("mask edits (inpaint / outpaint)", () => {
+  /** Renders an image so its sidecar exists, the way mask edits find their model settings. */
+  async function renderWithSidecar(filename: string) {
+    await writeFile(path.join(OUT, "safelight", filename), "png");
+    const { id } = await core.queueLocal(req({ seed: 99 }), "c1");
+    comfy.getHistory.mockResolvedValue({
+      status: { status_str: "success", completed: true, messages: [] },
+      outputs: { "9": { images: [{ filename, subfolder: "safelight", type: "output" }] } },
+    });
+    await core.jobStatus(id);
+    comfy.getHistory.mockReset();
+    comfy.queuePrompt.mockClear();
+    return `safelight/${filename} [output]`;
+  }
+
+  it("queueInpaint pulls model settings from the image's sidecar and records an inpaint sidecar", async () => {
+    const image = await renderWithSidecar("to_inpaint.png");
+    const { graph, id } = await core.queueInpaint({ mode: "inpaint", image, mask: "safelight/mask.png", prompt: "a red hat" }, "c1");
+    const classes = Object.values(graph).map((n) => (n as { class_type: string }).class_type);
+    expect(classes).toEqual(expect.arrayContaining(["SetLatentNoiseMask", "KSampler"]));
+    expect(classes).not.toContain("ControlNetLoader"); // none installed in this mock
+
+    comfy.getHistory.mockResolvedValue({
+      status: { status_str: "success", completed: true, messages: [] },
+      outputs: { "9": { images: [{ filename: "inpainted.png", subfolder: "safelight", type: "output" }] } },
+    });
+    await core.jobStatus(id);
+    const sidecar = JSON.parse(await readFile(path.join(OUT, "safelight", "inpainted.png.json"), "utf8"));
+    expect(sidecar).toMatchObject({ v: 1, mode: "inpaint", mask: "safelight/mask.png", prompt: "a red hat" });
+  });
+
+  it("queueInpaint uses an installed inpainting ControlNet", async () => {
+    const image = await renderWithSidecar("to_inpaint_cn.png");
+    comfy.listFolder.mockImplementation(async (folder: string) => (folder === "controlnet" ? ["Qwen-Image-InstantX-ControlNet-Inpainting.safetensors"] : []));
+    const { graph, controlNet } = await core.queueInpaint({ mode: "inpaint", image, mask: "safelight/mask.png", prompt: "a red hat" }, "c1");
+    expect(controlNet).toBe("Qwen-Image-InstantX-ControlNet-Inpainting.safetensors");
+    expect(Object.values(graph).some((n) => (n as { class_type: string }).class_type === "ControlNetInpaintingAliMamaApply")).toBe(true);
+  });
+
+  it("queueOutpaint builds the pad graph and records an outpaint sidecar", async () => {
+    const image = await renderWithSidecar("to_outpaint.png");
+    const { graph, id } = await core.queueOutpaint({ mode: "outpaint", image, prompt: "rolling dunes", left: 256, right: 256 }, "c1");
+    const pad = Object.values(graph).find((n) => (n as { class_type: string }).class_type === "ImagePadForOutpaint") as { inputs: Record<string, unknown> };
+    expect(pad.inputs).toMatchObject({ left: 256, right: 256, top: 0, bottom: 0 });
+
+    comfy.getHistory.mockResolvedValue({
+      status: { status_str: "success", completed: true, messages: [] },
+      outputs: { "9": { images: [{ filename: "outpainted.png", subfolder: "safelight", type: "output" }] } },
+    });
+    await core.jobStatus(id);
+    const sidecar = JSON.parse(await readFile(path.join(OUT, "safelight", "outpainted.png.json"), "utf8"));
+    expect(sidecar).toMatchObject({ v: 1, mode: "outpaint", prompt: "rolling dunes" });
+  });
+
+  it("explains itself when the image has no sidecar and no model is given", async () => {
+    await expect(core.queueInpaint({ mode: "inpaint", image: "safelight/unknown.png [output]", mask: "m.png", prompt: "x" }, "c1")).rejects.toThrow(/no render settings sidecar/i);
+    expect(comfy.queuePrompt).not.toHaveBeenCalled();
+  });
+
+  it("accepts explicit model settings instead of a sidecar", async () => {
+    const { graph } = await core.queueInpaint(
+      {
+        mode: "inpaint",
+        image: "safelight/fresh.png",
+        mask: "safelight/mask.png",
+        prompt: "a hat",
+        model: { name: "qwen-image-2.1-Q4_K_M.gguf", folder: "unet_gguf" },
+        textEncoders: ["qwen3vl_8b.safetensors"],
+        vae: "qwen_vae.safetensors",
+      },
+      "c1",
+    );
+    expect(Object.values(graph).some((n) => (n as { class_type: string }).class_type === "SetLatentNoiseMask")).toBe(true);
+  });
+});
+
+describe("action sidecars (upscale / rmbg)", () => {
+  it("queueUpscale records an upscale-mode sidecar beside the result", async () => {
+    comfy.listFolder.mockResolvedValue(["4x-UltraSharp.pth"]);
+    const { id } = await core.queueUpscale({ image: "safelight/base.png [output]" }, "c1");
+    comfy.getHistory.mockResolvedValue({
+      status: { status_str: "success", completed: true, messages: [] },
+      outputs: { "4": { images: [{ filename: "upscaled.png", subfolder: "safelight", type: "output" }] } },
+    });
+    await core.jobStatus(id);
+    const sidecar = JSON.parse(await readFile(path.join(OUT, "safelight", "upscaled.png.json"), "utf8"));
+    expect(sidecar).toMatchObject({ v: 1, mode: "upscale", model: { name: "4x-UltraSharp.pth", folder: "upscale_models" }, images: ["safelight/base.png [output]"] });
+  });
+
+  it("queueRemoveBackground records an rmbg-mode sidecar", async () => {
+    comfy.listFolder.mockResolvedValue(["birefnet.safetensors"]);
+    const { id } = await core.queueRemoveBackground({ image: "safelight/base.png [output]" }, "c1");
+    comfy.getHistory.mockResolvedValue({
+      status: { status_str: "success", completed: true, messages: [] },
+      outputs: { "6": { images: [{ filename: "cutout.png", subfolder: "safelight", type: "output" }] } },
+    });
+    await core.jobStatus(id);
+    const sidecar = JSON.parse(await readFile(path.join(OUT, "safelight", "cutout.png.json"), "utf8"));
+    expect(sidecar).toMatchObject({ v: 1, mode: "rmbg", model: { name: "birefnet.safetensors", folder: "background_removal" } });
   });
 });
 

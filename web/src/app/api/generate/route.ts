@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import type { GenerateRequest, ImageActionRequest } from "@/lib/comfy/types";
-import { imageCapabilities, queueLocal, queueRemoveBackground, queueUpscale, readSidecarForRef, requestFromSidecarRef, runCloud, sanitizeRequest } from "@/lib/generate-core";
+import type { GenerateRequest, ImageActionRequest, MaskEditRequest } from "@/lib/comfy/types";
+import { imageCapabilities, queueInpaint, queueLocal, queueOutpaint, queueRemoveBackground, queueUpscale, readSidecarForRef, requestFromSidecarRef, runCloud, sanitizeRequest } from "@/lib/generate-core";
 
 /**
  * GET: capability probe for Stage actions, or `?sidecar=<image ref>` to read a
@@ -18,7 +18,14 @@ export async function GET(request: NextRequest) {
   return Response.json(await imageCapabilities());
 }
 
-type Body = Partial<GenerateRequest> & Partial<ImageActionRequest> & { clientId?: string; fromSidecar?: string; vary?: boolean };
+type Body = Omit<Partial<GenerateRequest>, "mode"> &
+  Omit<Partial<ImageActionRequest>, "mode"> &
+  Omit<Partial<MaskEditRequest>, "mode"> & { mode?: GenerateRequest["mode"] | ImageActionRequest["mode"] | MaskEditRequest["mode"]; clientId?: string; fromSidecar?: string; vary?: boolean };
+
+/** Gating/user errors read as 400; anything else is the backend failing (502). */
+function errorStatus(message: string): number {
+  return /needs|installed|requires|not in|empty|pick|unsupported|sidecar|fit|paint|describe|patch/i.test(message) ? 400 : 502;
+}
 
 export async function POST(request: NextRequest) {
   let body: Body;
@@ -40,7 +47,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ id, graph, state: "queued", model, freedChatModels: freed });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to queue.";
-      return Response.json({ error: message }, { status: /needs|installed|requires|not in/i.test(message) ? 400 : 502 });
+      return Response.json({ error: message }, { status: errorStatus(message) });
+    }
+  }
+
+  // Mask edits: the render settings come from the target image's sidecar (or the body's model fields).
+  if (body.mode === "inpaint" || body.mode === "outpaint") {
+    try {
+      const edit = { ...body, mode: body.mode, image: typeof body.image === "string" ? body.image : "", prompt: String(body.prompt ?? "") };
+      const { id, graph, freed, seed, controlNet } = body.mode === "inpaint" ? await queueInpaint(edit, clientId) : await queueOutpaint(edit, clientId);
+      return Response.json({ id, seed, graph, state: "queued", controlNet, freedChatModels: freed });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to queue.";
+      return Response.json({ error: message }, { status: errorStatus(message) });
     }
   }
 
@@ -50,7 +69,8 @@ export async function POST(request: NextRequest) {
       // Recreate/vary: the whole request comes from the image's sidecar.
       req = await requestFromSidecarRef(body.fromSidecar, body.vary === true);
     } else {
-      req = sanitizeRequest(body);
+      // The action modes were handled above, so what is left is a plain generate body.
+      req = sanitizeRequest(body as Partial<GenerateRequest>);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Bad request.";
@@ -72,7 +92,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ id, seed: req.seed, graph, state: "queued", freedChatModels: freed });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to queue generation.";
-    const status = /empty|needs|pick|unsupported/i.test(message) ? 400 : 502;
-    return Response.json({ error: message }, { status });
+    return Response.json({ error: message }, { status: errorStatus(message) });
   }
 }

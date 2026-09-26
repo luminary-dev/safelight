@@ -5,6 +5,14 @@ All notable changes to Safelight are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Image depth, round two (Workstream J): mask-brush inpainting and direction/percent
+  outpainting on the Stage (Qwen-Image, sidecar-driven, gated honestly on installed models),
+  a ControlNet section in the composer (canny/depth/pose) that names the exact missing file,
+  video and audio outputs collected from the render engine's history and served with correct
+  types — the first video blueprint ran end to end — action sidecars for upscale and
+  background removal, and truthful live-progress labels for every new graph stage.
+
 ### Changed
 - Performance (Workstream O, core): the 936-line Safelight component split into focused
   hooks — sessions store, image studio, backends — plus a pure, tested status derivation;

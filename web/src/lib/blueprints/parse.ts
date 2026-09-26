@@ -527,7 +527,9 @@ export function applyInputs(parsed: ParsedBlueprint, values: Record<string, stri
       return;
     }
     const inputName = save.saveClass === "SaveImage" ? "images" : save.saveClass === "SaveVideo" ? "video" : "audio";
-    graph[id] = { class_type: save.saveClass, inputs: { [inputName]: save.source, filename_prefix: `blueprints/${parsed.spec.id}` } };
+    // SaveVideo requires format/codec even in API graphs; "auto" picks the container from the stream.
+    const extra = save.saveClass === "SaveVideo" ? { format: "auto", codec: "auto" } : {};
+    graph[id] = { class_type: save.saveClass, inputs: { [inputName]: save.source, filename_prefix: `blueprints/${parsed.spec.id}`, ...extra } };
   });
 
   return graph;

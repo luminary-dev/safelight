@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelCatalog, ModelEntry } from "./comfy/types";
-import { defaultsForModel, stageLabel } from "./safelight-state";
+import { DEFAULT_SETTINGS, defaultsForModel, stageLabel, toRequest } from "./safelight-state";
 
 const CATALOG: ModelCatalog = {
   models: [],
@@ -50,5 +50,40 @@ describe("stageLabel", () => {
     expect(stageLabel("VAEDecode")).toBe("Decoding image");
     expect(stageLabel("SomethingNew")).toBe("Preparing");
     expect(stageLabel(undefined)).toBe("Preparing");
+  });
+});
+
+describe("stageLabel for Stage actions, mask edits, ControlNet, and video/audio", () => {
+  it("names the new node classes instead of a generic Preparing", () => {
+    expect(stageLabel("UpscaleModelLoader")).toBe("Loading upscale model");
+    expect(stageLabel("ImageUpscaleWithModel")).toBe("Upscaling");
+    expect(stageLabel("RemoveBackground")).toBe("Removing background");
+    expect(stageLabel("SetLatentNoiseMask")).toBe("Preparing mask");
+    expect(stageLabel("GrowMask")).toBe("Preparing mask");
+    expect(stageLabel("ImagePadForOutpaint")).toBe("Extending canvas");
+    expect(stageLabel("ImageCompositeMasked")).toBe("Compositing");
+    expect(stageLabel("ControlNetLoader")).toBe("Loading ControlNet");
+    expect(stageLabel("ModelPatchLoader")).toBe("Loading ControlNet");
+    expect(stageLabel("QwenImageDiffsynthControlnet")).toBe("Applying ControlNet");
+    expect(stageLabel("ControlNetInpaintingAliMamaApply")).toBe("Applying ControlNet");
+    expect(stageLabel("Canny")).toBe("Tracing edges");
+    expect(stageLabel("SaveVideo")).toBe("Encoding video");
+    expect(stageLabel("SaveAudio")).toBe("Saving audio");
+    expect(stageLabel("VAEDecodeAudio")).toBe("Decoding audio");
+  });
+});
+
+describe("toRequest ControlNet wiring", () => {
+  const settings = {
+    ...DEFAULT_SETTINGS,
+    model: entry("z_image_turbo_bf16.safetensors", "unknown", "diffusion_models"),
+    prompt: "a poster",
+  };
+
+  it("carries control settings only for img2img with a type selected", () => {
+    const on = toRequest({ ...settings, mode: "img2img", controlType: "canny", controlStrength: 0.7 }, 1);
+    expect(on.control).toEqual({ type: "canny", strength: 0.7 });
+    expect(toRequest({ ...settings, mode: "img2img", controlType: "" }, 1).control).toBeNull();
+    expect(toRequest({ ...settings, mode: "txt2img", controlType: "canny" }, 1).control).toBeNull();
   });
 });

@@ -8,10 +8,15 @@ import { randomSeed } from "@/lib/presets";
  * The shape is a cross-workstream contract (Library indexing, recreate/vary) —
  * change it only by bumping `v`.
  */
+/** Everything a sidecar can record as its mode: renders plus one-click/mask Stage actions. */
+export type SidecarMode = "txt2img" | "img2img" | "inpaint" | "outpaint" | "upscale" | "rmbg";
+
+const SIDECAR_MODES: SidecarMode[] = ["txt2img", "img2img", "inpaint", "outpaint", "upscale", "rmbg"];
+
 export interface RenderSidecar {
   v: 1;
   kind: "safelight-render";
-  mode: "txt2img" | "img2img";
+  mode: SidecarMode;
   model: { name: string; folder: string; provider?: string };
   prompt: string;
   negativePrompt: string;
@@ -25,6 +30,8 @@ export interface RenderSidecar {
   denoise: number;
   /** Input image references (ComfyUI-style, e.g. "safelight/ref.png"). */
   images: string[];
+  /** Inpaint only: the black/white mask reference used (white = repainted). */
+  mask?: string;
   textEncoders: string[];
   vae?: string;
   lora?: unknown;
@@ -36,8 +43,8 @@ export function sidecarPath(imagePath: string): string {
   return `${imagePath}.json`;
 }
 
-/** Builds the sidecar document for a finished render. */
-export function sidecarForRequest(req: GenerateRequest, createdAt = new Date().toISOString()): RenderSidecar {
+/** Builds the sidecar document for a finished render. `extra` records a Stage action's mode/mask. */
+export function sidecarForRequest(req: GenerateRequest, createdAt = new Date().toISOString(), extra?: { mode?: SidecarMode; mask?: string }): RenderSidecar {
   const sidecar: RenderSidecar = {
     v: 1,
     kind: "safelight-render",
@@ -59,7 +66,35 @@ export function sidecarForRequest(req: GenerateRequest, createdAt = new Date().t
   };
   if (req.vae) sidecar.vae = req.vae;
   if (req.lora) sidecar.lora = req.lora;
+  if (extra?.mode) sidecar.mode = extra.mode;
+  if (extra?.mask) sidecar.mask = extra.mask;
   return sidecar;
+}
+
+/**
+ * Sidecar for a one-click action (upscale, background removal): no prompt or sampler settings
+ * exist, so the neutral fields are blank and `model` names the action's model file.
+ */
+export function sidecarForAction(mode: "upscale" | "rmbg", opts: { image: string; model: string; folder: string }, createdAt = new Date().toISOString()): RenderSidecar {
+  return {
+    v: 1,
+    kind: "safelight-render",
+    mode,
+    model: { name: opts.model, folder: opts.folder },
+    prompt: "",
+    negativePrompt: "",
+    seed: 0,
+    sampler: "",
+    scheduler: "",
+    steps: 0,
+    cfg: 0,
+    width: 0,
+    height: 0,
+    denoise: 0,
+    images: [opts.image],
+    textEncoders: [],
+    createdAt,
+  };
 }
 
 /**
@@ -99,7 +134,8 @@ function isRenderSidecar(data: unknown): data is RenderSidecar {
   return (
     d.v === 1 &&
     d.kind === "safelight-render" &&
-    (d.mode === "txt2img" || d.mode === "img2img") &&
+    SIDECAR_MODES.includes(d.mode as SidecarMode) &&
+    (d.mask === undefined || typeof d.mask === "string") &&
     typeof model === "object" &&
     model !== null &&
     typeof model.name === "string" &&
@@ -126,18 +162,21 @@ const KNOWN_FOLDERS: ModelFolder[] = ["unet_gguf", "diffusion_models", "checkpoi
  * Rebuilds a generate request body from a sidecar. `vary` swaps in a fresh
  * random seed; everything else recreates the original render exactly.
  */
-export function sidecarToRequest(sidecar: RenderSidecar, vary = false): Partial<GenerateRequest> {
+/**
+ * The model and sampler settings a sidecar records, without any mode/recreate gating.
+ * Mask edits reuse these to rerun the same model stack on a new task.
+ */
+export function sidecarSettings(sidecar: RenderSidecar): Partial<GenerateRequest> {
   const folder = sidecar.model.folder as ModelFolder;
-  if (!KNOWN_FOLDERS.includes(folder)) throw new Error(`This render used an unknown model folder ("${sidecar.model.folder}"), so it cannot be recreated.`);
+  if (!KNOWN_FOLDERS.includes(folder)) throw new Error(`This render used an unknown model folder ("${sidecar.model.folder}"), so its settings cannot be reused.`);
   return {
-    mode: sidecar.mode,
     model: { name: sidecar.model.name, folder, provider: sidecar.model.provider as GenerateRequest["model"]["provider"] },
     textEncoders: sidecar.textEncoders.map(String),
     vae: sidecar.vae,
     lora: isLoraChoice(sidecar.lora) ? sidecar.lora : null,
     prompt: sidecar.prompt,
     negativePrompt: sidecar.negativePrompt,
-    seed: vary ? randomSeed() : sidecar.seed,
+    seed: sidecar.seed,
     sampler: sidecar.sampler,
     scheduler: sidecar.scheduler,
     steps: sidecar.steps,
@@ -145,6 +184,18 @@ export function sidecarToRequest(sidecar: RenderSidecar, vary = false): Partial<
     width: sidecar.width,
     height: sidecar.height,
     denoise: sidecar.denoise,
+  };
+}
+
+export function sidecarToRequest(sidecar: RenderSidecar, vary = false): Partial<GenerateRequest> {
+  if (sidecar.mode !== "txt2img" && sidecar.mode !== "img2img") {
+    const action = sidecar.mode === "rmbg" ? "a background removal" : `an ${sidecar.mode}`;
+    throw new Error(`This image came from ${action} action, which Recreate cannot rerun — run the action on the original image again instead.`);
+  }
+  return {
+    ...sidecarSettings(sidecar),
+    mode: sidecar.mode,
+    seed: vary ? randomSeed() : sidecar.seed,
     images: sidecar.images.map(String),
   };
 }

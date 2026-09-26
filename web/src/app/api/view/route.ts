@@ -4,9 +4,23 @@ import type { NextRequest } from "next/server";
 import { fetchView } from "@/lib/comfy/client";
 import { INPUT_DIR, OUTPUT_DIR, safeJoin } from "@/lib/safelight-files";
 
-const MIME: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
+const MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".flac": "audio/flac",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".opus": "audio/opus",
+};
 
-/** Serves an image from the output or input folders, falling back to ComfyUI's /view. */
+/** Serves a rendered file (image, video, or audio) from the output or input folders, falling back to ComfyUI's /view. */
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams;
   const filename = q.get("filename");

@@ -50,6 +50,20 @@ export interface LoraChoice {
   strength: number;
 }
 
+/** ControlNet guidance types, per the Z-Image-Turbo control blueprints (canny/depth/pose). */
+export type ControlType = "canny" | "depth" | "pose";
+
+export interface ControlSettings {
+  type: ControlType;
+  /** ControlNet strength, 0..2. */
+  strength: number;
+  /** Control patch file in ComfyUI's model_patches folder. The server fills/validates this. */
+  patch?: string;
+  /** Canny edge thresholds; ignored for depth/pose (those expect a ready-made map). */
+  cannyLow?: number;
+  cannyHigh?: number;
+}
+
 export interface GenerateRequest {
   mode: Mode;
   model: { name: string; folder: ModelFolder; provider?: CloudProvider };
@@ -76,6 +90,8 @@ export interface GenerateRequest {
   refResolution: number;
   /** For Qwen edits: when true the output canvas follows the first input image. */
   matchInputSize: boolean;
+  /** img2img only: guide the render with a ControlNet over the first input image. */
+  control?: ControlSettings | null;
 }
 
 /** One-click image actions that run through their own small graphs rather than a render. */
@@ -89,17 +105,48 @@ export interface ImageActionRequest {
   upscaleModel?: string;
 }
 
+/** Mask-driven Stage edits that rebuild the render settings from the image's sidecar. */
+export type MaskEditMode = "inpaint" | "outpaint";
+
+export interface MaskEditRequest {
+  mode: MaskEditMode;
+  /** ComfyUI-style image reference, e.g. "safelight/x.png [output]". */
+  image: string;
+  /** What should appear in the edited area. */
+  prompt: string;
+  /** How strongly the masked area is re-rendered, 0..1. Defaults to 1 (full replacement). */
+  denoise?: number;
+  /** Inpaint only: black/white mask reference in ComfyUI's input folder (white = repaint). */
+  mask?: string;
+  /** Inpaint mask conditioning, in pixels. */
+  maskExpand?: number;
+  maskBlur?: number;
+  /** Outpaint only: how many pixels of new canvas on each side. */
+  left?: number;
+  top?: number;
+  right?: number;
+  bottom?: number;
+  /** Outpaint only: soft edge between old and new canvas, in pixels. */
+  feathering?: number;
+}
+
 /** What the connected ComfyUI can do for Stage actions right now. */
 export interface ImageCapabilities {
   online: boolean;
   upscaleModels: string[];
   removeBackground: { node: boolean; models: string[] };
+  /** Inpaint/outpaint: installed inpainting ControlNets (optional quality boost; empty is still runnable). */
+  inpaint: { controlNets: string[] };
+  /** ControlNet guidance: whether the apply node exists and which control patches are installed. */
+  controlnet: { node: boolean; patches: string[] };
 }
 
 export interface JobOutput {
   filename: string;
   subfolder: string;
   type: string;
+  /** What kind of file this is. Absent means image (the shape before video/audio collection). */
+  kind?: "image" | "video" | "audio";
 }
 
 export type JobState = "queued" | "running" | "done" | "error";

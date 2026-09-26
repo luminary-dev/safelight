@@ -41,4 +41,12 @@ describe("sanitizeRequest", () => {
     expect(sanitizeRequest({ ...MODEL, mode: "img2img" }).mode).toBe("img2img");
     expect(sanitizeRequest({ ...MODEL, mode: "evil" as never }).mode).toBe("txt2img");
   });
+
+  it("clamps control settings and rejects unknown control types", () => {
+    const r = sanitizeRequest({ ...MODEL, control: { type: "canny", strength: 99, cannyLow: -1, cannyHigh: 5, patch: "union.safetensors" } });
+    expect(r.control).toEqual({ type: "canny", strength: 2, cannyLow: 0, cannyHigh: 1, patch: "union.safetensors" });
+    expect(sanitizeRequest({ ...MODEL, control: { type: "canny", strength: "x" as never } }).control?.strength).toBe(1);
+    expect(sanitizeRequest({ ...MODEL, control: { type: "scribble" as never, strength: 1 } }).control).toBeNull();
+    expect(sanitizeRequest({ ...MODEL }).control).toBeNull();
+  });
 });

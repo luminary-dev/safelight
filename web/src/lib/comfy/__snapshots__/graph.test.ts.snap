@@ -420,6 +420,599 @@ exports[`buildGraph > qwen-image txt2img 1`] = `
 }
 `;
 
+exports[`buildGraph with ControlNet > matches the Z-Image-Turbo ControlNet blueprint shape (canny) 1`] = `
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default",
+    },
+  },
+  "10": {
+    "class_type": "ModelPatchLoader",
+    "inputs": {
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union.safetensors",
+    },
+  },
+  "11": {
+    "class_type": "QwenImageDiffsynthControlnet",
+    "inputs": {
+      "image": [
+        "9",
+        0,
+      ],
+      "model": [
+        "2",
+        0,
+      ],
+      "model_patch": [
+        "10",
+        0,
+      ],
+      "strength": 1,
+      "vae": [
+        "4",
+        0,
+      ],
+    },
+  },
+  "12": {
+    "class_type": "GetImageSize",
+    "inputs": {
+      "image": [
+        "9",
+        0,
+      ],
+    },
+  },
+  "13": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "batch_size": 1,
+      "height": [
+        "12",
+        1,
+      ],
+      "width": [
+        "12",
+        0,
+      ],
+    },
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 1,
+      "denoise": 1,
+      "latent_image": [
+        "13",
+        0,
+      ],
+      "model": [
+        "11",
+        0,
+      ],
+      "negative": [
+        "6",
+        0,
+      ],
+      "positive": [
+        "5",
+        0,
+      ],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": 7,
+      "steps": 25,
+    },
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0,
+      ],
+      "vae": [
+        "4",
+        0,
+      ],
+    },
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "safelight/control",
+      "images": [
+        "15",
+        0,
+      ],
+    },
+  },
+  "2": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "1",
+        0,
+      ],
+      "shift": 3,
+    },
+  },
+  "3": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+    },
+  },
+  "4": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors",
+    },
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "3",
+        0,
+      ],
+      "text": "a test print",
+    },
+  },
+  "6": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "5",
+        0,
+      ],
+    },
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "safelight/ref.png",
+    },
+  },
+  "8": {
+    "class_type": "ImageScaleToTotalPixels",
+    "inputs": {
+      "image": [
+        "7",
+        0,
+      ],
+      "megapixels": 1,
+      "resolution_steps": 1,
+      "upscale_method": "lanczos",
+    },
+  },
+  "9": {
+    "class_type": "Canny",
+    "inputs": {
+      "high_threshold": 0.4,
+      "image": [
+        "8",
+        0,
+      ],
+      "low_threshold": 0.3,
+    },
+  },
+}
+`;
+
+exports[`buildInpaintGraph > matches the Qwen inpainting blueprint shape (latent noise mask, grown + feathered mask) 1`] = `
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "qwen-image-2.1-Q4_K_M.gguf",
+    },
+  },
+  "10": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "blur_radius": 8,
+      "image": [
+        "9",
+        0,
+      ],
+      "sigma": 1,
+    },
+  },
+  "11": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "10",
+        0,
+      ],
+    },
+  },
+  "12": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "5",
+        0,
+      ],
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "13": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "mask": [
+        "11",
+        0,
+      ],
+      "samples": [
+        "12",
+        0,
+      ],
+    },
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 1,
+      "denoise": 1,
+      "latent_image": [
+        "13",
+        0,
+      ],
+      "model": [
+        "1",
+        0,
+      ],
+      "negative": [
+        "4",
+        1,
+      ],
+      "positive": [
+        "4",
+        0,
+      ],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": 7,
+      "steps": 25,
+    },
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0,
+      ],
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "safelight/inpaint",
+      "images": [
+        "15",
+        0,
+      ],
+    },
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+    },
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors",
+    },
+  },
+  "4": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0,
+      ],
+      "negative_prompt": "",
+      "prompt": "a red hat",
+      "resolution": 1024,
+    },
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "safelight/render.png [output]",
+    },
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "safelight/mask.png",
+    },
+  },
+  "7": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "6",
+        0,
+      ],
+    },
+  },
+  "8": {
+    "class_type": "GrowMask",
+    "inputs": {
+      "expand": 4,
+      "mask": [
+        "7",
+        0,
+      ],
+      "tapered_corners": true,
+    },
+  },
+  "9": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "8",
+        0,
+      ],
+    },
+  },
+}
+`;
+
+exports[`buildOutpaintGraph > matches the Qwen outpainting blueprint shape (pad, scale, composite back) 1`] = `
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "qwen-image-2.1-Q4_K_M.gguf",
+    },
+  },
+  "10": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "9",
+        0,
+      ],
+    },
+  },
+  "11": {
+    "class_type": "GrowMask",
+    "inputs": {
+      "expand": 20,
+      "mask": [
+        "10",
+        0,
+      ],
+      "tapered_corners": true,
+    },
+  },
+  "12": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "11",
+        0,
+      ],
+    },
+  },
+  "13": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "blur_radius": 31,
+      "image": [
+        "12",
+        0,
+      ],
+      "sigma": 1,
+    },
+  },
+  "14": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "13",
+        0,
+      ],
+    },
+  },
+  "15": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "7",
+        0,
+      ],
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "16": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "mask": [
+        "14",
+        0,
+      ],
+      "samples": [
+        "15",
+        0,
+      ],
+    },
+  },
+  "17": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 1,
+      "denoise": 1,
+      "latent_image": [
+        "16",
+        0,
+      ],
+      "model": [
+        "1",
+        0,
+      ],
+      "negative": [
+        "4",
+        1,
+      ],
+      "positive": [
+        "4",
+        0,
+      ],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": 7,
+      "steps": 25,
+    },
+  },
+  "18": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "17",
+        0,
+      ],
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "19": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "7",
+        0,
+      ],
+      "mask": [
+        "14",
+        0,
+      ],
+      "resize_source": false,
+      "source": [
+        "18",
+        0,
+      ],
+      "x": 0,
+      "y": 0,
+    },
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+    },
+  },
+  "20": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "safelight/outpaint",
+      "images": [
+        "19",
+        0,
+      ],
+    },
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors",
+    },
+  },
+  "4": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0,
+      ],
+      "negative_prompt": "",
+      "prompt": "rolling dunes",
+      "resolution": 1024,
+    },
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "safelight/render.png [output]",
+    },
+  },
+  "6": {
+    "class_type": "ImagePadForOutpaint",
+    "inputs": {
+      "bottom": 0,
+      "feathering": 24,
+      "image": [
+        "5",
+        0,
+      ],
+      "left": 256,
+      "right": 256,
+      "top": 0,
+    },
+  },
+  "7": {
+    "class_type": "ImageScaleToMaxDimension",
+    "inputs": {
+      "image": [
+        "6",
+        0,
+      ],
+      "largest_size": 1536,
+      "upscale_method": "area",
+    },
+  },
+  "8": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "6",
+        1,
+      ],
+    },
+  },
+  "9": {
+    "class_type": "ImageScaleToMaxDimension",
+    "inputs": {
+      "image": [
+        "8",
+        0,
+      ],
+      "largest_size": 1536,
+      "upscale_method": "area",
+    },
+  },
+}
+`;
+
 exports[`buildRemoveBackgroundGraph > matches the BiRefNet blueprint: mask inverted before JoinImageWithAlpha 1`] = `
 {
   "1": {

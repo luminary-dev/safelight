@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { GenerateRequest } from "@/lib/comfy/types";
-import { readSidecar, sidecarForRequest, sidecarPath, sidecarToRequest, writeSidecar, type RenderSidecar } from "./sidecars";
+import { readSidecar, sidecarForAction, sidecarForRequest, sidecarPath, sidecarSettings, sidecarToRequest, writeSidecar, type RenderSidecar } from "./sidecars";
 
 const REQ: GenerateRequest = {
   mode: "img2img",
@@ -130,5 +130,42 @@ describe("sidecarToRequest", () => {
 
   it("refuses an unknown model folder with a clear error", () => {
     expect(() => sidecarToRequest({ ...sc, model: { name: "x", folder: "not-a-folder" } })).toThrow(/unknown model folder/i);
+  });
+});
+
+describe("v1 additive extension: action modes and mask", () => {
+  it("records inpaint mode and the mask reference via extra", () => {
+    const sc = sidecarForRequest(REQ, "2026-09-26T00:00:00.000Z", { mode: "inpaint", mask: "safelight/mask.png" });
+    expect(sc.mode).toBe("inpaint");
+    expect(sc.mask).toBe("safelight/mask.png");
+  });
+
+  it("round-trips an inpaint sidecar through the validator", async () => {
+    const image = path.join(dir, "inpainted.png");
+    const sc = sidecarForRequest(REQ, undefined, { mode: "inpaint", mask: "safelight/mask.png" });
+    expect(await writeSidecar(image, sc)).toBe(true);
+    expect(await readSidecar(image)).toEqual(sc);
+  });
+
+  it("sidecarForAction records the action model and source image", () => {
+    const sc = sidecarForAction("upscale", { image: "safelight/base.png [output]", model: "4x-UltraSharp.pth", folder: "upscale_models" }, "2026-09-26T00:00:00.000Z");
+    expect(sc).toMatchObject({ v: 1, kind: "safelight-render", mode: "upscale", model: { name: "4x-UltraSharp.pth", folder: "upscale_models" }, images: ["safelight/base.png [output]"] });
+  });
+
+  it("rejects a sidecar with an unknown mode", async () => {
+    const image = path.join(dir, "future.png");
+    await writeFile(`${image}.json`, JSON.stringify({ ...sidecarForRequest(REQ), mode: "hologram" }), "utf8");
+    expect(await readSidecar(image)).toBeNull();
+  });
+
+  it("sidecarToRequest refuses action modes with a clear error", () => {
+    expect(() => sidecarToRequest({ ...sidecarForRequest(REQ), mode: "upscale" })).toThrow(/cannot rerun/i);
+    expect(() => sidecarToRequest({ ...sidecarForRequest(REQ), mode: "inpaint" })).toThrow(/cannot rerun/i);
+  });
+
+  it("sidecarSettings reuses the model stack for any mode", () => {
+    const settings = sidecarSettings(sidecarForRequest(REQ, undefined, { mode: "inpaint", mask: "m.png" }));
+    expect(settings).toMatchObject({ model: { name: "qwen-image-2.1-Q4_K_M.gguf", folder: "unet_gguf" }, steps: 25, vae: "qwen_image_2.1_vae.safetensors" });
+    expect("mode" in settings).toBe(false);
   });
 });
