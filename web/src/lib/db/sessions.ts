@@ -52,6 +52,26 @@ export async function deleteSession(id: string): Promise<boolean> {
   return getDb().prepare("DELETE FROM sessions WHERE id = ?").run(id).changes > 0;
 }
 
+/**
+ * Removes deleted output files from every image session's jobs, so bulk deletes in the
+ * Library leave no dangling references. Refs are library-relative paths like
+ * "safelight/qwen_00001_.png".
+ */
+export async function scrubOutputRefs(relPaths: string[]): Promise<number> {
+  if (relPaths.length === 0) return 0;
+  const doomed = new Set(relPaths);
+  const matches = (o: { filename: string; subfolder?: string }) => doomed.has(o.subfolder ? `${o.subfolder}/${o.filename}` : o.filename);
+  let touched = 0;
+  for (const session of await listSessions()) {
+    if (session.kind !== "image") continue;
+    if (!session.jobs.some((j) => j.outputs.some(matches))) continue;
+    const next = { ...session, jobs: session.jobs.map((j) => ({ ...j, outputs: j.outputs.filter((o) => !matches(o)) })), updatedAt: Date.now() };
+    writeSession(next);
+    touched++;
+  }
+  return touched;
+}
+
 export async function listProjects(): Promise<Project[]> {
   return getDb().prepare("SELECT id, title, created_at AS createdAt, updated_at AS updatedAt FROM projects ORDER BY updated_at DESC").all() as Project[];
 }

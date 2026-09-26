@@ -3,6 +3,7 @@ import path from "node:path";
 import type { NextRequest } from "next/server";
 import { ensureIndex, forgetPaths } from "@/lib/library";
 import { resolveExportDest, resolveInOutputs } from "@/lib/library/confine";
+import { scrubOutputRefs } from "@/lib/db/sessions";
 
 const MAX_PATHS = 1000;
 
@@ -80,5 +81,7 @@ export async function POST(request: NextRequest) {
     }
   }
   await forgetPaths(gone);
-  return Response.json({ ok: true, deleted, skipped });
+  // Image sessions must not keep pointing at files that no longer exist.
+  const scrubbedSessions = await scrubOutputRefs(gone);
+  return Response.json({ ok: true, deleted, skipped, scrubbedSessions });
 }

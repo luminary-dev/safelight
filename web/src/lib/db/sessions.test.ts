@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ChatSession, CodeSession } from "@/lib/session-types";
 import { resetDbForTests } from "./index";
-import { deleteProject, deleteSession, getSession, listProjects, listSessions, listThemes, patchSession, saveTheme, upsertProject, upsertSession } from "./sessions";
+import { deleteProject, deleteSession, getSession, listProjects, listSessions, listThemes, patchSession, saveTheme, scrubOutputRefs, upsertProject, upsertSession } from "./sessions";
 
 let dir: string;
 
@@ -91,5 +91,29 @@ describe("legacy JSON import", () => {
     expect(files).toContain("sessions.json.migrated");
     expect(files).not.toContain("sessions.json");
     expect(await readdir(path.join(dir, "themes"))).toContain("nordic-calm.json.migrated");
+  });
+});
+
+describe("scrubOutputRefs", () => {
+  it("drops deleted outputs from image sessions and leaves others alone", async () => {
+    const img = {
+      id: "img1",
+      kind: "image",
+      title: "t",
+      titled: false,
+      createdAt: 1,
+      updatedAt: 1,
+      draft: "",
+      jobs: [
+        { id: "j1", seed: 1, prompt: "p", startedAt: 1, state: "done", outputs: [{ filename: "a.png", subfolder: "safelight", type: "output" }, { filename: "b.png", subfolder: "", type: "output" }], settings: { model: "m", width: 1, height: 1, steps: 1, cfg: 1, sampler: "euler", scheduler: "simple", mode: "txt2img" } },
+      ],
+    } as unknown as Parameters<typeof upsertSession>[0];
+    await upsertSession(img);
+    await upsertSession(chat("c1"));
+    const touched = await scrubOutputRefs(["safelight/a.png", "not-there.png"]);
+    expect(touched).toBe(1);
+    const after = (await getSession("img1")) as { jobs: { outputs: { filename: string }[] }[] };
+    expect(after.jobs[0].outputs.map((o) => o.filename)).toEqual(["b.png"]);
+    expect(await scrubOutputRefs([])).toBe(0);
   });
 });
