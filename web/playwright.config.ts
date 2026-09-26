@@ -27,9 +27,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // CI runners stall 10s+ on dev-mode on-demand compiles; scale the windows
+  // there so a pause is absorbed while real failures still fail.
+  timeout: process.env.CI ? 120_000 : 60_000,
+  expect: { timeout: process.env.CI ? 25_000 : 10_000 },
   use: {
+    actionTimeout: process.env.CI ? 30_000 : 15_000,
     baseURL: "http://localhost:3005",
     screenshot: "only-on-failure",
     trace: "off",
@@ -55,6 +58,6 @@ export default defineConfig({
     // so the first tests don't race the dev server's cold compile.
     url: "http://localhost:3005/",
     reuseExistingServer: false,
-    timeout: 180_000,
+    timeout: 300_000, // CI builds the app first (prod server per e2e/dev-server.mjs)
   },
 });

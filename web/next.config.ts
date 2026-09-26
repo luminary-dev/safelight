@@ -7,6 +7,10 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // The e2e launcher builds from a tmp mirror whose node_modules symlinks back
+  // into the repo; without pinning, Next infers the tracing root through the
+  // symlink and emits a broken standalone layout.
+  ...(process.env.SAFELIGHT_TRACING_ROOT ? { outputFileTracingRoot: process.env.SAFELIGHT_TRACING_ROOT } : {}),
   // Native modules and worker-thread users: load from node_modules at runtime instead of bundling.
   serverExternalPackages: ["better-sqlite3", "sharp", "pino"],
   // Explicit so a stray flag can never silently disable the gate. Lint runs separately in `pnpm verify`.

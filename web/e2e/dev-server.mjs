@@ -10,7 +10,7 @@
  * :8188, :11434, ./data or ./outputs.
  */
 import { spawn } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,9 @@ import { fileURLToPath } from "node:url";
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(web, "..");
 
-const root = mkdtempSync(path.join(os.tmpdir(), "safelight-e2e-"));
+// realpath: macOS tmpdir lives behind the /var -> /private/var symlink, and a
+// non-canonical tracing root makes Next join cross-root relative paths.
+const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "safelight-e2e-")));
 const appDir = path.join(root, "web");
 mkdirSync(appDir);
 // Small files are copied — Next's route scanner does not discover routes
@@ -34,10 +36,13 @@ for (const dir of ["data", "outputs", "inputs"]) mkdirSync(path.join(root, dir))
 // --webpack: Turbopack refuses symlinks that resolve outside its project root
 // (the node_modules link), and pnpm's store symlinks land outside it anyway;
 // webpack follows them happily.
-const child = spawn(path.join(web, "node_modules", ".bin", "next"), ["dev", "--webpack", "-p", "3005"], {
-  cwd: appDir,
-  stdio: "inherit",
-  env: {
+//
+// A production server here would be ideal (no dev compile stalls), but pnpm's
+// symlinked node_modules defeats standalone output tracing from this mirror
+// (cross-root paths). Dev server stays; CI absorbs compile stalls via the
+// CI-scaled timeouts in playwright.config.ts.
+const nextBin = path.join(web, "node_modules", ".bin", "next");
+const serverEnv = {
     ...process.env,
     SAFELIGHT_DATA_DIR: path.join(root, "data"),
     COMFY_OUTPUT_DIR: path.join(root, "outputs"),
@@ -48,7 +53,9 @@ const child = spawn(path.join(web, "node_modules", ".bin", "next"), ["dev", "--w
     COMFY_URL: "http://127.0.0.1:9",
     OLLAMA_URL: "http://127.0.0.1:9",
     NEXT_PUBLIC_COMFY_WS: "ws://127.0.0.1:9",
-  },
-});
+};
+
+const child = spawn(nextBin, ["dev", "--webpack", "-p", "3005"], { cwd: appDir, stdio: "inherit", env: serverEnv });
+
 child.on("exit", (code) => process.exit(code ?? 1));
 for (const signal of ["SIGTERM", "SIGINT"]) process.on(signal, () => child.kill(signal));
