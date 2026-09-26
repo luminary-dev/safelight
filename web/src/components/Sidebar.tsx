@@ -149,12 +149,14 @@ export function Sidebar({
 
   return (
     <aside className="panel-side flex min-h-0 flex-col gap-4 p-4 pt-5">
-      <div className="flex items-center gap-2 px-2">
-        <SafelightMark className="size-6 rounded-[8px]" />
-        <span className="font-display text-[21px] font-extrabold tracking-[-0.02em] text-ink">
-          Safelight<span className="text-terracotta">.</span>
+      <div className="flex flex-col gap-1.5 px-2">
+        <span className="flex items-center gap-2">
+          <SafelightMark className="size-6 rounded-[8px]" />
+          <span className="font-display text-[21px] font-extrabold tracking-[-0.02em] text-ink">
+            Safelight<span className="text-terracotta">.</span>
+          </span>
         </span>
-        <span className="ml-auto flex items-center gap-0.5">
+        <span className="flex items-center gap-1">
           <ThemeToggle className="size-7 rounded-full border-0 bg-transparent text-faint shadow-none hover:bg-pill hover:text-ink" />
           <button type="button" aria-label="API keys" onClick={onKeys} className="grid size-7 place-items-center rounded-full text-faint hover:bg-pill hover:text-ink">
             <KeyRound className="size-3.5" />
