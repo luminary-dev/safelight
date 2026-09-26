@@ -28,6 +28,12 @@ All notable changes to Safelight are documented here. The format follows
   e2e; coverage over the full surface 38 % → **77.7 % lines**, floors ratcheted to 75/72/62/63.
 
 ### Fixed
+- Repository is public (source-available under BSL 1.1) with real branch protection:
+  pull requests and green `verify`/`e2e`/`semgrep` checks required with strict
+  up-to-date-before-merge, linear history, no force-pushes or deletions on `main`,
+  immutable `v*` tags, merged branches auto-deleted, auto-merge on, native CodeQL code
+  scanning and secret scanning with push protection enabled. The private-repo workarounds
+  (local pre-push hook, in-repo ruleset files, upload-less CodeQL) are removed.
 - Vault hardening (found by the new Semgrep gate): the GCM authentication-tag length is now
   pinned to 16 bytes — Node otherwise accepts truncated tags, weakening forgery resistance.
 - Deleting a render from the gallery now removes its metadata sidecar too (orphaned
