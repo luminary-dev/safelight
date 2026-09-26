@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb, resetDbForTests } from "@/lib/db";
-import { appendEvent, createRun, finishRun, getRun, listRuns, MAX_STORED_RUNS } from "./runs-store";
+import { appendEvent, createRun, finishRun, getEventsSince, getRun, getRunRow, listRuns, MAX_STORED_RUNS } from "./runs-store";
 import type { AgentEvent } from "./tools";
 
 let dir: string;
@@ -41,6 +41,25 @@ describe("runs store", () => {
     expect(back!.events.map((e) => e.seq)).toEqual([0, 1, 2]);
     expect(back!.events.map((e) => e.data)).toEqual(events);
     expect(getRun("missing")).toBeNull();
+  });
+
+  it("getRunRow returns the row alone and getEventsSince replays from a sequence", () => {
+    seed("r5", 1000);
+    const events: AgentEvent[] = [
+      { type: "status", text: "run r5" },
+      { type: "text", text: "a" },
+      { type: "text", text: "b" },
+    ];
+    events.forEach((e, i) => appendEvent("r5", i, e));
+    expect(getRunRow("r5")).toMatchObject({ id: "r5", status: "running" });
+    expect(getRunRow("missing")).toBeNull();
+    expect(getEventsSince("r5").map((e) => e.seq)).toEqual([0, 1, 2]);
+    expect(getEventsSince("r5", 1).map((e) => e.data)).toEqual([
+      { type: "text", text: "a" },
+      { type: "text", text: "b" },
+    ]);
+    expect(getEventsSince("r5", 3)).toEqual([]);
+    expect(getEventsSince("r5", -2).map((e) => e.seq)).toEqual([0, 1, 2]); // negative clamps to 0
   });
 
   it("records error status with the message", () => {

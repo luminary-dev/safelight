@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
 import { waitForApproval } from "@/lib/agent/approvals";
 import { withMcpTools } from "@/lib/agent/mcp";
-import { AGENT_SYSTEM_PROMPT, runAgent } from "@/lib/agent/run";
-import { executeTool, TOOLS, type AgentEvent } from "@/lib/agent/tools";
+import { AGENT_SYSTEM_PROMPT, startDetachedRun } from "@/lib/agent/run";
+import { publishRunEvent, unsubscribeRun, type RunStreamEvent, type RunSubscriber } from "@/lib/agent/run-registry";
+import { executeTool, TOOLS } from "@/lib/agent/tools";
 import { toTurns, type WireMessage } from "@/lib/chat-images";
 import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 
@@ -27,7 +28,13 @@ function sanitizeParams(p: WireParams | undefined): { temperature?: number; topP
   return out.temperature !== undefined || out.topP !== undefined || out.maxTokens !== undefined ? out : undefined;
 }
 
-/** Streams newline-delimited JSON events while the agent works through its tool loop. */
+/**
+ * Starts a DETACHED agent run and streams its newline-delimited JSON events.
+ * The run lives in the run registry, not in this request: when the client
+ * disconnects the response merely unsubscribes and the run continues server-side
+ * (re-attach via GET /api/runs/[id]/stream, cancel via POST /api/runs/[id]/stop).
+ * The first line is a dedicated `{type:"run", id}` event carrying the run id.
+ */
 export async function POST(request: NextRequest) {
   let body: { provider?: string; model?: string; messages?: WireMessage[]; preferredModel?: string; clientId?: string; system?: string; params?: WireParams; projectId?: string };
   try {
@@ -44,33 +51,68 @@ export async function POST(request: NextRequest) {
   // The per-session system prompt is appended to the default so agent instructions survive.
   const systemPrompt = typeof body.system === "string" && body.system.trim() ? `${AGENT_SYSTEM_PROMPT}\n\n${body.system.trim()}` : undefined;
 
+  // Approval events publish through the registry so they persist under the run's
+  // sequence and reach every attached viewer; runId is assigned before any tool runs.
+  let runId = "";
+  const requestApproval = (label: string, tool: string) => {
+    const id = crypto.randomUUID();
+    publishRunEvent(runId, { type: "approval", id, path: label, tool });
+    return waitForApproval(id);
+  };
+  const toolset = await withMcpTools({ defs: TOOLS, execute: executeTool }, requestApproval);
+
   const encoder = new TextEncoder();
+  let subscriber: RunSubscriber | null = null;
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const emit = (e: AgentEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
-      const requestApproval = (label: string, tool: string) => {
-        const id = crypto.randomUUID();
-        emit({ type: "approval", id, path: label, tool });
-        return waitForApproval(id);
+    start(controller) {
+      let open = true;
+      const send = (e: RunStreamEvent) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+        } catch {
+          open = false;
+        }
       };
-      try {
-        const toolset = await withMcpTools({ defs: TOOLS, execute: executeTool }, requestApproval);
-        await runAgent(provider as ProviderId | "ollama", body.model!, turns, {
+      const finish = () => {
+        if (!open) return;
+        open = false;
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      };
+      subscriber = {
+        event: (e) => send(e),
+        end: () => {
+          send({ type: "done" });
+          finish();
+        },
+      };
+      runId = startDetachedRun(
+        provider as ProviderId | "ollama",
+        body.model!,
+        turns,
+        {
           clientId: body.clientId ?? "agent",
           preferredModel: body.preferredModel,
           systemPrompt,
-          emit,
-          signal: request.signal,
           toolset,
           params,
           projectId,
-        });
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "Agent failed." });
-      } finally {
-        emit({ type: "done" });
-        controller.close();
-      }
+        },
+        { subscriber },
+      );
+      send({ type: "run", id: runId });
+      // A client disconnect only detaches this view; the run keeps going server-side.
+      request.signal.addEventListener("abort", () => {
+        if (subscriber) unsubscribeRun(runId, subscriber);
+        finish();
+      });
+    },
+    cancel() {
+      if (subscriber) unsubscribeRun(runId, subscriber);
     },
   });
   return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });

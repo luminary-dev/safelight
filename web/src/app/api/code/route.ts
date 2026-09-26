@@ -4,8 +4,8 @@ import type { NextRequest } from "next/server";
 import { waitForApproval } from "@/lib/agent/approvals";
 import { codeSystemPrompt, codeToolDefs, executeCodeTool, type CodeAccess } from "@/lib/agent/code-tools";
 import { withMcpTools } from "@/lib/agent/mcp";
-import { runAgent } from "@/lib/agent/run";
-import type { AgentEvent } from "@/lib/agent/tools";
+import { startDetachedRun } from "@/lib/agent/run";
+import { publishRunEvent, unsubscribeRun, type RunStreamEvent, type RunSubscriber } from "@/lib/agent/run-registry";
 import { toTurns, type WireMessage } from "@/lib/chat-images";
 import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 
@@ -30,39 +30,74 @@ export async function POST(request: NextRequest) {
   const turns = await toTurns(body.messages ?? [], 30);
   const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : undefined;
 
+  // Approvals publish through the registry: persisted under the run's sequence and
+  // fanned out to every attached viewer, so a card answered after a reload resolves.
+  let runId = "";
+  const access: CodeAccess = {
+    root,
+    approved: (Array.isArray(body.approvedPaths) ? body.approvedPaths : []).filter((p) => typeof p === "string" && path.isAbsolute(p)),
+    requestApproval: (absPath, tool) => {
+      const id = crypto.randomUUID();
+      publishRunEvent(runId, { type: "approval", id, path: absPath, tool });
+      return waitForApproval(id);
+    },
+  };
+  const toolset = await withMcpTools(
+    { defs: codeToolDefs(), execute: (name, args) => executeCodeTool(name, args, access) },
+    (label, tool) => access.requestApproval(label, tool),
+  );
+
   const encoder = new TextEncoder();
+  let subscriber: RunSubscriber | null = null;
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const emit = (e: AgentEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
-      const access: CodeAccess = {
-        root,
-        approved: (Array.isArray(body.approvedPaths) ? body.approvedPaths : []).filter((p) => typeof p === "string" && path.isAbsolute(p)),
-        requestApproval: (absPath, tool) => {
-          const id = crypto.randomUUID();
-          emit({ type: "approval", id, path: absPath, tool });
-          return waitForApproval(id);
+    start(controller) {
+      let open = true;
+      const send = (e: RunStreamEvent) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+        } catch {
+          open = false;
+        }
+      };
+      const finish = () => {
+        if (!open) return;
+        open = false;
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      };
+      subscriber = {
+        event: (e) => send(e),
+        end: () => {
+          send({ type: "done" });
+          finish();
         },
       };
-      try {
-        const toolset = await withMcpTools(
-          { defs: codeToolDefs(), execute: (name, args) => executeCodeTool(name, args, access) },
-          (label, tool) => access.requestApproval(label, tool),
-        );
-        await runAgent(provider as ProviderId | "ollama", body.model!, turns, {
+      runId = startDetachedRun(
+        provider as ProviderId | "ollama",
+        body.model!,
+        turns,
+        {
           clientId: body.clientId ?? "code",
-          emit,
-          signal: request.signal,
           systemPrompt: codeSystemPrompt(root),
           budget: { maxRounds: 60 },
           toolset,
           projectId,
-        });
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "The coding agent failed." });
-      } finally {
-        emit({ type: "done" });
-        controller.close();
-      }
+        },
+        { subscriber },
+      );
+      send({ type: "run", id: runId });
+      // A client disconnect only detaches this view; the run keeps going server-side.
+      request.signal.addEventListener("abort", () => {
+        if (subscriber) unsubscribeRun(runId, subscriber);
+        finish();
+      });
+    },
+    cancel() {
+      if (subscriber) unsubscribeRun(runId, subscriber);
     },
   });
   return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });

@@ -2,8 +2,8 @@ import type { NextRequest } from "next/server";
 import { waitForApproval } from "@/lib/agent/approvals";
 import { DESIGN_SYSTEM_PROMPT, designToolDefs, executeDesignTool } from "@/lib/agent/design-tools";
 import { withMcpTools } from "@/lib/agent/mcp";
-import { runAgent } from "@/lib/agent/run";
-import type { AgentEvent } from "@/lib/agent/tools";
+import { startDetachedRun } from "@/lib/agent/run";
+import { publishRunEvent, unsubscribeRun, type RunStreamEvent, type RunSubscriber } from "@/lib/agent/run-registry";
 import { toTurns, type WireMessage } from "@/lib/chat-images";
 import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 
@@ -21,32 +21,67 @@ export async function POST(request: NextRequest) {
   const turns = await toTurns(body.messages ?? [], 30);
   const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : undefined;
 
+  // Approvals publish through the registry: persisted under the run's sequence and
+  // fanned out to every attached viewer, so a card answered after a reload resolves.
+  let runId = "";
+  const requestApproval = (label: string, tool: string) => {
+    const id = crypto.randomUUID();
+    publishRunEvent(runId, { type: "approval", id, path: label, tool });
+    return waitForApproval(id);
+  };
+  const toolset = await withMcpTools({ defs: designToolDefs(), execute: (name, args) => executeDesignTool(name, args) }, requestApproval);
+
   const encoder = new TextEncoder();
+  let subscriber: RunSubscriber | null = null;
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const emit = (e: AgentEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
-      const requestApproval = (label: string, tool: string) => {
-        const id = crypto.randomUUID();
-        emit({ type: "approval", id, path: label, tool });
-        return waitForApproval(id);
+    start(controller) {
+      let open = true;
+      const send = (e: RunStreamEvent) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+        } catch {
+          open = false;
+        }
       };
-      try {
-        const toolset = await withMcpTools({ defs: designToolDefs(), execute: (name, args) => executeDesignTool(name, args) }, requestApproval);
-        await runAgent(provider as ProviderId | "ollama", body.model!, turns, {
+      const finish = () => {
+        if (!open) return;
+        open = false;
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      };
+      subscriber = {
+        event: (e) => send(e),
+        end: () => {
+          send({ type: "done" });
+          finish();
+        },
+      };
+      runId = startDetachedRun(
+        provider as ProviderId | "ollama",
+        body.model!,
+        turns,
+        {
           clientId: body.clientId ?? "design",
-          emit,
-          signal: request.signal,
           systemPrompt: DESIGN_SYSTEM_PROMPT,
           budget: { maxRounds: 32 },
           toolset,
           projectId,
-        });
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "The design scout failed." });
-      } finally {
-        emit({ type: "done" });
-        controller.close();
-      }
+        },
+        { subscriber },
+      );
+      send({ type: "run", id: runId });
+      // A client disconnect only detaches this view; the run keeps going server-side.
+      request.signal.addEventListener("abort", () => {
+        if (subscriber) unsubscribeRun(runId, subscriber);
+        finish();
+      });
+    },
+    cancel() {
+      if (subscriber) unsubscribeRun(runId, subscriber);
     },
   });
   return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });

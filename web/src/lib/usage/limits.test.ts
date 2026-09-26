@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetDbForTests } from "@/lib/db";
 import { setSetting } from "@/lib/db/settings";
-import { checkSpendLimits, SPEND_LIMIT_KEYS, startOfDay, startOfMonth } from "./limits";
+import { checkSpendLimits, providerLimitKey, SPEND_LIMIT_KEYS, startOfDay, startOfMonth } from "./limits";
 import { recordUsage } from "./record";
 
 let dir: string;
@@ -86,5 +86,58 @@ describe("spend limits", () => {
     setSetting(SPEND_LIMIT_KEYS.dayHard, "nonsense");
     spend(50, NOW - 1000);
     expect(checkSpendLimits(NOW).stop).toBeUndefined();
+  });
+});
+
+describe("per-provider spend limits", () => {
+  it("builds the documented settings keys", () => {
+    expect(providerLimitKey("openai", "dayHard")).toBe("spendLimit:openai:dayHard");
+    expect(providerLimitKey("anthropic", "monthSoft")).toBe("spendLimit:anthropic:monthSoft");
+  });
+
+  it("stops at a provider's daily hard limit, naming the provider", () => {
+    setSetting(providerLimitKey("anthropic", "dayHard"), 3);
+    spend(3, startOfDay(NOW) + 1000, "anthropic");
+    const gate = checkSpendLimits(NOW, "anthropic");
+    expect(gate.stop).toBe("Stopped: the daily anthropic spend limit of $3 is reached — raise it in settings.");
+  });
+
+  it("stops at a provider's monthly hard limit even when today is fine", () => {
+    setSetting(providerLimitKey("anthropic", "monthHard"), 10);
+    spend(10, startOfMonth(NOW) + 1000, "anthropic"); // earlier this month, not today
+    const gate = checkSpendLimits(NOW, "anthropic");
+    expect(gate.stop).toBe("Stopped: the monthly anthropic spend limit of $10 is reached — raise it in settings.");
+  });
+
+  it("only counts THAT provider's spend, and only gates runs on that provider", () => {
+    setSetting(providerLimitKey("anthropic", "dayHard"), 1);
+    spend(5, NOW - 1000, "openai"); // someone else's spend
+    expect(checkSpendLimits(NOW, "anthropic").stop).toBeUndefined();
+    spend(2, NOW - 1000, "anthropic");
+    expect(checkSpendLimits(NOW, "anthropic").stop).toContain("anthropic");
+    // A different provider's run sails past this limit (global limits unset).
+    expect(checkSpendLimits(NOW, "openai").stop).toBeUndefined();
+    // No provider given (legacy callers): only global limits apply.
+    expect(checkSpendLimits(NOW).stop).toBeUndefined();
+  });
+
+  it("warns at a provider soft limit without stopping, after the global softs", () => {
+    setSetting(providerLimitKey("anthropic", "daySoft"), 1);
+    spend(2, startOfDay(NOW) + 1000, "anthropic");
+    const gate = checkSpendLimits(NOW, "anthropic");
+    expect(gate.stop).toBeUndefined();
+    expect(gate.warn).toBe("Heads up: today's anthropic spend ($2) has passed the soft limit of $1.");
+
+    // A global soft limit takes message precedence over the provider one.
+    setSetting(SPEND_LIMIT_KEYS.daySoft, 1);
+    expect(checkSpendLimits(NOW, "anthropic").warn).toContain("today's spend");
+  });
+
+  it("a global hard limit still wins over a looser provider limit", () => {
+    setSetting(SPEND_LIMIT_KEYS.dayHard, 2);
+    setSetting(providerLimitKey("anthropic", "dayHard"), 100);
+    spend(2, startOfDay(NOW) + 1000, "anthropic");
+    const gate = checkSpendLimits(NOW, "anthropic");
+    expect(gate.stop).toBe("Stopped: the daily spend limit of $2 is reached — raise it in settings.");
   });
 });

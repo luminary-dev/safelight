@@ -12,7 +12,8 @@ import { type ChatTurn } from "@/lib/providers/types";
 import { getLogger } from "@/lib/log";
 import { checkSpendLimits } from "@/lib/usage/limits";
 import { recordUsage } from "@/lib/usage/record";
-import { appendEvent, createRun, finishRun } from "./runs-store";
+import { completeRun, publishRunEvent, registerRun, subscribeRun, type RunSubscriber } from "./run-registry";
+import { appendEvent, createRun, finishRun, type RunStatus } from "./runs-store";
 import { withNotesTools } from "./project-notes";
 import { isSubAgentClient, withDelegateTool } from "./subagent";
 import { executeTool, TOOLS, type AgentEvent, type ToolContext } from "./tools";
@@ -79,7 +80,8 @@ function gateSpend(ctx: ToolContext, provider: string): boolean {
   if (provider === "ollama") return true;
   const meta = metaOf(ctx);
   try {
-    const gate = checkSpendLimits();
+    // Global limits plus this provider's own spendLimit:<provider>:* keys.
+    const gate = checkSpendLimits(Date.now(), provider);
     if (gate.stop) {
       if (meta) meta.stoppedBySpendLimit = true;
       ctx.emit({ type: "status", text: gate.stop });
@@ -392,7 +394,11 @@ function effectiveToolset(provider: ProviderId | "ollama", model: string, ctx: T
   if (ctx.projectId?.trim()) toolset = withNotesTools(toolset, ctx.projectId.trim());
   const isStudio = base.defs.some((d) => d.name === "generate_image");
   if (ctx.toolset && !isStudio && !isSubAgentClient(ctx.clientId)) {
-    toolset = withDelegateTool(toolset, { provider, model, run: runAgent });
+    // Adapt to RunAgentFn's Promise<void>: sub-agent runs keep their own bookkeeping.
+    const run = async (p: ProviderId | "ollama", m: string, t: ChatTurn[], c: ToolContext): Promise<void> => {
+      await runAgent(p, m, t, c);
+    };
+    toolset = withDelegateTool(toolset, { provider, model, run });
   }
   return toolset;
 }
@@ -405,23 +411,40 @@ function dispatch(provider: ProviderId | "ollama", model: string, turns: ChatTur
   return runOpenAI(turns, model, ctx, provider);
 }
 
-export async function runAgent(provider: ProviderId | "ollama", model: string, turns: ChatTurn[], ctx: ToolContext): Promise<void> {
+/**
+ * Runs the agent loop against one provider, streaming AgentEvents through ctx.emit.
+ *
+ * Called directly (sub-agents, tests) it owns the run's persistence: it creates
+ * the run row, write-throughs every event, and finalizes the row. Called from
+ * startDetachedRun (`opts.detached`) the run registry owns persistence instead —
+ * the registry keeps one seq counter for loop AND route events (approvals,
+ * terminal errors), so this loop must not keep a second one.
+ */
+export async function runAgent(
+  provider: ProviderId | "ollama",
+  model: string,
+  turns: ChatTurn[],
+  ctx: ToolContext,
+  opts: { runId?: string; detached?: boolean } = {},
+): Promise<{ status: "done" | "stopped" }> {
   if (provider !== "ollama") assertOutboundAllowed("cloud chat");
   if (provider !== "ollama" && !(await getKey(provider))) throw new Error(`No ${PROVIDER_META[provider].label} API key configured.`);
   const log = getLogger();
   const meta: RunMeta = {
-    id: crypto.randomUUID(),
+    id: opts.runId ?? crypto.randomUUID(),
     mode: modeOf(ctx.clientId),
     seq: 0,
-    persist: true,
+    persist: !opts.detached,
     warnedSpend: false,
     stoppedBySpendLimit: false,
   };
-  try {
-    createRun({ id: meta.id, clientId: ctx.clientId, mode: meta.mode, provider, model });
-  } catch (err) {
-    meta.persist = false;
-    log.warn({ runId: meta.id, err: errMsg(err) }, "run persistence unavailable; streaming without write-through");
+  if (!opts.detached) {
+    try {
+      createRun({ id: meta.id, clientId: ctx.clientId, mode: meta.mode, provider, model });
+    } catch (err) {
+      meta.persist = false;
+      log.warn({ runId: meta.id, err: errMsg(err) }, "run persistence unavailable; streaming without write-through");
+    }
   }
   const loopCtx: LoopCtx = {
     ...ctx,
@@ -433,7 +456,8 @@ export async function runAgent(provider: ProviderId | "ollama", model: string, t
     [RUN_META]: meta,
   };
   // Surface the id early so a client can resume this run after a reload.
-  loopCtx.emit({ type: "status", text: `run ${meta.id}` });
+  // Detached runs announce it from startDetachedRun instead, before the loop starts.
+  if (!opts.detached) loopCtx.emit({ type: "status", text: `run ${meta.id}` });
   const startedAt = Date.now();
   log.info({ runId: meta.id, mode: meta.mode, provider, model, turns: turns.length }, "agent run started");
   try {
@@ -441,10 +465,71 @@ export async function runAgent(provider: ProviderId | "ollama", model: string, t
     const status = meta.stoppedBySpendLimit ? "stopped" : "done";
     if (meta.persist) safeFinish(meta, status);
     log.info({ runId: meta.id, ms: Date.now() - startedAt, status }, "agent run finished");
+    return { status };
   } catch (err) {
     const aborted = ctx.signal?.aborted || (err as Error)?.name === "AbortError";
     if (meta.persist) safeFinish(meta, aborted ? "stopped" : "error", aborted ? undefined : errMsg(err));
     log.warn({ runId: meta.id, ms: Date.now() - startedAt, aborted, err: errMsg(err) }, "agent run ended abnormally");
     throw err;
   }
+}
+
+// ---------------- Detached runs (registry-backed) ----------------
+
+/** Everything a route knows before a run exists; emit and signal come from the registry. */
+export type DetachedRunContext = Omit<ToolContext, "emit" | "signal">;
+
+/**
+ * Starts an agent run that is NOT tied to any HTTP request: the run registers in
+ * the run registry, every event fans out to subscribers and writes through to the
+ * runs store, and the run aborts ONLY via its own controller (stop endpoint or
+ * wall-clock cap) — never a request signal. Returns the run id immediately; pass
+ * `subscriber` to see every event from the first one.
+ */
+export function startDetachedRun(
+  provider: ProviderId | "ollama",
+  model: string,
+  turns: ChatTurn[],
+  ctx: DetachedRunContext,
+  opts: { maxMs?: number; subscriber?: RunSubscriber } = {},
+): string {
+  const id = crypto.randomUUID();
+  const log = getLogger();
+  let persist = true;
+  try {
+    createRun({ id, clientId: ctx.clientId, mode: modeOf(ctx.clientId), provider, model });
+  } catch (err) {
+    persist = false;
+    log.warn({ runId: id, err: errMsg(err) }, "run persistence unavailable; streaming without write-through");
+  }
+  const entry = registerRun(id, ctx.clientId, { maxMs: opts.maxMs, persist });
+  if (opts.subscriber) subscribeRun(id, opts.subscriber);
+  const emit = (event: AgentEvent) => publishRunEvent(id, event);
+  // Deferred launch: the caller gets the id (and can announce it) before any event fires.
+  void Promise.resolve().then(async () => {
+    emit({ type: "status", text: `run ${id}` });
+    let status: Exclude<RunStatus, "running"> = "done";
+    let error: string | undefined;
+    try {
+      const out = await runAgent(provider, model, turns, { ...ctx, emit, signal: entry.controller.signal }, { runId: id, detached: true });
+      status = out.status;
+    } catch (err) {
+      const aborted = entry.controller.signal.aborted || (err as Error)?.name === "AbortError";
+      status = aborted ? "stopped" : "error";
+      if (!aborted) {
+        error = errMsg(err);
+        emit({ type: "error", text: error });
+      }
+    } finally {
+      if (entry.persist) {
+        try {
+          finishRun(id, status, error);
+        } catch (err) {
+          log.warn({ runId: id, err: errMsg(err) }, "could not finalize run row");
+        }
+      }
+      completeRun(id, status);
+    }
+  });
+  return id;
 }

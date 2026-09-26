@@ -43,6 +43,7 @@ interface Stmts {
   listRuns: Database.Statement;
   getRun: Database.Statement;
   getEvents: Database.Statement;
+  getEventsSince: Database.Statement;
 }
 
 const stmtCache = new WeakMap<Database.Database, Stmts>();
@@ -59,6 +60,7 @@ function stmts(): Stmts {
       listRuns: db.prepare("SELECT id, client_id, mode, provider, model, started_at, finished_at, status, error FROM agent_runs ORDER BY started_at DESC, id DESC LIMIT ?"),
       getRun: db.prepare("SELECT id, client_id, mode, provider, model, started_at, finished_at, status, error FROM agent_runs WHERE id = ?"),
       getEvents: db.prepare("SELECT seq, ts, data FROM agent_events WHERE run_id = ? ORDER BY seq ASC"),
+      getEventsSince: db.prepare("SELECT seq, ts, data FROM agent_events WHERE run_id = ? AND seq >= ? ORDER BY seq ASC"),
     };
     stmtCache.set(db, s);
   }
@@ -112,17 +114,30 @@ export function listRuns(limit = 50): RunRow[] {
   return (stmts().listRuns.all(n) as RawRow[]).map(toRow);
 }
 
+function parseEventRow(e: { seq: number; ts: number; data: string }): RunEventRow {
+  let data: AgentEvent;
+  try {
+    data = JSON.parse(e.data) as AgentEvent;
+  } catch {
+    data = { type: "status", text: "(unreadable event)" };
+  }
+  return { seq: e.seq, ts: e.ts, data };
+}
+
 export function getRun(id: string): { run: RunRow; events: RunEventRow[] } | null {
   const raw = stmts().getRun.get(id) as RawRow | undefined;
   if (!raw) return null;
-  const events = (stmts().getEvents.all(id) as { seq: number; ts: number; data: string }[]).map((e) => {
-    let data: AgentEvent;
-    try {
-      data = JSON.parse(e.data) as AgentEvent;
-    } catch {
-      data = { type: "status", text: "(unreadable event)" };
-    }
-    return { seq: e.seq, ts: e.ts, data };
-  });
+  const events = (stmts().getEvents.all(id) as { seq: number; ts: number; data: string }[]).map(parseEventRow);
   return { run: toRow(raw), events };
+}
+
+/** The run row alone — what the stream endpoint checks before replaying. */
+export function getRunRow(id: string): RunRow | null {
+  const raw = stmts().getRun.get(id) as RawRow | undefined;
+  return raw ? toRow(raw) : null;
+}
+
+/** Ordered persisted events with seq >= from, for replay-then-subscribe re-attach. */
+export function getEventsSince(runId: string, from = 0): RunEventRow[] {
+  return (stmts().getEventsSince.all(runId, Math.max(0, Math.floor(from) || 0)) as { seq: number; ts: number; data: string }[]).map(parseEventRow);
 }

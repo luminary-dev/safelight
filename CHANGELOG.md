@@ -6,6 +6,12 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Detached agent runs (Workstream G, round three): closing or reloading the page no longer
+  kills a run — the run continues server-side, the page reconnects to it and rebuilds the
+  transcript from the persisted event log, Stop now cancels the run itself
+  (`POST /api/runs/[id]/stop`), abandoned runs auto-stop after 15 minutes, and per-provider
+  spend limits join the global ones. Note the flip side: closing the tab no longer cancels a
+  cloud run — Stop, the time cap, and spend limits are the guardrails.
 - Image depth, round two (Workstream J): mask-brush inpainting and direction/percent
   outpainting on the Stage (Qwen-Image, sidecar-driven, gated honestly on installed models),
   a ControlNet section in the composer (canny/depth/pose) that names the exact missing file,

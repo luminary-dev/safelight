@@ -17,7 +17,7 @@ import remarkGfm from "remark-gfm";
 import { ModelPicker } from "./ModelPicker";
 
 export interface ChatModelInfo {
-  provider: "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together";
+  provider: "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together" | "cerebras" | "gateway";
   id: string;
   label: string;
   tags: string[];
@@ -35,6 +35,8 @@ export const PROVIDER_LABEL: Record<ChatModelInfo["provider"], string> = {
   deepseek: "DeepSeek",
   xai: "xAI",
   together: "Together",
+  cerebras: "Cerebras",
+  gateway: "AI Gateway",
 };
 
 /** Stable key for a chat model across providers. */
@@ -98,6 +100,82 @@ export function parsePromptReply(text: string): { prompt: string; negativePrompt
   const prompt = m[1].trim().replace(/^["“]|["”]$/g, "");
   const negativePrompt = m[2]?.trim().replace(/^["“]|["”]$/g, "") || undefined;
   return prompt ? { prompt, negativePrompt } : { prompt: text.trim() };
+}
+
+// ---------------- Agent NDJSON stream handling ----------------
+// Shared by a live POST stream and a re-attach replay (GET /api/runs/[id]/stream),
+// so both paths run through the exact same event-handling switch.
+
+/** One NDJSON line from an agent stream: AgentEvent fields plus the `{type:"run", id}` announcement. */
+interface AgentWireEvent {
+  type: string;
+  text?: string;
+  id?: string;
+  name?: string;
+  args?: Record<string, unknown>;
+  state?: ToolCall["state"];
+  note?: string;
+  images?: JobOutput[];
+  result?: unknown;
+  path?: string;
+  tool?: string;
+}
+
+/** Reads an NDJSON body line by line into `handle`, flushing a trailing partial line. */
+async function pumpNdjson(body: ReadableStream<Uint8Array>, handle: (line: string) => void): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    lines.forEach(handle);
+  }
+  if (buffer) handle(buffer);
+}
+
+/**
+ * Applies agent events to the trailing assistant message. Tool cards patch by id
+ * and the text accumulator rebuilds deterministically, so replaying a run's event
+ * log from seq 0 into a fresh assistant message is idempotent.
+ */
+function agentEventApplier(ops: {
+  patchLast: (fn: (m: Message) => Message) => void;
+  onApproval: (a: { id: string; path: string; tool: string }) => void;
+  onRunId: (id: string) => void;
+}): { handle: (line: string) => void; error: () => string | null } {
+  let text = "";
+  let error: string | null = null;
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    let ev: AgentWireEvent;
+    try {
+      ev = JSON.parse(line) as AgentWireEvent;
+    } catch {
+      return;
+    }
+    if (ev.type === "run" && ev.id) {
+      ops.onRunId(ev.id);
+    } else if (ev.type === "text" && ev.text) {
+      text = text ? `${text}\n\n${ev.text}` : ev.text;
+      ops.patchLast((m) => ({ ...m, text }));
+    } else if (ev.type === "tool" && ev.id && ev.name) {
+      const call: ToolCall = { id: ev.id, name: ev.name, args: ev.args ?? {}, state: ev.state ?? "running", note: ev.note, images: ev.images, result: ev.result };
+      ops.patchLast((m) => {
+        const tools = m.tools ?? [];
+        const i = tools.findIndex((t) => t.id === call.id);
+        return { ...m, tools: i === -1 ? [...tools, call] : tools.map((t, j) => (j === i ? { ...t, ...call, images: call.images ?? t.images } : t)) };
+      });
+    } else if (ev.type === "approval" && ev.id && ev.path) {
+      ops.onApproval({ id: ev.id, path: ev.path, tool: ev.tool ?? "access" });
+    } else if (ev.type === "error" && ev.text) {
+      error = ev.text;
+    }
+  };
+  return { handle, error: () => error };
 }
 
 /** Clipboard write with a hidden-textarea fallback for contexts where the async API is unavailable. */
@@ -284,6 +362,12 @@ export function ChatMode({
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [approvals, setApprovals] = useState<{ id: string; path: string; tool: string }[]>([]);
+  // Agent runs are detached server-side; this view re-attaches after a reload.
+  const [reconnected, setReconnected] = useState(false);
+  const runIdRef = useRef<string | null>(null);
+  // Deterministic per-session client id, so a reloaded page can find its running
+  // agent run again (the browser-level clientId alone is shared by every session).
+  const runClientId = `${clientId}#${sessionId}`;
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -299,6 +383,10 @@ export function ChatMode({
   }, []);
   const threadRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  /** Patches the last (streaming) message; shared by the live stream and the re-attach replay. */
+  const patchLast = useCallback((fn: (m: Message) => Message) => setMessages((list) => list.map((m, i) => (i === list.length - 1 ? fn(m) : m))), [setMessages]);
+  const addApproval = useCallback((req: { id: string; path: string; tool: string }) => setApprovals((list) => (list.some((a) => a.id === req.id) ? list : [...list, req])), []);
 
   // Edit-and-resend: which user message is being edited, and its draft text.
   const [editing, setEditing] = useState<{ index: number; text: string } | null>(null);
@@ -393,7 +481,9 @@ export function ChatMode({
     if (t) t.scrollTop = t.scrollHeight;
   }, [messages, thinking]);
 
-  // The parent remounts this component per session (key=sessionId); abort any stream when that happens.
+  // The parent remounts this component per session (key=sessionId); abort any stream when that
+  // happens. This only closes the view — a detached agent run continues server-side and the
+  // re-attach effect picks it up again when the user returns to the session.
   useEffect(() => {
     void sessionId;
     return () => abortRef.current?.abort();
@@ -434,7 +524,6 @@ export function ChatMode({
     setThinking(true);
     const controller = new AbortController();
     abortRef.current = controller;
-    const patchLast = (fn: (m: Message) => Message) => setMessages((list) => list.map((m, i) => (i === list.length - 1 ? fn(m) : m)));
     try {
       const hasParams = params && (params.temperature ?? params.topP ?? params.maxTokens) !== undefined;
       const payload = {
@@ -455,52 +544,22 @@ export function ChatMode({
         const res = await fetch(agentEndpoint, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...payload, preferredModel, clientId, ...agentBody }),
+          body: JSON.stringify({ ...payload, preferredModel, clientId: runClientId, ...agentBody }),
           signal: controller.signal,
         });
         if (!res.ok || !res.body) {
           const body = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(body.error ?? `Agent failed (${res.status})`);
         }
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let text = "";
-        let agentError: string | null = null;
-        const handle = (line: string) => {
-          if (!line.trim()) return;
-          let ev: { type: string; text?: string; id?: string; name?: string; args?: Record<string, unknown>; state?: ToolCall["state"]; note?: string; images?: JobOutput[]; result?: unknown; path?: string; tool?: string };
-          try {
-            ev = JSON.parse(line);
-          } catch {
-            return;
-          }
-          if (ev.type === "text" && ev.text) {
-            text = text ? `${text}\n\n${ev.text}` : ev.text;
-            patchLast((m) => ({ ...m, text }));
-          } else if (ev.type === "tool" && ev.id && ev.name) {
-            const call: ToolCall = { id: ev.id, name: ev.name, args: ev.args ?? {}, state: ev.state ?? "running", note: ev.note, images: ev.images, result: ev.result };
-            patchLast((m) => {
-              const tools = m.tools ?? [];
-              const i = tools.findIndex((t) => t.id === call.id);
-              return { ...m, tools: i === -1 ? [...tools, call] : tools.map((t, j) => (j === i ? { ...t, ...call, images: call.images ?? t.images } : t)) };
-            });
-          } else if (ev.type === "approval" && ev.id && ev.path) {
-            const req = { id: ev.id, path: ev.path, tool: ev.tool ?? "access" };
-            setApprovals((list) => (list.some((a) => a.id === req.id) ? list : [...list, req]));
-          } else if (ev.type === "error" && ev.text) {
-            agentError = ev.text;
-          }
-        };
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          lines.forEach(handle);
-        }
-        if (buffer) handle(buffer);
+        const applier = agentEventApplier({
+          patchLast,
+          onApproval: addApproval,
+          onRunId: (id) => {
+            runIdRef.current = id;
+          },
+        });
+        await pumpNdjson(res.body, applier.handle);
+        const agentError = applier.error();
         if (agentError) setError(agentError);
         patchLast((m) => ({ ...m, text: m.text || (m.tools?.length ? "" : agentError ? "" : "(empty reply)") }));
         if (agentError) patchLast((m) => (m.text || m.tools?.length ? m : { ...m, text: `Could not complete: ${agentError}` }));
@@ -534,8 +593,9 @@ export function ChatMode({
       setThinking(false);
       setApprovals([]);
       abortRef.current = null;
+      runIdRef.current = null;
     }
-  }, [input, pending, pendingFiles, thinking, selected, messages, setMessages, agent, preferredModel, clientId, agentEndpoint, agentBody, system, params, projectId]);
+  }, [input, pending, pendingFiles, thinking, selected, messages, setMessages, agent, preferredModel, runClientId, agentEndpoint, agentBody, system, params, projectId, patchLast, addApproval]);
 
   /** Drops the last assistant message and re-sends the user message before it through the normal send path. */
   const regenerate = useCallback(() => {
@@ -555,7 +615,68 @@ export function ChatMode({
     void send(history);
   }, [editing, thinking, messages, send]);
 
-  const stop = () => abortRef.current?.abort();
+  // Agent runs are detached: the stop endpoint is what actually cancels the run;
+  // aborting the fetch just closes this view of it right away.
+  const stop = () => {
+    const id = runIdRef.current;
+    if (id) void fetch(`/api/runs/${encodeURIComponent(id)}/stop`, { method: "POST" }).catch(() => undefined);
+    abortRef.current?.abort();
+  };
+
+  // Re-attach on mount (per session): if a detached run for this session is still
+  // going (the page reloaded mid-run), rebuild the trailing assistant message from
+  // the persisted event log — idempotent by construction — and continue live.
+  const reattachTried = useRef(false);
+  useEffect(() => {
+    if (reattachTried.current) return;
+    reattachTried.current = true;
+    void (async () => {
+      let attached = false;
+      try {
+        const res = await fetch(`/api/runs?activeFor=${encodeURIComponent(runClientId)}`);
+        const body = (await res.json().catch(() => ({}))) as { run?: { id: string } | null };
+        const live = res.ok ? body.run : null;
+        if (!live || abortRef.current) return; // no live run, or the user already started a new send
+        attached = true;
+        const controller = new AbortController();
+        abortRef.current = controller;
+        runIdRef.current = live.id;
+        setThinking(true);
+        setReconnected(true);
+        setError(null);
+        // Drop the trailing in-progress assistant message (a reload leaves it half
+        // written) and rebuild it entirely from the replayed event log.
+        setMessages((list) => {
+          const trimmed = list.length > 0 && list[list.length - 1].role === "assistant" ? list.slice(0, -1) : list;
+          return [...trimmed, { role: "assistant", text: "" }];
+        });
+        const applier = agentEventApplier({
+          patchLast,
+          onApproval: addApproval,
+          onRunId: (id) => {
+            runIdRef.current = id;
+          },
+        });
+        const stream = await fetch(`/api/runs/${encodeURIComponent(live.id)}/stream?from=0`, { signal: controller.signal });
+        if (!stream.ok || !stream.body) throw new Error(`Could not re-attach to the running agent (${stream.status}).`);
+        await pumpNdjson(stream.body, applier.handle);
+        const agentError = applier.error();
+        if (agentError) setError(agentError);
+        patchLast((m) => ({ ...m, text: m.text || (m.tools?.length ? "" : agentError ? `Could not complete: ${agentError}` : "(empty reply)") }));
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") setError(err instanceof Error ? err.message : "Could not re-attach to the running agent.");
+      } finally {
+        if (attached) {
+          setThinking(false);
+          setReconnected(false);
+          setApprovals([]);
+          abortRef.current = null;
+          runIdRef.current = null;
+        }
+      }
+    })();
+  }, [runClientId, setMessages, patchLast, addApproval]);
+
   const empty = messages.length === 0 && !thinking;
   const canRegenerate = !thinking && messages.length > 1 && messages[messages.length - 1]?.role === "assistant" && messages[messages.length - 2]?.role === "user";
 
@@ -768,6 +889,7 @@ export function ChatMode({
             </div>
           </div>
         ))}
+        {reconnected ? <div className="font-mono text-xs text-ink-muted">Reconnected to the running agent</div> : null}
         {thinking ? <div className="font-mono text-xs text-ink-muted">Thinking…</div> : null}
         {error ? <p className="font-mono text-xs text-danger">{error}</p> : null}
       </div>
