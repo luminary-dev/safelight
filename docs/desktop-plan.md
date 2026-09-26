@@ -1,8 +1,9 @@
 # Safelight Desktop — Tauri 2 plan (BUILD-BRIEF §Q)
 
-**Status: plan only.** This machine has no Rust toolchain, so nothing here is
-scaffolded. A future session with `rustup` installed can execute this
-top-to-bottom. The Docker Compose path ([deploy.md](./deploy.md)) covers
+**Status: Workstream 1 core shipped** (2026-09-26, `desktop/` — attach-or-spawn
+supervisor, tar-shipped web build materialized into app data, clean shutdown,
+verified .app + hdiutil DMG; see `desktop/README.md`). Workstreams 2–5 below
+remain the roadmap. The Docker Compose path ([deploy.md](./deploy.md)) covers
 servers; this covers the download-and-double-click install.
 
 ## Goal

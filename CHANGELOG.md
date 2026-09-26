@@ -6,6 +6,12 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Desktop app (Workstream Q, executed): a Tauri 2 shell in `desktop/` — Safelight.app builds
+  and runs. It attaches to a healthy running Safelight server or extracts the bundled web
+  build into app data and spawns its own (own SQLite, own outputs, ports 3001→3210→3220),
+  uses any running ComfyUI/Ollama, and kills only what it spawned on quit. Verified live:
+  attach, isolated spawn, and clean shutdown. Unsigned for now; DMG via hdiutil. Node 22+
+  on the machine is still required (sidecar is the planned follow-up).
 - Quality gates measured (Workstream Y): lib/ unit coverage is enforced at ≥70% lines
   (measured 75.45%) and now gates every `pnpm verify` run, and a 16-test Playwright e2e
   suite covers all six modes, server-backed sessions, settings persistence, dialog

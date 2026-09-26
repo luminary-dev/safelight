@@ -23,3 +23,7 @@ web/tsconfig.tsbuildinfo
 # dependencies anywhere
 node_modules/
 web/test-results/
+desktop/node_modules/
+desktop/resources/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/schemas/

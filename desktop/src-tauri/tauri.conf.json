@@ -1,0 +1,33 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Safelight",
+  "version": "0.1.0",
+  "identifier": "com.luminary.safelight",
+  "build": {
+    "frontendDist": "../ui",
+    "devUrl": "http://127.0.0.1:3001"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../resources/web.tar": "web.tar",
+      "../resources/WEB_BUILD_ID": "WEB_BUILD_ID"
+    }
+  }
+}
