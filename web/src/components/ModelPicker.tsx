@@ -8,7 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-export type PickerProvider = "local" | "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together";
+export type PickerProvider = "local" | "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together" | "cerebras" | "gateway";
 
 export interface PickerOption {
   /** Unique key across all groups. */
@@ -33,9 +33,11 @@ export const PROVIDER_META: Record<PickerProvider, { label: string; short: strin
   deepseek: { label: "DeepSeek", short: "DS", group: "DeepSeek" },
   xai: { label: "xAI", short: "xAI", group: "xAI" },
   together: { label: "Together", short: "Tg", group: "Together" },
+  cerebras: { label: "Cerebras", short: "Cb", group: "Cerebras" },
+  gateway: { label: "AI Gateway", short: "GW", group: "AI Gateway" },
 };
 
-const GROUP_ORDER: PickerProvider[] = ["local", "ollama", "openai", "anthropic", "gemini", "openrouter", "groq", "mistral", "deepseek", "xai", "together"];
+const GROUP_ORDER: PickerProvider[] = ["local", "ollama", "openai", "anthropic", "gemini", "openrouter", "groq", "mistral", "deepseek", "xai", "together", "cerebras", "gateway"];
 
 /** Small square mark that gives each row a visual anchor without borrowing brand logos. */
 export function ProviderMark({ provider, className }: { provider: PickerProvider; className?: string }) {

@@ -1277,7 +1277,7 @@ function ThemeSwatch({ result }: { result: unknown }) {
     setBusy(true);
     try {
       const res = await fetch(`/api/themes/${encodeURIComponent(theme.name)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "apply" }) });
-      if (res.ok) applyTheme(theme.name, c as unknown as ThemeColors);
+      if (res.ok) applyTheme(theme.name, c as unknown as ThemeColors, theme.fonts);
     } finally {
       setBusy(false);
     }

@@ -30,7 +30,39 @@ export const APPLIED_PROPS = [
   "--primary-foreground",
   "--primary-hover",
   "--focus-ring",
+  "--font-display",
+  "--font-sans",
+  "--font-mono",
 ] as const;
+
+export interface ThemeFonts {
+  display?: string;
+  body?: string;
+  mono?: string;
+}
+
+// Stock stacks from globals.css; a theme family goes first so an installed font is used
+// and a missing one falls back gracefully. Fonts are never fetched from the network —
+// nothing leaves the machine for a theme.
+const SANS_FALLBACK = '"Outfit", "Outfit Fallback", system-ui, sans-serif';
+const MONO_FALLBACK = '"JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, Menlo, monospace';
+
+/** Pure mapping from theme fonts to font custom properties; empty when no fonts given. Exported for tests. */
+export function themeFontVars(fonts?: ThemeFonts): Record<string, string> {
+  if (!fonts) return {};
+  const stack = (family: string | undefined, fallback: string) => {
+    const f = family?.trim();
+    return f ? `"${f.replace(/"/g, "")}", ${fallback}` : undefined;
+  };
+  const out: Record<string, string> = {};
+  const display = stack(fonts.display, SANS_FALLBACK);
+  const body = stack(fonts.body, SANS_FALLBACK);
+  const mono = stack(fonts.mono, MONO_FALLBACK);
+  if (display) out["--font-display"] = display;
+  if (body) out["--font-sans"] = body;
+  if (mono) out["--font-mono"] = mono;
+  return out;
+}
 
 /** Pure mapping from the six theme colors to CSS custom property values. Exported for tests. */
 export function themeCssVars(c: ThemeColors): Record<string, string> {
@@ -79,11 +111,15 @@ export function getActiveThemeName(): string | null {
 }
 
 /** Sets the theme's vars inline on <html>. Overrides both light and dark until cleared. */
-export function applyTheme(name: string, colors: ThemeColors): void {
+export function applyTheme(name: string, colors: ThemeColors, fonts?: ThemeFonts): void {
   if (typeof document === "undefined") return;
   const style = document.documentElement.style;
-  const vars = themeCssVars(colors);
-  for (const prop of APPLIED_PROPS) style.setProperty(prop, vars[prop]);
+  const vars: Record<string, string | undefined> = { ...themeCssVars(colors), ...themeFontVars(fonts) };
+  for (const prop of APPLIED_PROPS) {
+    const value = vars[prop];
+    if (value) style.setProperty(prop, value);
+    else style.removeProperty(prop);
+  }
   activeName = name;
   notify();
 }

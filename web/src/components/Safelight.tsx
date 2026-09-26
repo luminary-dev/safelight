@@ -83,9 +83,9 @@ export function Safelight() {
     (async () => {
       const res = await fetch("/api/themes").catch(() => null);
       if (cancelled || !res?.ok) return;
-      const body = (await res.json().catch(() => null)) as { themes?: { name: string; data?: { colors?: ThemeColors } }[]; active?: string | null } | null;
+      const body = (await res.json().catch(() => null)) as { themes?: { name: string; data?: { colors?: ThemeColors; fonts?: import("@/lib/theme/apply").ThemeFonts } }[]; active?: string | null } | null;
       const active = body?.active ? body.themes?.find((t) => t.name === body.active) : null;
-      if (active?.data?.colors) applyTheme(active.name, active.data.colors);
+      if (active?.data?.colors) applyTheme(active.name, active.data.colors, active.data.fonts);
     })();
     return () => {
       cancelled = true;

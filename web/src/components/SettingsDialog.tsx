@@ -5,14 +5,14 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatNumber, formatTime } from "@/lib/i18n-format";
-import { applyTheme, clearTheme } from "@/lib/theme/apply";
+import { applyTheme, clearTheme, type ThemeFonts } from "@/lib/theme/apply";
 import type { ThemeColors } from "@/lib/theme/contrast";
 import { cn } from "@/lib/utils";
 import { useDialogFocus } from "./shell";
 
 interface ThemeRow {
   name: string;
-  data?: { colors?: ThemeColors; description?: string };
+  data?: { colors?: ThemeColors; description?: string; fonts?: ThemeFonts };
 }
 
 interface UsageSummary {
@@ -133,7 +133,7 @@ export function SettingsDialog({
   const applyRow = async (row: ThemeRow) => {
     if (!row.data?.colors) return;
     await fetch(`/api/themes/${encodeURIComponent(row.name)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "apply" }) }).catch(() => undefined);
-    applyTheme(row.name, row.data.colors);
+    applyTheme(row.name, row.data.colors, row.data.fonts);
     setActiveTheme(row.name);
   };
   const clearRow = async (name: string) => {

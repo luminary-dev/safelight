@@ -46,6 +46,8 @@ async function listFor(provider: ProviderId, key: string, baseUrl?: string) {
     case "deepseek":
     case "xai":
     case "together":
+    case "cerebras":
+    case "gateway":
       value = await listCompatModels(provider, key, baseUrl);
       break;
   }
@@ -100,6 +102,8 @@ export async function streamCloudChat(provider: ProviderId, model: string, turns
     case "deepseek":
     case "xai":
     case "together":
+    case "cerebras":
+    case "gateway":
       return streamCompatChat(provider, key, model, turns, signal, system, baseUrl);
   }
 }
@@ -120,6 +124,8 @@ export async function generateCloudImages(provider: ProviderId, model: string, r
     case "deepseek":
     case "xai":
     case "together":
+    case "cerebras":
+    case "gateway":
       throw new Error(`${PROVIDER_META[provider].label} models do not generate images. Use them in Chat.`);
   }
 }

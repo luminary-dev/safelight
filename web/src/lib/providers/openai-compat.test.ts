@@ -12,6 +12,8 @@ describe("listCompatModels", () => {
     ["deepseek", "https://api.deepseek.com/v1/models"],
     ["xai", "https://api.x.ai/v1/models"],
     ["together", "https://api.together.xyz/v1/models"],
+    ["cerebras", "https://api.cerebras.ai/v1/models"],
+    ["gateway", "https://ai-gateway.vercel.sh/v1/models"],
   ])("lists %s models with GET {base}/models and a Bearer header", async (provider, expectedUrl) => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -83,6 +85,8 @@ describe("listCompatModels", () => {
     ["deepseek", "DeepSeek answered 403."],
     ["xai", "xAI answered 500."],
     ["together", "Together answered 429."],
+    ["cerebras", "Cerebras answered 401."],
+    ["gateway", "AI Gateway answered 503."],
   ])("throws a readable error with the %s label on a bad status", async (provider, message) => {
     const status = Number(message.match(/(\d+)\.$/)![1]);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("nope", { status })));

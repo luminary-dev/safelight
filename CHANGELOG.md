@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Providers, round three (Workstream E): Cerebras and Vercel AI Gateway join through the
+  generic OpenAI-compatible adapter — eleven providers total. And applied themes now carry
+  their fonts: the theme's families go first in the stack with the stock fallbacks, so an
+  installed font is used and a missing one degrades silently — nothing is ever fetched from
+  a font CDN.
 - Internationalisation (Workstream U): every UI string in the sidebar, dialogs, library, and
   blueprint surfaces now lives in a next-intl message catalog (English, 344 messages) with
   ICU plurals; dates, numbers, and file sizes format through Intl; the layout sets its

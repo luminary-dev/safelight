@@ -5,8 +5,8 @@ import path from "node:path";
 import { dataDir } from "@/lib/db";
 import { decryptJson, encryptJson } from "@/lib/secrets/vault";
 
-export type ProviderId = "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together";
-export const PROVIDERS: ProviderId[] = ["openai", "anthropic", "gemini", "openrouter", "groq", "mistral", "deepseek", "xai", "together"];
+export type ProviderId = "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together" | "cerebras" | "gateway";
+export const PROVIDERS: ProviderId[] = ["openai", "anthropic", "gemini", "openrouter", "groq", "mistral", "deepseek", "xai", "together", "cerebras", "gateway"];
 
 export const PROVIDER_META: Record<ProviderId, { label: string; envVar: string; placeholder: string; chat: boolean; images: boolean; defaultBaseUrl: string }> = {
   openai: { label: "OpenAI", envVar: "OPENAI_API_KEY", placeholder: "sk-…", chat: true, images: true, defaultBaseUrl: "https://api.openai.com/v1" },
@@ -18,6 +18,8 @@ export const PROVIDER_META: Record<ProviderId, { label: string; envVar: string; 
   deepseek: { label: "DeepSeek", envVar: "DEEPSEEK_API_KEY", placeholder: "sk-…", chat: true, images: false, defaultBaseUrl: "https://api.deepseek.com/v1" },
   xai: { label: "xAI", envVar: "XAI_API_KEY", placeholder: "xai-…", chat: true, images: false, defaultBaseUrl: "https://api.x.ai/v1" },
   together: { label: "Together", envVar: "TOGETHER_API_KEY", placeholder: "…", chat: true, images: false, defaultBaseUrl: "https://api.together.xyz/v1" },
+  cerebras: { label: "Cerebras", envVar: "CEREBRAS_API_KEY", placeholder: "csk-…", chat: true, images: false, defaultBaseUrl: "https://api.cerebras.ai/v1" },
+  gateway: { label: "AI Gateway", envVar: "AI_GATEWAY_API_KEY", placeholder: "vck_…", chat: true, images: false, defaultBaseUrl: "https://ai-gateway.vercel.sh/v1" },
 };
 
 function encFile(): string {

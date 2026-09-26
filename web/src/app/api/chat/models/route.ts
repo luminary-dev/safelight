@@ -3,7 +3,7 @@ import { listOllamaModels } from "@/lib/ollama/client";
 import { cloudCatalog } from "@/lib/providers";
 
 export interface ChatModelEntry {
-  provider: "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together";
+  provider: "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together" | "cerebras" | "gateway";
   id: string;
   label: string;
   tags: string[];
