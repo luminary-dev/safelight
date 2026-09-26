@@ -6,6 +6,51 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Tier 0 test harness (TEST-BRIEF §5): Vitest split into unit/db/api/agent/subsystems/
+  component projects; in-process fakes for ComfyUI (HTTP + RFC 6455 progress socket,
+  restartable with counter reset), Ollama (NDJSON incl. mid-stream error and truncation), a
+  search + page server, HF/Civitai search and download (checksum, truncation, 416), and MCP
+  (stdio child + HTTP: invalid schema, dies mid-call, destructive-without-hint); MSW provider
+  handlers with recorded wire fixtures; sandboxed tmpdir/DB fixtures with a stray-write
+  guard; typed domain factories; determinism helpers; five custom matchers — 110 hermetic
+  self-tests in under three seconds.
+
+### Added
+- TEST-BRIEF phases 3–6 in one wave: every previously untested API route under contract
+  (20 suites, eight route bugs fixed — hostile-JSON 500s become 400s, and `/api/code/browse`
+  no longer follows a symlink out of home); the near-zero core modules covered (agent studio
+  tools 3 % → 100 %, Ollama client, all provider adapters plus a cross-provider agent-event
+  parity suite, the design/code toolsets with a 40-case path-escape suite, property-based
+  request sanitizing, graph structural invariants); the data layer pinned (golden schema,
+  importer atomicity, backup retention, hostile imports) and every new subsystem tested with
+  an invoice-reconciliation fixture and a bidirectional i18n catalog check; 21 jsdom
+  component suites behind a strict no-network stub. Suite: 577 → **1412 unit tests** plus 16
+  e2e; coverage over the full surface 38 % → **77.7 % lines**, floors ratcheted to 75/72/62/63.
+
+### Fixed
+- Repository is public (source-available under BSL 1.1) with real branch protection:
+  pull requests and green `verify`/`e2e`/`semgrep` checks required with strict
+  up-to-date-before-merge, linear history, no force-pushes or deletions on `main`,
+  immutable `v*` tags, merged branches auto-deleted, auto-merge on, native CodeQL code
+  scanning and secret scanning with push protection enabled. The private-repo workarounds
+  (local pre-push hook, in-repo ruleset files, upload-less CodeQL) are removed.
+- Vault hardening (found by the new Semgrep gate): the GCM authentication-tag length is now
+  pinned to 16 bytes — Node otherwise accepts truncated tags, weakening forgery resistance.
+- Deleting a render from the gallery now removes its metadata sidecar too (orphaned
+  `.json` files no longer accumulate beside deleted images).
+- Privacy: "Local only" now also gates the cloud provider catalog — with the switch on,
+  model listing no longer contacts configured providers (the one outbound feature without a
+  guard, exposed by the new absolute no-outbound test). Live render progress now names five
+  more graph stages instead of a generic "Preparing"; the Library compare button no longer
+  renders a raw i18n key; the main model picker has an accessible name.
+- Security (TEST-BRIEF phase 2): a symlink planted inside `outputs/` could read files
+  anywhere on disk through `/api/view` and delete files anywhere through the gallery DELETE —
+  both now realpath-confined with proving tests; IPv6 `[::1]` hosts pass the API host
+  allowlist as intended; null-byte file references return 400 instead of 500. The middleware
+  origin/host control, approvals gate, rate limiter, vault keychain flow, and every
+  path-taking image surface gained 108 hermetic tests (577 → 685).
+
+### Added
 - Desktop app (Workstream Q, executed): a Tauri 2 shell in `desktop/` — Safelight.app builds
   and runs. It attaches to a healthy running Safelight server or extracts the bundled web
   build into app data and spawns its own (own SQLite, own outputs, ports 3001→3210→3220),

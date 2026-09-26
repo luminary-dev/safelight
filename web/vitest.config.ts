@@ -1,5 +1,24 @@
 import path from "node:path";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
+
+/**
+ * Vitest projects per TEST-BRIEF §4: unit, db, api, agent, subsystems (node)
+ * and component (jsdom), each runnable alone (`vitest run --project api`).
+ * The includes partition the old single glob (src/**\/*.test.ts) exactly —
+ * every existing test keeps running, under the project that owns its tier.
+ */
+
+/** Directories owned by a non-unit project; the unit catch-all excludes them. */
+const DB_TESTS = "src/lib/db/**/*.test.ts";
+const AGENT_TESTS = "src/lib/agent/**/*.test.ts";
+const API_TESTS = "src/app/**/*.test.ts";
+const SUBSYSTEM_TESTS = [
+  "src/lib/blueprints/**/*.test.ts",
+  "src/lib/library/**/*.test.ts",
+  "src/lib/models/**/*.test.ts",
+  "src/lib/usage/**/*.test.ts",
+  "src/lib/theme/**/*.test.ts",
+];
 
 export default defineConfig({
   resolve: {
@@ -10,8 +29,31 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts"],
     environment: "node",
+    setupFiles: ["src/test/setup.matchers.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["src/**/*.test.ts"],
+          exclude: [...configDefaults.exclude, DB_TESTS, AGENT_TESTS, API_TESTS, ...SUBSYSTEM_TESTS],
+        },
+      },
+      { extends: true, test: { name: "db", include: [DB_TESTS] } },
+      { extends: true, test: { name: "api", include: [API_TESTS] } },
+      { extends: true, test: { name: "agent", include: [AGENT_TESTS] } },
+      { extends: true, test: { name: "subsystems", include: SUBSYSTEM_TESTS } },
+      {
+        extends: true,
+        test: {
+          name: "component",
+          environment: "jsdom",
+          include: ["src/**/*.test.tsx"],
+          setupFiles: ["src/test/setup.matchers.ts", "src/test/setup.component.ts"],
+        },
+      },
+    ],
     coverage: {
       provider: "v8",
       // The FULL shipped surface — routes, components, middleware included. The old
@@ -33,13 +75,13 @@ export default defineConfig({
       // Thresholds are set from the measured baseline over the widened denominator
       // (floor(measured) - 2) and ratchet up, never down. TEST-BRIEF §20 has the
       // per-area targets this is climbing toward.
-      // Measured 2026-09-26 over the full surface: lines 38.08 %, statements 36.71 %,
-      // functions 26.77 %, branches 29.42 % (was 75.45 % lines over lib/ alone).
+      // Measured 2026-09-26 (post TEST-BRIEF phases 0-6) over the full surface:
+      // lines 77.74 %, statements 74.51 %, functions 64.87 %, branches 65.11 %.
       thresholds: {
-        lines: 36,
-        statements: 34,
-        functions: 24,
-        branches: 27,
+        lines: 75,
+        statements: 72,
+        functions: 62,
+        branches: 63,
       },
     },
   },

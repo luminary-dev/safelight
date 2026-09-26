@@ -417,7 +417,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
           </span>
           <span className="flex items-center gap-1.5">
             <button type="button" disabled={selected.length !== 2 || !comparePair} onClick={() => setComparing(true)} className="btn-quiet inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] disabled:opacity-40">
-              <Columns className="size-3.5" /> {t("compare")}
+              <Columns className="size-3.5" /> {t("compareAction")}
             </button>
             <button type="button" disabled={busy} onClick={() => setExportOpen(true)} className="btn-quiet inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] disabled:opacity-40">
               <FolderOutput className="size-3.5" /> {t("export")}

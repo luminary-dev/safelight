@@ -8,6 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
  * data/ and outputs/ folders — the launcher owns that isolation.
  */
 export default defineConfig({
+  globalSetup: "./e2e/global-setup.mjs",
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

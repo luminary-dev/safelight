@@ -1,0 +1,12 @@
+[
+  {
+    "candidates": [{ "content": { "parts": [{ "text": "Hello" }], "role": "model" }, "index": 0 }],
+    "usageMetadata": { "promptTokenCount": 8, "candidatesTokenCount": 1, "totalTokenCount": 9 },
+    "modelVersion": "gemini-2.5-pro"
+  },
+  {
+    "candidates": [{ "content": { "parts": [{ "text": " world" }], "role": "model" }, "finishReason": "STOP", "index": 0 }],
+    "usageMetadata": { "promptTokenCount": 8, "candidatesTokenCount": 2, "totalTokenCount": 10 },
+    "modelVersion": "gemini-2.5-pro"
+  }
+]

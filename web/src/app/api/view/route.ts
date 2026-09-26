@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 import { fetchView } from "@/lib/comfy/client";
@@ -31,10 +31,17 @@ export async function GET(request: NextRequest) {
   // File names repeat after deletes (ComfyUI restarts its counter), so revalidate instead of caching forever.
   const cache = "private, max-age=0, must-revalidate";
 
-  const local = safeJoin(type === "output" ? OUTPUT_DIR : INPUT_DIR, subfolder, filename);
+  const root = type === "output" ? OUTPUT_DIR : INPUT_DIR;
+  const local = safeJoin(root, subfolder, filename);
   if (local) {
     try {
       const info = await stat(local);
+      // safeJoin confines lexically; a symlink planted inside the folder could still point the
+      // read somewhere else (lib/library/confine.ts guards the same way). Outside → refuse.
+      const [rootReal, fileReal] = await Promise.all([realpath(root), realpath(local)]);
+      if (fileReal !== rootReal && !fileReal.startsWith(rootReal + path.sep)) {
+        return new Response("Bad path", { status: 400 });
+      }
       const etag = `"${info.size.toString(16)}-${Math.floor(info.mtimeMs).toString(16)}"`;
       if (request.headers.get("if-none-match") === etag) {
         return new Response(null, { status: 304, headers: { etag, "cache-control": cache } });

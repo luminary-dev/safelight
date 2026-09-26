@@ -106,8 +106,12 @@ export async function decryptJson<T>(raw: string): Promise<T> {
   const envelope = JSON.parse(raw) as Envelope;
   if (envelope.v !== 1 || envelope.alg !== "aes-256-gcm") throw new Error("Unknown vault format.");
   const key = await vaultKey();
-  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(envelope.iv, "base64"));
-  decipher.setAuthTag(Buffer.from(envelope.tag, "base64"));
+  const tag = Buffer.from(envelope.tag, "base64");
+  // Pin the tag length: Node otherwise accepts truncated GCM tags, which weakens
+  // forgery resistance to 2^(8*len) (semgrep gcm-no-tag-length).
+  if (tag.length !== 16) throw new Error("Unknown vault format.");
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(envelope.iv, "base64"), { authTagLength: 16 });
+  decipher.setAuthTag(tag);
   const plain = Buffer.concat([decipher.update(Buffer.from(envelope.data, "base64")), decipher.final()]);
   return JSON.parse(plain.toString("utf8")) as T;
 }

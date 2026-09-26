@@ -41,3 +41,26 @@ describe("dhash", () => {
     expect(dhashFromRaw(px)).toBe("ffffffffffffffff");
   });
 });
+
+describe("dhash edge cases", () => {
+  it("a solid-color image hashes to all zero bits (no neighbour is ever brighter)", async () => {
+    const flat = await sharp(Buffer.alloc(48 * 48 * 3, 128), { raw: { width: 48, height: 48, channels: 3 } }).png().toBuffer();
+    expect(await dhash(flat)).toBe("0000000000000000");
+  });
+
+  it("hashes a 1x1 image without falling over (fill-resize to the 9x8 strip)", async () => {
+    const px = await sharp(Buffer.from([200, 60, 30]), { raw: { width: 1, height: 1, channels: 3 } }).png().toBuffer();
+    expect(await dhash(px)).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("rejects corrupt bytes instead of answering a junk hash", async () => {
+    await expect(dhash(Buffer.from("not an image"))).rejects.toThrow();
+  });
+
+  it("false-positive resistance: distinct noise fields stay far apart", async () => {
+    const a = await dhash(await stripePng(1, 0.3));
+    const rotated = await dhash(await sharp(await stripePng(1, 0.3)).rotate(90).png().toBuffer());
+    // A 90° rotation is a different image to a dHash — it must NOT group.
+    expect(hamming(a, rotated)).toBeGreaterThan(6);
+  });
+});

@@ -1,0 +1,16 @@
+{
+  "$comment": "Hand-written invoice lines shaped like real provider billing exports (quality gate 10). invoicedUsd is what the provider's invoice says for the line — rounded to cents and drifting a little from list price the way real invoices do (partial-period rounding, per-request minimums). The reconciliation test requires our computed cost to land within 5% of every line and of the grand total.",
+  "lines": [
+    { "provider": "openai", "model": "gpt-5-2025-08-07", "inputTokens": 12345678, "outputTokens": 2345678, "invoicedUsd": 38.9, "note": "dated snapshot id must longest-prefix to gpt-5" },
+    { "provider": "openai", "model": "gpt-4o-mini", "inputTokens": 220000000, "outputTokens": 31000000, "invoicedUsd": 51.6, "note": "high-volume cheap model" },
+    { "provider": "anthropic", "model": "claude-sonnet-4-5-20250929", "inputTokens": 8000000, "outputTokens": 1200000, "invoicedUsd": 41.16, "note": "invoice ~2% under list (batch discount rounding)" },
+    { "provider": "anthropic", "model": "claude-haiku-4-5", "inputTokens": 30000000, "outputTokens": 5000000, "invoicedUsd": 56.1, "note": "invoice ~2% over list (request minimums)" },
+    { "provider": "gemini", "model": "gemini-2.5-flash", "inputTokens": 50000000, "outputTokens": 4000000, "invoicedUsd": 24.5, "note": "dotted id must normalize to gemini-2-5-flash" },
+    { "provider": "groq", "model": "llama-3.3-70b-versatile", "inputTokens": 100000000, "outputTokens": 20000000, "invoicedUsd": 76.99, "note": "~2.9% over list — the widest drift in the fixture" },
+    { "provider": "deepseek", "model": "deepseek-chat", "inputTokens": 200000000, "outputTokens": 50000000, "invoicedUsd": 74.9, "note": "~2.7% under list (cache-hit share)" },
+    { "provider": "mistral", "model": "mistral-small-latest", "inputTokens": 40000000, "outputTokens": 10000000, "invoicedUsd": 7.2, "note": "-latest suffix rides on the prefix match" },
+    { "provider": "xai", "model": "grok-4", "inputTokens": 2000000, "outputTokens": 1000000, "invoicedUsd": 21.4, "note": "small line, ~1.9% over list" },
+    { "provider": "openai", "model": "gpt-image-1", "images": 250, "invoicedUsd": 10.5, "note": "image line billed per image" },
+    { "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5", "inputTokens": 500000, "outputTokens": 120000, "providerCost": 3.21, "invoicedUsd": 3.21, "note": "OpenRouter reports usage.cost — trusted verbatim, so the line reconciles exactly" }
+  ]
+}

@@ -12,6 +12,18 @@ updates:
     directory: /desktop/src-tauri
     schedule:
       interval: weekly
+    # The gtk-rs/glib stack is pinned by tauri; independent bumps don't resolve.
+    ignore:
+      - dependency-name: "glib*"
+      - dependency-name: "gio*"
+      - dependency-name: "gobject*"
+      - dependency-name: "gdk*"
+      - dependency-name: "gtk*"
+      - dependency-name: "cairo*"
+      - dependency-name: "pango*"
+      - dependency-name: "soup*"
+      - dependency-name: "javascriptcore*"
+      - dependency-name: "webkit2gtk*
   - package-ecosystem: github-actions
     directory: /
     schedule:

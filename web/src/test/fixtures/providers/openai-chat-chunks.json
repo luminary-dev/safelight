@@ -1,0 +1,34 @@
+[
+  {
+    "id": "chatcmpl-fake001",
+    "object": "chat.completion.chunk",
+    "created": 1758868800,
+    "model": "gpt-4o",
+    "system_fingerprint": "fp_fake",
+    "choices": [{ "index": 0, "delta": { "role": "assistant", "content": "" }, "logprobs": null, "finish_reason": null }]
+  },
+  {
+    "id": "chatcmpl-fake001",
+    "object": "chat.completion.chunk",
+    "created": 1758868800,
+    "model": "gpt-4o",
+    "system_fingerprint": "fp_fake",
+    "choices": [{ "index": 0, "delta": { "content": "Hello" }, "logprobs": null, "finish_reason": null }]
+  },
+  {
+    "id": "chatcmpl-fake001",
+    "object": "chat.completion.chunk",
+    "created": 1758868800,
+    "model": "gpt-4o",
+    "system_fingerprint": "fp_fake",
+    "choices": [{ "index": 0, "delta": { "content": " world" }, "logprobs": null, "finish_reason": null }]
+  },
+  {
+    "id": "chatcmpl-fake001",
+    "object": "chat.completion.chunk",
+    "created": 1758868800,
+    "model": "gpt-4o",
+    "system_fingerprint": "fp_fake",
+    "choices": [{ "index": 0, "delta": {}, "logprobs": null, "finish_reason": "stop" }]
+  }
+]

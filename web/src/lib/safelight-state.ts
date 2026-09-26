@@ -238,7 +238,16 @@ export function stageLabel(classType: string | undefined): string {
       return "Applying LoRA";
     case "CLIPTextEncode":
     case "TextEncodeQwenImage21":
+    // ConditioningZeroOut derives the empty negative conditioning from the prompt encode.
+    case "ConditioningZeroOut":
       return "Encoding prompt";
+    // Canvas/latent nodes buildGraph emits; kept honest by generate-core.test.ts's stageLabel-sync test.
+    case "EmptyLatentImage":
+    case "EmptySD3LatentImage":
+    case "RepeatLatentBatch":
+      return "Preparing canvas";
+    case "ModelSamplingAuraFlow":
+      return "Configuring sampler";
     case "LoadImage":
     case "ImageScale":
     case "ImageScaleToMaxDimension":

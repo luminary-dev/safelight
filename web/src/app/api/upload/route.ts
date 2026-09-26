@@ -6,7 +6,13 @@ import { INPUT_DIR } from "@/lib/safelight-files";
 
 /** Uploads through ComfyUI when it is up (so LoadImage sees the file), else writes straight into the shared input folder. */
 export async function POST(request: NextRequest) {
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    // A non-multipart body must be a 400, not an unhandled 500.
+    return Response.json({ error: "Send the images as multipart form data." }, { status: 400 });
+  }
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
   if (files.length === 0) return Response.json({ error: "No files received." }, { status: 400 });
   try {
