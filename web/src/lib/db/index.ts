@@ -145,6 +145,21 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       CREATE INDEX project_notes_project ON project_notes (project_id, ts DESC);
     `,
   },
+  {
+    // Saved prompts for the prompt library: reusable prompt text with optional wildcards.
+    id: 7,
+    sql: `
+      CREATE TABLE prompts (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        text TEXT NOT NULL,
+        negative TEXT,
+        tags TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 let db: Database.Database | null = null;
