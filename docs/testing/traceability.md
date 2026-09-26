@@ -1,6 +1,6 @@
 # Traceability — features → tests
 
-Per TEST-BRIEF §21. A feature with no row does not ship. Workstreams per BUILD-BRIEF.md.
+A feature with no row does not ship. Workstream letters refer to the internal build brief (retired to git history once executed).
 
 | Feature / workstream | Covered by |
 |---|---|

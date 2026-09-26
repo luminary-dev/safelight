@@ -1,6 +1,6 @@
 # Testing Safelight
 
-The suite follows [TEST-BRIEF.md](../../TEST-BRIEF.md). Everything in the default run is
+Everything in the default run is
 hermetic: no network, no keys, no ComfyUI/Ollama, no leftover state, and never the user's
 `data/`, `inputs/`, or `outputs/`.
 
@@ -28,7 +28,7 @@ downloads), `fakes/mcp-server` (stdio + HTTP misbehavers). Fixtures: `fixtures/t
 `matchers.ts` (toBeWithinDirectory, toMatchGraphShape, toHaveStatusAndJson,
 toEmitAgentEvents, toHaveContrastRatio).
 
-## Rules (TEST-BRIEF §0, enforced by review)
+## Rules (enforced by review)
 
 Hermetic or it doesn't merge · deterministic or deleted · behavior, not implementation ·
 one reason to fail · every bug fix ships its failing test · no markup snapshots · never
@@ -45,5 +45,6 @@ Pinned by FINDING tests rather than hidden: no download resume (a test fails the
 lands), truncated-DB raw error, newer-version DBs opened silently, code-session roots
 (absolute machine paths) appear in exports, MCP tool schemas unvalidated at connect,
 single-layer (write-time) log redaction, Gemini plain-chat streams take no AbortSignal.
-Tier 8 (visual), Tier 9 (axe audit), Tier 11 (perf/soak), Tier 12 (chaos), Tier 13
-(packaging tests) are open — see the brief.
+Still open: visual regression, an axe accessibility audit, perf/load/soak, chaos, and
+packaging tests. (Test-file comments citing "TEST-BRIEF §…" refer to the internal QA brief
+this suite was built from — retired to git history once executed.)

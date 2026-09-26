@@ -1,4 +1,4 @@
-# Safelight Desktop — Tauri 2 plan (BUILD-BRIEF §Q)
+# Safelight Desktop — Tauri 2 plan 
 
 **Status: Workstream 1 core shipped** (2026-09-26, `desktop/` — attach-or-spawn
 supervisor, tar-shipped web build materialized into app data, clean shutdown,
@@ -117,7 +117,7 @@ installer we sign and distribute contains zero GPL code.
   `.deb` (signed repo optional later).
 - CI: tag → matrix build (macos-14 arm64 + x86_64, windows, ubuntu) →
   `tauri-action` → GitHub Release with notes from `CHANGELOG.md` → update
-  feed. Release automation per brief §Q.
+  feed. Release automation.
 
 ## Workstream 5 — First-run wizard
 
