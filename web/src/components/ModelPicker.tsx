@@ -108,6 +108,9 @@ export function ModelPicker({
         <Button
           variant="outline"
           role="combobox"
+          // A combobox never takes its name from its contents, so without this the
+          // trigger is nameless to assistive tech (caught by Composer.test.tsx).
+          aria-label={placeholder}
           aria-expanded={open}
           className={cn(
             "h-auto justify-start gap-3 rounded-[14px] border-line bg-paper-2 px-2.5 py-2 text-left shadow-[var(--shadow-hairline)] hover:border-faint hover:bg-paper-2 aria-expanded:border-faint aria-expanded:bg-paper-2",
