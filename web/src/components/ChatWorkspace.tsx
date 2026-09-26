@@ -5,7 +5,6 @@ import type { JobOutput } from "@/lib/comfy/types";
 import type { ChatAttachment, ChatMessage, ChatSession } from "@/lib/session-types";
 import { ChatMode, chatModelKey, type ChatModelInfo, type PromptHandoff } from "./ChatMode";
 import { ModelPicker } from "./ModelPicker";
-import { ShaderBackground } from "./ShaderBackground";
 
 /** Chat as the main panel: model pill and New chat up top, the conversation below with its centered composer. */
 export function ChatWorkspace({
@@ -45,11 +44,8 @@ export function ChatWorkspace({
 }) {
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* The living background: slow plasma lines in the accent color, fading out toward the composer. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <ShaderBackground />
-        <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-paper-2 to-transparent" />
-      </div>
+      {/* The soft lime glow behind an empty conversation. */}
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 bg-[radial-gradient(closest-side,var(--terracotta-wash),transparent_70%)]" />
       <div className="relative flex items-center justify-between gap-3 px-6 py-4">
         <ModelPicker
           options={models.map((m) => ({ key: chatModelKey(m), label: m.label, tags: m.tags, provider: m.provider }))}

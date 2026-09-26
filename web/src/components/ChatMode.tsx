@@ -89,6 +89,9 @@ export function ChatMode({
   preferredModel,
   clientId,
   showControls = true,
+  agentEndpoint = "/api/agent",
+  agentBody,
+  agentLocked = false,
   onUpload,
 }: {
   models: ChatModelInfo[];
@@ -111,6 +114,12 @@ export function ChatMode({
   clientId: string;
   /** When false, the model picker and agent toggle are rendered by the parent instead. */
   showControls?: boolean;
+  /** Where agent runs are posted; the code workspace points this at /api/code. */
+  agentEndpoint?: string;
+  /** Extra fields merged into the agent request body, e.g. the code workspace root. */
+  agentBody?: Record<string, unknown>;
+  /** Hides the agent toggle chip for workspaces where the agent is always on. */
+  agentLocked?: boolean;
   /** Uploads files into the studio input folder and returns references usable by both chat and Image mode. */
   onUpload: (files: File[]) => Promise<ChatAttachment[]>;
 }) {
@@ -187,10 +196,10 @@ export function ChatMode({
         messages: history.map((m) => ({ role: m.role, content: m.text, images: m.images?.map((img) => ({ ref: img.ref })) })),
       };
       if (agent) {
-        const res = await fetch("/api/agent", {
+        const res = await fetch(agentEndpoint, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...payload, preferredModel, clientId }),
+          body: JSON.stringify({ ...payload, preferredModel, clientId, ...agentBody }),
           signal: controller.signal,
         });
         if (!res.ok || !res.body) {
@@ -266,7 +275,7 @@ export function ChatMode({
       setThinking(false);
       abortRef.current = null;
     }
-  }, [input, pending, thinking, selected, messages, setMessages, agent, preferredModel, clientId]);
+  }, [input, pending, thinking, selected, messages, setMessages, agent, preferredModel, clientId, agentEndpoint, agentBody]);
 
   const stop = () => abortRef.current?.abort();
   const empty = messages.length === 0 && !thinking;
@@ -434,6 +443,7 @@ export function ChatMode({
             className="max-h-40 flex-1 resize-none border-0 bg-transparent py-2 font-sans text-[15px] leading-normal text-ink"
             style={{ fieldSizing: "content" } as React.CSSProperties}
           />
+          {agentLocked ? null : (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -451,6 +461,7 @@ export function ChatMode({
               Lets the model use studio tools: generate and edit images, list models, browse recent renders. Needs a tool-capable model.
             </TooltipContent>
           </Tooltip>
+          )}
           <span className="mb-2.5 hidden font-mono text-[11px] text-placeholder sm:inline">⏎ send</span>
           {thinking ? (
             <button type="button" onClick={stop} className="btn-ink mb-1 h-[38px] rounded-[12px] px-4">

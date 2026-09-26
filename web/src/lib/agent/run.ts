@@ -34,12 +34,20 @@ function argsOf(raw: unknown): Record<string, unknown> {
   return {};
 }
 
+function defsOf(ctx: ToolContext) {
+  return ctx.toolset?.defs ?? TOOLS;
+}
+
+function systemOf(ctx: ToolContext) {
+  return ctx.systemPrompt ?? AGENT_SYSTEM_PROMPT;
+}
+
 async function runTool(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<{ id: string; ok: boolean; payload: string }> {
   const id = crypto.randomUUID();
   ctx.emit({ type: "tool", id, name, args, state: "running" });
   try {
-    const { result, images } = await executeTool(name, args, ctx, id);
-    ctx.emit({ type: "tool", id, name, args, state: "done", result, images });
+    const { result, images, note } = await (ctx.toolset?.execute ?? executeTool)(name, args, ctx, id);
+    ctx.emit({ type: "tool", id, name, args, state: "done", result, images, note });
     return { id, ok: true, payload: JSON.stringify(result) };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Tool failed.";
@@ -53,8 +61,8 @@ const runOpenAI: Runner = async (turns, model, ctx) => {
   const key = await getKey("openai");
   if (!key) throw new Error("No OpenAI API key configured.");
   const client = new OpenAI({ apiKey: key });
-  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "system", content: AGENT_SYSTEM_PROMPT }, ...toOpenAIMessages(turns)];
-  const tools: OpenAI.Chat.ChatCompletionTool[] = TOOLS.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "system", content: systemOf(ctx) }, ...toOpenAIMessages(turns)];
+  const tools: OpenAI.Chat.ChatCompletionTool[] = defsOf(ctx).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const res = await client.chat.completions.create({ model, messages, tools, tool_choice: "auto" }, { signal: ctx.signal });
     const msg = res.choices[0]?.message;
@@ -77,9 +85,9 @@ const runAnthropic: Runner = async (turns, model, ctx) => {
   if (!key) throw new Error("No Anthropic API key configured.");
   const client = new Anthropic({ apiKey: key });
   const messages: Anthropic.MessageParam[] = toAnthropicMessages(turns);
-  const tools: Anthropic.Tool[] = TOOLS.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters as Anthropic.Tool.InputSchema }));
+  const tools: Anthropic.Tool[] = defsOf(ctx).map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters as Anthropic.Tool.InputSchema }));
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    const res = await client.messages.create({ model, max_tokens: 4000, system: AGENT_SYSTEM_PROMPT, messages, tools }, { signal: ctx.signal });
+    const res = await client.messages.create({ model, max_tokens: 4000, system: systemOf(ctx), messages, tools }, { signal: ctx.signal });
     const text = res.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
@@ -107,12 +115,12 @@ const runGemini: Runner = async (turns, model, ctx) => {
   if (!key) throw new Error("No Gemini API key configured.");
   const ai = new GoogleGenAI({ apiKey: key });
   const contents: Content[] = toContents(turns);
-  const declarations: FunctionDeclaration[] = TOOLS.map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.parameters }));
+  const declarations: FunctionDeclaration[] = defsOf(ctx).map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.parameters }));
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const res = await ai.models.generateContent({
       model,
       contents,
-      config: { systemInstruction: AGENT_SYSTEM_PROMPT, tools: [{ functionDeclarations: declarations }], abortSignal: ctx.signal },
+      config: { systemInstruction: systemOf(ctx), tools: [{ functionDeclarations: declarations }], abortSignal: ctx.signal },
     });
     const parts: Part[] = res.candidates?.[0]?.content?.parts ?? [];
     const text = parts
@@ -141,10 +149,10 @@ interface OllamaChatResponse {
 
 const runOllama: Runner = async (turns, model, ctx) => {
   const messages: { role: string; content: string; images?: string[]; tool_calls?: unknown }[] = [
-    { role: "system", content: AGENT_SYSTEM_PROMPT },
+    { role: "system", content: systemOf(ctx) },
     ...turns.map((t) => ({ role: t.role, content: t.content, images: t.images?.map((i) => i.data) })),
   ];
-  const tools = TOOLS.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  const tools = defsOf(ctx).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: "POST",

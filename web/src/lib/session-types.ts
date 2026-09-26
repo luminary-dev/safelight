@@ -1,7 +1,7 @@
 import type { JobOutput } from "@/lib/comfy/types";
 import type { Job } from "@/lib/studio-state";
 
-export type SessionKind = "chat" | "image";
+export type SessionKind = "chat" | "image" | "code";
 
 export interface ToolCall {
   id: string;
@@ -64,7 +64,15 @@ export interface ImageSession extends SessionBase {
   jobs: Job[];
 }
 
-export type Session = ChatSession | ImageSession;
+export interface CodeSession extends SessionBase {
+  kind: "code";
+  model: string;
+  messages: ChatMessage[];
+  /** Absolute folder on this machine the agent may read and edit. */
+  root: string;
+}
+
+export type Session = ChatSession | ImageSession | CodeSession;
 
 export function autoTitle(text: string, fallback: string): string {
   const t = text.replace(/\s+/g, " ").trim();
@@ -73,8 +81,10 @@ export function autoTitle(text: string, fallback: string): string {
 }
 
 export function newSession(kind: SessionKind): Session {
-  const base = { id: crypto.randomUUID(), title: kind === "chat" ? "New chat" : "New image session", titled: false, createdAt: Date.now(), updatedAt: Date.now() };
-  return kind === "chat" ? { ...base, kind, model: "", messages: [] } : { ...base, kind, draft: "", currentJobId: null, jobs: [] };
+  const base = { id: crypto.randomUUID(), title: kind === "chat" ? "New chat" : kind === "code" ? "New coding session" : "New image session", titled: false, createdAt: Date.now(), updatedAt: Date.now() };
+  if (kind === "chat") return { ...base, kind, model: "", messages: [] };
+  if (kind === "code") return { ...base, kind, model: "", messages: [], root: "" };
+  return { ...base, kind: "image", draft: "", currentJobId: null, jobs: [] };
 }
 
 export function newProject(title: string): Project {

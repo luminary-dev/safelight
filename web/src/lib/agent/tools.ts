@@ -20,6 +20,13 @@ export interface ToolDef {
 
 export interface ToolContext {
   clientId: string;
+  /** Replaces the studio toolset; used by the code agent. */
+  toolset?: {
+    defs: ToolDef[];
+    execute: (name: string, args: Record<string, unknown>, ctx: ToolContext, id: string) => Promise<{ result: unknown; images?: JobOutput[]; note?: string }>;
+  };
+  /** Replaces the default agent system prompt. */
+  systemPrompt?: string;
   /** Preferred image model key "folder:name" chosen in the UI, if any. */
   preferredModel?: string;
   emit: (event: AgentEvent) => void;
@@ -128,7 +135,7 @@ function refOf(o: JobOutput) {
   return o.subfolder ? `${o.subfolder}/${o.filename}` : o.filename;
 }
 
-export async function executeTool(name: string, rawArgs: Record<string, unknown>, ctx: ToolContext, toolId: string): Promise<{ result: unknown; images?: JobOutput[] }> {
+export async function executeTool(name: string, rawArgs: Record<string, unknown>, ctx: ToolContext, toolId: string): Promise<{ result: unknown; images?: JobOutput[]; note?: string }> {
   switch (name) {
     case "list_models": {
       const catalog = await fullCatalog();
