@@ -6,7 +6,7 @@ import { toAnthropicMessages } from "@/lib/providers/anthropic";
 import { toContents } from "@/lib/providers/gemini";
 import { OLLAMA_URL } from "@/lib/ollama/client";
 import { toOpenAIMessages } from "@/lib/providers/openai";
-import { getKey, PROVIDER_META, type ProviderId } from "@/lib/providers/keys";
+import { getKey, getProviderConfig, PROVIDER_META, type ProviderId } from "@/lib/providers/keys";
 import { type ChatTurn } from "@/lib/providers/types";
 import { executeTool, TOOLS, type ToolContext } from "./tools";
 
@@ -58,9 +58,9 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: ToolCon
 
 // ---------------- OpenAI ----------------
 const runOpenAI: Runner = async (turns, model, ctx) => {
-  const key = await getKey("openai");
+  const { key, baseUrl } = await getProviderConfig("openai");
   if (!key) throw new Error("No OpenAI API key configured.");
-  const client = new OpenAI({ apiKey: key });
+  const client = new OpenAI({ apiKey: key, ...(baseUrl ? { baseURL: baseUrl } : {}) });
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "system", content: systemOf(ctx) }, ...toOpenAIMessages(turns)];
   const tools: OpenAI.Chat.ChatCompletionTool[] = defsOf(ctx).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
   for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -81,9 +81,9 @@ const runOpenAI: Runner = async (turns, model, ctx) => {
 
 // ---------------- Anthropic ----------------
 const runAnthropic: Runner = async (turns, model, ctx) => {
-  const key = await getKey("anthropic");
+  const { key, baseUrl } = await getProviderConfig("anthropic");
   if (!key) throw new Error("No Anthropic API key configured.");
-  const client = new Anthropic({ apiKey: key });
+  const client = new Anthropic({ apiKey: key, ...(baseUrl ? { baseURL: baseUrl } : {}) });
   const messages: Anthropic.MessageParam[] = toAnthropicMessages(turns);
   const tools: Anthropic.Tool[] = defsOf(ctx).map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters as Anthropic.Tool.InputSchema }));
   for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -111,9 +111,9 @@ const runAnthropic: Runner = async (turns, model, ctx) => {
 
 // ---------------- Gemini ----------------
 const runGemini: Runner = async (turns, model, ctx) => {
-  const key = await getKey("gemini");
+  const { key, baseUrl } = await getProviderConfig("gemini");
   if (!key) throw new Error("No Gemini API key configured.");
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = new GoogleGenAI({ apiKey: key, ...(baseUrl ? { httpOptions: { baseUrl } } : {}) });
   const contents: Content[] = toContents(turns);
   const declarations: FunctionDeclaration[] = defsOf(ctx).map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.parameters }));
   for (let round = 0; round < MAX_ROUNDS; round++) {

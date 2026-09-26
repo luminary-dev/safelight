@@ -7,3 +7,5 @@ allowBuilds:
 fetchRetries: 6
 fetchTimeout: 600000
 networkConcurrency: 4
+onlyBuiltDependencies:
+  - better-sqlite3

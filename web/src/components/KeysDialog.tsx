@@ -27,6 +27,7 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
   const [show, setShow] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checked, setChecked] = useState<{ provider: string; ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -42,12 +43,14 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
   const submit = async (provider: string, key: string | null) => {
     setBusy(provider);
     setError(null);
+    setChecked(null);
     try {
       const res = await fetch("/api/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, key }) });
-      const data = (await res.json()) as { keys?: KeyStatus[]; error?: string };
+      const data = (await res.json()) as { keys?: KeyStatus[]; error?: string; validation?: { ok: boolean; message: string } };
       if (!res.ok || !data.keys) throw new Error(data.error ?? "Failed to save");
       setKeys(data.keys);
       setDrafts((d) => ({ ...d, [provider]: "" }));
+      if (data.validation) setChecked({ provider, ...data.validation });
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -152,6 +155,7 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
               ))}
             </ul>
             {error ? <p className="mt-3 font-mono text-xs text-danger">{error}</p> : null}
+            {checked ? <p className={`mt-3 font-mono text-xs ${checked.ok ? "text-green" : "text-danger"}`}>{checked.message}</p> : null}
             <p className="mt-4 text-[13px] leading-relaxed text-faint">
               OpenAI and Gemini add image models to Image mode. All three add chat models. Local models keep working without any key.
             </p>

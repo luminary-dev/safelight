@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Key vault (Workstream D): provider keys are encrypted at rest with AES-256-GCM under a key
+  held in the macOS Keychain (env `SAFELIGHT_VAULT_KEY` or a mode-600 key file elsewhere).
+  A plaintext `keys.json` migrates automatically and is kept as `keys.json.migrated` — rotate
+  your keys, then delete it. Keys are validated with one cheap authenticated call on save, and
+  each provider accepts a custom base URL for Azure/vLLM/LiteLLM-style gateways.
 - SQLite data layer (`data/safelight.db`, WAL): migrations, a one-shot importer for the old
   `sessions.json` and `data/themes/*.json` (originals kept as `*.migrated`), daily local
   backups via `VACUUM INTO` (newest 7 kept), and `/api/export` / `/api/import` for full data

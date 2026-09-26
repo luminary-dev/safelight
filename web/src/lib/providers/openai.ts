@@ -3,8 +3,8 @@ import OpenAI, { toFile } from "openai";
 import type { ChatTurn, CloudChatModel, CloudImageModel, CloudImageRequest, GeneratedImage } from "./types";
 import { CHAT_SYSTEM_PROMPT } from "./types";
 
-function client(apiKey: string) {
-  return new OpenAI({ apiKey });
+function client(apiKey: string, baseUrl?: string) {
+  return new OpenAI({ apiKey, ...(baseUrl ? { baseURL: baseUrl } : {}) });
 }
 
 const IMAGE_MODEL_RE = /^(gpt-image|dall-e|chatgpt-image)/;
@@ -12,8 +12,8 @@ const CHAT_MODEL_RE = /^(gpt-|o[1-9]|chatgpt-)/;
 // Drop dated snapshots, previews, legacy 3.5 / 4-turbo variants, and non-chat modalities so the picker stays short.
 const CHAT_EXCLUDE_RE = /(audio|realtime|transcribe|tts|search|image|embedding|moderation|instruct|codex|preview|live|gpt-3\.5|gpt-4-turbo|gpt-4-\d|gpt-4$|16k|32k|-\d{4}$|-\d{4}-\d{2}-\d{2}$|-latest$)/;
 
-export async function listOpenAIModels(apiKey: string): Promise<{ chat: CloudChatModel[]; images: CloudImageModel[] }> {
-  const page = await client(apiKey).models.list();
+export async function listOpenAIModels(apiKey: string, baseUrl?: string): Promise<{ chat: CloudChatModel[]; images: CloudImageModel[] }> {
+  const page = await client(apiKey, baseUrl).models.list();
   const ids: string[] = [];
   for await (const m of page) ids.push(m.id);
   ids.sort();
@@ -40,8 +40,8 @@ export function toOpenAIMessages(turns: ChatTurn[]): OpenAI.Chat.ChatCompletionM
   });
 }
 
-export async function streamOpenAIChat(apiKey: string, model: string, turns: ChatTurn[], signal?: AbortSignal, system: string = CHAT_SYSTEM_PROMPT): Promise<ReadableStream<Uint8Array>> {
-  const stream = await client(apiKey).chat.completions.create(
+export async function streamOpenAIChat(apiKey: string, model: string, turns: ChatTurn[], signal?: AbortSignal, system: string = CHAT_SYSTEM_PROMPT, baseUrl?: string): Promise<ReadableStream<Uint8Array>> {
+  const stream = await client(apiKey, baseUrl).chat.completions.create(
     {
       model,
       stream: true,
@@ -72,8 +72,8 @@ function openAISize(width: number, height: number, model: string): "1024x1024" |
   return ratio > 1.2 ? "1536x1024" : ratio < 0.83 ? "1024x1536" : "1024x1024";
 }
 
-export async function generateOpenAIImages(apiKey: string, model: string, req: CloudImageRequest): Promise<GeneratedImage[]> {
-  const c = client(apiKey);
+export async function generateOpenAIImages(apiKey: string, model: string, req: CloudImageRequest, baseUrl?: string): Promise<GeneratedImage[]> {
+  const c = client(apiKey, baseUrl);
   const size = openAISize(req.width, req.height, model);
   const isGptImage = /gpt-image|chatgpt-image/.test(model);
   const count = /dall-e-3/.test(model) ? 1 : req.count;

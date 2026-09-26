@@ -3,14 +3,14 @@ import { GoogleGenAI, Modality, type Content } from "@google/genai";
 import type { ChatTurn, CloudChatModel, CloudImageModel, CloudImageRequest, GeneratedImage } from "./types";
 import { CHAT_SYSTEM_PROMPT, closestAspect } from "./types";
 
-function client(apiKey: string) {
-  return new GoogleGenAI({ apiKey });
+function client(apiKey: string, baseUrl?: string) {
+  return new GoogleGenAI({ apiKey, ...(baseUrl ? { httpOptions: { baseUrl } } : {}) });
 }
 
 const IMAGE_MODEL_RE = /image/i;
 
-export async function listGeminiModels(apiKey: string): Promise<{ chat: CloudChatModel[]; images: CloudImageModel[] }> {
-  const pager = await client(apiKey).models.list({ config: { pageSize: 200 } });
+export async function listGeminiModels(apiKey: string, baseUrl?: string): Promise<{ chat: CloudChatModel[]; images: CloudImageModel[] }> {
+  const pager = await client(apiKey, baseUrl).models.list({ config: { pageSize: 200 } });
   const chat: CloudChatModel[] = [];
   const images: CloudImageModel[] = [];
   for await (const m of pager) {
@@ -34,8 +34,8 @@ export function toContents(turns: ChatTurn[]): Content[] {
   }));
 }
 
-export async function streamGeminiChat(apiKey: string, model: string, turns: ChatTurn[], system: string = CHAT_SYSTEM_PROMPT): Promise<ReadableStream<Uint8Array>> {
-  const stream = await client(apiKey).models.generateContentStream({
+export async function streamGeminiChat(apiKey: string, model: string, turns: ChatTurn[], system: string = CHAT_SYSTEM_PROMPT, baseUrl?: string): Promise<ReadableStream<Uint8Array>> {
+  const stream = await client(apiKey, baseUrl).models.generateContentStream({
     model,
     contents: toContents(turns),
     config: { systemInstruction: system },
@@ -57,7 +57,7 @@ export async function streamGeminiChat(apiKey: string, model: string, turns: Cha
   });
 }
 
-export async function generateGeminiImages(apiKey: string, model: string, req: CloudImageRequest): Promise<GeneratedImage[]> {
+export async function generateGeminiImages(apiKey: string, model: string, req: CloudImageRequest, baseUrl?: string): Promise<GeneratedImage[]> {
   const aspectRatio = closestAspect(req.width, req.height, ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]);
   const imageSize = Math.max(req.width, req.height) >= 3000 ? "4K" : Math.max(req.width, req.height) >= 1800 ? "2K" : "1K";
   const parts: { text?: string; inlineData?: { data: string; mimeType: string } }[] = [
@@ -66,7 +66,7 @@ export async function generateGeminiImages(apiKey: string, model: string, req: C
   ];
   const out: GeneratedImage[] = [];
   for (let i = 0; i < req.count; i++) {
-    const res = await client(apiKey).models.generateContent({
+    const res = await client(apiKey, baseUrl).models.generateContent({
       model,
       contents: [{ role: "user", parts }],
       config: { responseModalities: [Modality.IMAGE, Modality.TEXT], imageConfig: { aspectRatio, imageSize } },

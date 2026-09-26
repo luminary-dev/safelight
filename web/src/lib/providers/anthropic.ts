@@ -3,13 +3,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { ChatTurn, CloudChatModel } from "./types";
 import { CHAT_SYSTEM_PROMPT } from "./types";
 
-function client(apiKey: string) {
-  return new Anthropic({ apiKey });
+function client(apiKey: string, baseUrl?: string) {
+  return new Anthropic({ apiKey, ...(baseUrl ? { baseURL: baseUrl } : {}) });
 }
 
-export async function listAnthropicModels(apiKey: string): Promise<CloudChatModel[]> {
+export async function listAnthropicModels(apiKey: string, baseUrl?: string): Promise<CloudChatModel[]> {
   const models: CloudChatModel[] = [];
-  for await (const m of client(apiKey).models.list()) {
+  for await (const m of client(apiKey, baseUrl).models.list()) {
     models.push({ provider: "anthropic", id: m.id, label: m.display_name ?? m.id });
   }
   return models;
@@ -28,9 +28,9 @@ export function toAnthropicMessages(turns: ChatTurn[]): Anthropic.MessageParam[]
   });
 }
 
-export async function streamAnthropicChat(apiKey: string, model: string, turns: ChatTurn[], signal?: AbortSignal, system: string = CHAT_SYSTEM_PROMPT): Promise<ReadableStream<Uint8Array>> {
+export async function streamAnthropicChat(apiKey: string, model: string, turns: ChatTurn[], signal?: AbortSignal, system: string = CHAT_SYSTEM_PROMPT, baseUrl?: string): Promise<ReadableStream<Uint8Array>> {
   const messages = toAnthropicMessages(turns);
-  const stream = client(apiKey).messages.stream(
+  const stream = client(apiKey, baseUrl).messages.stream(
     {
       model,
       max_tokens: 8000,
