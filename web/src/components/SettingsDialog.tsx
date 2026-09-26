@@ -17,6 +17,16 @@ interface UsageSummary {
   byProvider?: Record<string, { cost: number }>;
 }
 
+interface RunRow {
+  id: string;
+  mode: string;
+  provider: string;
+  model: string;
+  started_at: number;
+  finished_at: number | null;
+  status: string;
+}
+
 const LIMIT_FIELDS = [
   { key: "spendLimitDaySoft", label: "Daily warning ($)" },
   { key: "spendLimitDayHard", label: "Daily stop ($)" },
@@ -54,6 +64,8 @@ export function SettingsDialog({
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null | "unavailable">(null);
   const [localOnly, setLocalOnly] = useState(false);
+  const [runs, setRuns] = useState<RunRow[]>([]);
+  const [logLines, setLogLines] = useState<string[] | null>(null);
   const [importNote, setImportNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +91,10 @@ export function SettingsDialog({
           .then(async (r): Promise<UsageSummary | "unavailable"> => (r.ok ? ((await r.json()) as UsageSummary) : "unavailable"))
           .then((d) => setUsage(d))
           .catch(() => setUsage("unavailable")),
+        fetch("/api/runs?limit=8")
+          .then((r) => (r.ok ? (r.json() as Promise<{ runs: RunRow[] }>) : Promise.reject(new Error())))
+          .then((d) => setRuns(d.runs))
+          .catch(() => undefined),
       ]),
     [],
   );
@@ -257,6 +273,50 @@ export function SettingsDialog({
                   {localOnly ? "On" : "Off"}
                 </button>
               </div>
+            </Section>
+
+            <Section title="Agent runs">
+              {runs.length === 0 ? <p className="text-[13px] text-placeholder">No agent runs recorded yet.</p> : null}
+              <ul className="flex flex-col gap-1">
+                {runs.map((r) => (
+                  <li key={r.id} className="flex items-center gap-2.5 font-mono text-[11.5px] text-ink-muted">
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        r.status === "done" ? "bg-green" : r.status === "running" ? "bg-terracotta" : r.status === "error" ? "bg-danger" : "bg-line-strong",
+                      )}
+                    />
+                    <span className="w-[52px] shrink-0">{r.mode}</span>
+                    <span className="min-w-0 flex-1 truncate">{r.model}</span>
+                    <span className="shrink-0">{r.finished_at ? `${Math.max(1, Math.round((r.finished_at - r.started_at) / 1000))}s` : r.status}</span>
+                    <span className="shrink-0 text-faint">{new Date(r.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+
+            <Section title="Logs">
+              {logLines === null ? (
+                <button
+                  type="button"
+                  className="btn-quiet h-8 self-start rounded-full px-3.5 text-[13px]"
+                  onClick={() => {
+                    void fetch("/api/logs?lines=100")
+                      .then((r) => r.json() as Promise<{ lines: string[] }>)
+                      .then((d) => setLogLines(d.lines))
+                      .catch(() => setLogLines([]));
+                  }}
+                >
+                  Show recent log
+                </button>
+              ) : (
+                <pre className="max-h-[180px] overflow-auto rounded-[10px] bg-pill/60 p-2.5 font-mono text-[10.5px] leading-relaxed text-ink-muted">
+                  {logLines.length ? logLines.join("\n") : "The log is empty."}
+                </pre>
+              )}
+              <p className="text-[12px] text-placeholder">
+                Structured, secret-redacted, rotating at 10 MB in <code className="code">data/logs/</code>.
+              </p>
             </Section>
 
             <Section title="Backups & data">
