@@ -6,6 +6,18 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Responsive integrity (UI brief, Tier A): the Stage's ten image actions no longer clip
+  off-screen — measured at 1440 the bar overflowed 129px and hid Save/Open/Delete, at 1024 it
+  hid 7 of 10; it now collapses into a "More" menu (Delete always behind its confirm there)
+  with zero overflow at every width from 1920 to 390. Long titles truncate with accessible
+  full values, the filmstrip is a keyboard-scrollable strip, and below 1024 the sidebar
+  becomes a collapsible sheet. New layout primitives (ActionBar, TruncatedText, ScrollStrip)
+  and named shell breakpoints carry the same fixes to every future toolbar.
+- A responsive audit harness (`playwright test --project audit`): an injected detector for
+  viewport overflow, silent clipping, overlaps, tiny touch targets, unlabeled truncation, and
+  WCAG-AA contrast, swept over 14 widths × 6 modes × 2 themes plus dialogs; the pre-fix
+  empty-state baseline (6,659 findings) is committed as ground truth and
+  `docs/responsive.md` records the layout contract and the proposed phone-range decision.
 - Tier 0 test harness (TEST-BRIEF §5): Vitest split into unit/db/api/agent/subsystems/
   component projects; in-process fakes for ComfyUI (HTTP + RFC 6455 progress socket,
   restartable with counter reset), Ollama (NDJSON incl. mid-stream error and truncation), a

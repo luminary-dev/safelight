@@ -1,7 +1,59 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 export type TopMode = "chat" | "image" | "code" | "design" | "library" | "blueprints";
+
+/**
+ * The layout contract's named breakpoints (UI-RESPONSIVE-BRIEF §3) — named by
+ * what changes, not by device. Each value is the range's lower bound in CSS px.
+ */
+export const SHELL_BREAKPOINTS = {
+  /** ≥1440 — rail + composer + stage side by side, room for every inline action. */
+  full: 1440,
+  /** 1280–1439 — same three regions; toolbars may begin collapsing (measured, in <ActionBar>). */
+  dense: 1280,
+  /** 1024–1279 — narrower rail, tighter gutters; stage actions collapse to primary + More. */
+  compact: 1024,
+  /** 768–1023 — the rail becomes a sheet behind the header trigger; composer and stage stack. */
+  stacked: 768,
+  /** <768 — a single column, one region at a time. */
+  single: 0,
+} as const;
+
+/**
+ * The region grid implementing those breakpoints. Below `compact` (lg) the grid
+ * is a single column of header-then-content rows and the rail lives in a sheet;
+ * from `compact` the rail sits beside the main panel (248px, tight gutters);
+ * from `dense` (xl) the rail and gutters return to their full measurements.
+ */
+export const shellGridClass = cn(
+  "grid min-h-[100dvh] grid-cols-1 grid-rows-[auto_1fr] gap-3.5 bg-shell p-3.5 font-sans",
+  "lg:h-[100dvh] lg:grid-cols-[248px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-3 lg:p-3",
+  "xl:grid-cols-[268px_minmax(0,1fr)] xl:gap-3.5 xl:p-3.5",
+);
+
+/** The app shell: the region grid the Sidebar (rail/header/sheet) and main panel live in. */
+export function Shell({ children }: { children: ReactNode }) {
+  return <div className={shellGridClass}>{children}</div>;
+}
+
+/**
+ * The stacked-layout header (visible below the `compact` breakpoint): the
+ * wordmark plus whatever trigger the rail owner renders — the sheet toggle.
+ */
+export function ShellHeader({ children }: { children?: ReactNode }) {
+  return (
+    <header className="panel-side flex items-center justify-between gap-3 px-4 py-2 lg:hidden">
+      <span className="flex items-center gap-2">
+        <SafelightMark className="size-6 rounded-[8px]" />
+        <span className="font-display text-[19px] font-extrabold tracking-[-0.02em] text-ink">
+          Safelight<span className="text-terracotta">.</span>
+        </span>
+      </span>
+      {children}
+    </header>
+  );
+}
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 

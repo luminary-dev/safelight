@@ -4,7 +4,10 @@
 import { Brush, Download, Eraser, ExternalLink, Pencil, RefreshCw, Shuffle, Trash2, UnfoldHorizontal, X, ZoomIn } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { ActionBar, type ActionBarAction } from "@/components/ui/action-bar";
+import { ScrollStrip } from "@/components/ui/scroll-strip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import type { GalleryItem, ImageCapabilities, JobOutput, JobStatus } from "@/lib/comfy/types";
 import { getSweepGroups, patchSweepCell, removeSweepGroup, subscribeSweeps, viewUrl, type Job, type SweepCellState, type SweepGroupState } from "@/lib/safelight-state";
 import type { ProgressState } from "@/hooks/useComfySocket";
@@ -413,91 +416,98 @@ export function Stage({
 
   const selectedJob = selected ? jobFor(selected) : undefined;
 
+  // The ten image actions, as an <ActionBar> that collapses instead of clipping
+  // (UI-RESPONSIVE-BRIEF §1.1): Edit and Save stay inline longest, the mask and
+  // model actions collapse first, and Delete always lives in the overflow menu
+  // behind its confirm dialog.
+  const barActions: ActionBarAction[] = selected
+    ? [
+        {
+          key: "recreate",
+          label: "Recreate",
+          icon: <RefreshCw className="size-3.5" />,
+          disabled: Boolean(recreateReason),
+          disabledReason: recreateReason ?? undefined,
+          title: "Render this image again with the exact same settings and seed",
+          onSelect: () => void runAction("Recreate", { fromSidecar: selectedRef }),
+          priority: 1,
+        },
+        {
+          key: "vary",
+          label: "Vary",
+          icon: <Shuffle className="size-3.5" />,
+          disabled: Boolean(recreateReason),
+          disabledReason: recreateReason ?? undefined,
+          title: "Render a variation: same settings, new random seed",
+          onSelect: () => void runAction("Vary", { fromSidecar: selectedRef, vary: true }),
+          priority: 1,
+        },
+        {
+          key: "inpaint",
+          label: "Inpaint",
+          icon: <Brush className="size-3.5" />,
+          disabled: Boolean(maskEditReason),
+          disabledReason: maskEditReason ?? undefined,
+          title: "Paint over an area and describe what should replace it",
+          onSelect: () => setMaskEditor("inpaint"),
+          priority: 3,
+        },
+        {
+          key: "outpaint",
+          label: "Outpaint",
+          icon: <UnfoldHorizontal className="size-3.5" />,
+          disabled: Boolean(maskEditReason),
+          disabledReason: maskEditReason ?? undefined,
+          title: "Extend the image beyond its edges",
+          onSelect: () => setMaskEditor("outpaint"),
+          priority: 3,
+        },
+        {
+          key: "upscale",
+          label: "Upscale 4×",
+          icon: <ZoomIn className="size-3.5" />,
+          disabled: Boolean(upscaleReason),
+          disabledReason: upscaleReason ?? undefined,
+          title: `Upscale with ${caps?.upscaleModels[0]}`,
+          onSelect: () => void runAction("Upscale 4×", { mode: "upscale", image: selectedRef }),
+          priority: 3,
+        },
+        {
+          key: "rmbg",
+          label: "Remove BG",
+          icon: <Eraser className="size-3.5" />,
+          disabled: Boolean(rmbgReason),
+          disabledReason: rmbgReason ?? undefined,
+          title: "Remove the background with BiRefNet",
+          onSelect: () => void runAction("Remove background", { mode: "rmbg", image: selectedRef }),
+          priority: 3,
+        },
+        { key: "edit", label: "Edit", icon: <Pencil className="size-3.5" />, title: "Use this image as the next render's input", onSelect: () => onUseAsInput(selected), priority: 0 },
+        { key: "save", label: "Save", icon: <Download className="size-3.5" />, href: viewUrl(selected), download: selected.filename, priority: 0 },
+        { key: "open", label: "Open full size", icon: <ExternalLink className="size-3.5" />, href: viewUrl(selected), external: true, iconOnly: true, priority: 2 },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: <Trash2 className="size-3.5" />,
+          destructive: true,
+          className: "hover:border-danger/40 hover:text-danger",
+          wrap: (control) => <ConfirmDelete filename={selected.filename} onConfirm={() => onDelete(selected)} trigger={control} />,
+        },
+      ]
+    : [];
+
   return (
     <section className="flex min-h-0 flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate font-display text-[22px] font-bold tracking-[-0.01em] text-ink">{title}</h1>
+      <div className="flex items-center gap-3">
+        {/* The title block yields at least half the row to the action bar, so long
+            filenames truncate instead of starving the actions (§1.2 / §2). */}
+        <div className={selected && !activeJob ? "min-w-0 max-w-[50%]" : "min-w-0"}>
+          <TruncatedText as="h1" text={title} className="font-display text-[22px] font-bold tracking-[-0.01em] text-ink" />
           <p className="truncate font-mono text-[11.5px] tracking-[0.02em] text-ink-muted" title={selectedJob?.prompt}>
             {activeJob ? "Rendering…" : selectedJob ? `${selectedJob.settings.model} · ${selectedJob.settings.width}×${selectedJob.settings.height} · seed ${selectedJob.seed}` : selected ? selected.filename : "Nothing here yet"}
           </p>
         </div>
-        {selected && !activeJob ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={Boolean(recreateReason)}
-              title={recreateReason ?? "Render this image again with the exact same settings and seed"}
-              onClick={() => void runAction("Recreate", { fromSidecar: selectedRef })}
-            >
-              <RefreshCw className="size-3.5" /> Recreate
-            </button>
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={Boolean(recreateReason)}
-              title={recreateReason ?? "Render a variation: same settings, new random seed"}
-              onClick={() => void runAction("Vary", { fromSidecar: selectedRef, vary: true })}
-            >
-              <Shuffle className="size-3.5" /> Vary
-            </button>
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={Boolean(maskEditReason)}
-              title={maskEditReason ?? "Paint over an area and describe what should replace it"}
-              onClick={() => setMaskEditor("inpaint")}
-            >
-              <Brush className="size-3.5" /> Inpaint
-            </button>
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={Boolean(maskEditReason)}
-              title={maskEditReason ?? "Extend the image beyond its edges"}
-              onClick={() => setMaskEditor("outpaint")}
-            >
-              <UnfoldHorizontal className="size-3.5" /> Outpaint
-            </button>
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={Boolean(upscaleReason)}
-              title={upscaleReason ?? `Upscale with ${caps?.upscaleModels[0]}`}
-              onClick={() => void runAction("Upscale 4×", { mode: "upscale", image: selectedRef })}
-            >
-              <ZoomIn className="size-3.5" /> Upscale 4×
-            </button>
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={Boolean(rmbgReason)}
-              title={rmbgReason ?? "Remove the background with BiRefNet"}
-              onClick={() => void runAction("Remove background", { mode: "rmbg", image: selectedRef })}
-            >
-              <Eraser className="size-3.5" /> Remove BG
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => onUseAsInput(selected)}>
-              <Pencil className="size-3.5" /> Edit
-            </button>
-            <a className="btn-quiet no-underline" href={viewUrl(selected)} download={selected.filename}>
-              <Download className="size-3.5" /> Save
-            </a>
-            <a className="btn-quiet px-2 no-underline" href={viewUrl(selected)} target="_blank" rel="noreferrer" aria-label="Open full size">
-              <ExternalLink className="size-3.5" />
-            </a>
-            <ConfirmDelete
-              filename={selected.filename}
-              onConfirm={() => onDelete(selected)}
-              trigger={
-                <button type="button" className="btn-quiet px-2 hover:border-danger/40 hover:text-danger" aria-label="Delete image">
-                  <Trash2 className="size-3.5" />
-                </button>
-              }
-            />
-          </div>
-        ) : null}
+        {selected && !activeJob ? <ActionBar label="Image actions" actions={barActions} /> : null}
       </div>
 
       <div className={`relative flex min-h-[320px] flex-1 items-center justify-center overflow-hidden rounded-[10px] border border-line shadow-[var(--shadow-hairline)] ${activeJob ? "safelight-wash" : "easel"}`}>
@@ -581,7 +591,7 @@ export function Stage({
         </div>
       ) : null}
       {items.length > 0 ? (
-        <div className="contact-strip -mx-1 flex gap-1.5 overflow-x-auto">
+        <ScrollStrip label="Earlier renders" className="contact-strip -mx-1 gap-1.5">
           {items.map((it) => {
             const key = `${it.subfolder}/${it.filename}`;
             const on = key === (selected ? `${selected.subfolder}/${selected.filename}` : null);
@@ -597,7 +607,7 @@ export function Stage({
               </button>
             );
           })}
-        </div>
+        </ScrollStrip>
       ) : null}
 
       {maskEditor === "inpaint" && selected ? <MaskCanvas imageUrl={viewUrl(selected)} imageName={selected.filename} busy={maskBusy} onClose={() => setMaskEditor(null)} onSubmit={(s) => void submitInpaint(s)} /> : null}
@@ -660,9 +670,10 @@ function RenderingState({ job, progress, onInterrupt }: { job: Job; progress: Pr
             <div className="progress-sweep h-full rounded-full bg-terracotta/60" />
           )}
         </div>
-        {pct === null && isActive && elapsed > 45 ? (
-          <p className="mt-2 text-[12px] leading-relaxed text-faint [text-wrap:pretty]">{label === "Loading model" ? "Large models take a few minutes to load the first time; sampling starts right after." : "Still working — this stage does not report step progress."}</p>
-        ) : null}
+        {/* Reserved, fixed-height line: appearing advice must not reflow the card. */}
+        <p className="mt-2 h-10 overflow-hidden text-[12px] leading-relaxed text-faint [text-wrap:pretty]" aria-live="polite">
+          {pct === null && isActive && elapsed > 45 ? (label === "Loading model" ? "Large models take a few minutes to load the first time; sampling starts right after." : "Still working — this stage does not report step progress.") : null}
+        </p>
       </div>
       <p className="line-clamp-2 max-w-md text-center text-[13px] text-ink-muted">{job.prompt}</p>
       <button type="button" className="btn-quiet" onClick={onInterrupt}>

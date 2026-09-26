@@ -18,7 +18,7 @@ import { ChatWorkspace } from "./ChatWorkspace";
 import { CodeWorkspace } from "./CodeWorkspace";
 import { DesignWorkspace } from "./DesignWorkspace";
 import { Composer } from "./Composer";
-import type { TopMode } from "./shell";
+import { Shell, type TopMode } from "./shell";
 import { KeysDialog } from "./KeysDialog";
 import { Library } from "./Library";
 import { Sidebar } from "./Sidebar";
@@ -293,7 +293,7 @@ export function Safelight() {
   void img.catalogError;
 
   return (
-    <div className="grid min-h-[100dvh] grid-cols-1 gap-3.5 bg-shell p-3.5 font-sans lg:h-[100dvh] lg:grid-cols-[268px_minmax(0,1fr)]">
+    <Shell>
       <KeysDialog open={keysOpen} onClose={closeKeys} onChanged={refresh} />
 
       <MSidebar
@@ -425,6 +425,6 @@ export function Safelight() {
           </motion.div>
         </AnimatePresence>
       </main>
-    </div>
+    </Shell>
   );
 }

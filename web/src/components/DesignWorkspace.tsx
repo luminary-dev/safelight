@@ -42,7 +42,7 @@ export function DesignWorkspace({
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 bg-[radial-gradient(closest-side,var(--terracotta-wash),transparent_70%)]" />
-      <div className="relative flex items-center justify-between gap-3 px-6 py-4">
+      <div className="relative flex flex-wrap items-center justify-between gap-3 px-6 py-4">
         <ModelPicker
           options={toolCapable.map((m) => ({ key: chatModelKey(m), label: m.label, tags: m.tags, provider: m.provider }))}
           value={model || null}

@@ -70,7 +70,10 @@
     "systems": "Systems",
     "recheck": "Re-check",
     "ram": "RAM",
-    "ramUsage": "{used}/{total} GB"
+    "ramUsage": "{used}/{total} GB",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "navigation": "Navigation"
   },
   "themeToggle": {
     "switchToDark": "Switch to dark theme",
@@ -394,5 +397,9 @@
     "revoke": "Revoke access to {path}",
     "emptyTitle": "Point this session at a folder",
     "emptyBody": "Paste the absolute path of a project above. The model can then search, read, and edit files inside that folder — and nowhere else without your approval. Commands run only after you approve each one."
+  },
+  "actionBar": {
+    "more": "More",
+    "moreActionsAria": "More actions"
   }
 }

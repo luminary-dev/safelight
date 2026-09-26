@@ -52,8 +52,8 @@ export function ChatWorkspace({
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* The soft lime glow behind an empty conversation. */}
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 bg-[radial-gradient(closest-side,var(--terracotta-wash),transparent_70%)]" />
-      <div className="relative flex items-center justify-between gap-3 px-6 py-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="relative flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ModelPicker
             options={models.map((m) => ({ key: chatModelKey(m), label: m.label, tags: m.tags, provider: m.provider }))}
             value={model || null}

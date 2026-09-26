@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
  * closes on Escape, and focus lands back on the button that opened it.
  */
 const DIALOGS = [
-  { opener: "API keys", heading: "Connect cloud models" },
+  { opener: "API keys", heading: "Connect keys" },
   { opener: "MCP servers", heading: "Extend the agents" },
   { opener: "Model manager", heading: "Get models" },
 ] as const;

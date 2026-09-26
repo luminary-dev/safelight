@@ -1,6 +1,6 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProgressState } from "@/hooks/useComfySocket";
 import type { GalleryItem, ImageCapabilities } from "@/lib/comfy/types";
 import type { Job } from "@/lib/safelight-state";
@@ -136,6 +136,26 @@ describe("Stage", () => {
     expect(thumbs("someone-else.png")).toHaveLength(0);
   });
 
+  it("Delete lives in the overflow menu behind its confirm dialog, never inline", async () => {
+    const done = aJob({ state: "done" });
+    const item = galleryItem(done);
+    const onDelete = vi.fn(async () => {});
+    stubFetch(capsRoute());
+    const user = userEvent.setup();
+    renderApp(<Stage {...stageProps({ gallery: [item], jobs: [done], onDelete })} />);
+
+    // No one-click Delete anywhere in the toolbar.
+    expect(within(screen.getByRole("toolbar", { name: "Image actions" })).queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(onDelete).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ filename: item.filename }));
+  });
+
   it("clicking the image opens the full-size viewer and Escape closes it", async () => {
     const done = aJob({ state: "done" });
     stubFetch(capsRoute());
@@ -147,5 +167,119 @@ describe("Stage", () => {
 
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+});
+
+// ---------- the action bar at a simulated narrow width ----------
+
+const roFire = new Set<() => void>();
+
+class ControlledResizeObserver {
+  private readonly run: () => void;
+  constructor(cb: ResizeObserverCallback) {
+    this.run = () => cb([], this as unknown as ResizeObserver);
+    roFire.add(this.run);
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {
+    roFire.delete(this.run);
+  }
+}
+
+describe("Stage at a narrow width", () => {
+  const origOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
+  const origClientWidth = Object.getOwnPropertyDescriptor(Element.prototype, "clientWidth");
+
+  beforeEach(() => {
+    roFire.clear();
+    vi.stubGlobal("ResizeObserver", ControlledResizeObserver);
+    // Every action measures 100px, and the bar has 330px — room for exactly two actions plus More.
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.dataset?.measureKey ? 100 : 0;
+      },
+    });
+    Object.defineProperty(Element.prototype, "clientWidth", {
+      configurable: true,
+      get(this: Element) {
+        return this instanceof HTMLElement && this.hasAttribute("data-action-bar") ? 330 : 0;
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (origOffsetWidth) Object.defineProperty(HTMLElement.prototype, "offsetWidth", origOffsetWidth);
+    if (origClientWidth) Object.defineProperty(Element.prototype, "clientWidth", origClientWidth);
+  });
+
+  function layout() {
+    act(() => {
+      for (const run of [...roFire]) run();
+    });
+  }
+
+  it("keeps Edit and Save inline longest and every other action reachable through More", async () => {
+    const done = aJob({ state: "done" });
+    const item = galleryItem(done);
+    const { of } = stubFetch(
+      capsRoute(),
+      { method: "POST", url: "/api/generate", reply: { id: "action-2" } },
+      { url: "/api/jobs/action-2", reply: { id: "action-2", state: "running", outputs: [] } },
+    );
+    const user = userEvent.setup();
+    renderApp(<Stage {...stageProps({ gallery: [item], jobs: [done] })} />);
+    layout();
+
+    const toolbar = screen.getByRole("toolbar", { name: "Image actions" });
+    // The two primary actions survive the collapse…
+    expect(within(toolbar).getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("link", { name: "Save" })).toBeInTheDocument();
+    // …and the mask/model actions collapsed first, not clipped away.
+    for (const name of ["Recreate", "Vary", "Inpaint", "Outpaint", "Upscale 4×", "Remove BG"]) {
+      expect(within(toolbar).queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    for (const name of ["Recreate", "Vary", "Inpaint", "Outpaint", "Upscale 4×", "Remove BG", "Delete"]) {
+      expect(await screen.findByRole("menuitem", { name })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("menuitem", { name: "Open full size" })).toHaveAttribute("href");
+
+    // A collapsed action still fires end to end.
+    const vary = screen.getByRole("menuitem", { name: "Vary" });
+    await waitFor(() => expect(vary).toBeEnabled());
+    await user.click(vary);
+    const posts = of("POST", "/api/generate");
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body).toMatchObject({ vary: true });
+  });
+
+  it("disabled-with-reason titles survive the collapse into the menu", async () => {
+    const done = aJob({ state: "done" });
+    const item = galleryItem(done);
+    stubFetch(capsRoute({ ...CAPS_ONLINE, online: false }, null));
+    const user = userEvent.setup();
+    renderApp(<Stage {...stageProps({ gallery: [item], jobs: [done] })} />);
+    layout();
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    const upscale = await screen.findByRole("menuitem", { name: "Upscale 4×" });
+    await waitFor(() => expect(upscale).toBeDisabled());
+    expect(upscale).toHaveAttribute("title", "ComfyUI is offline.");
+    const recreate = screen.getByRole("menuitem", { name: "Recreate" });
+    await waitFor(() => expect(recreate).toBeDisabled());
+    expect(recreate).toHaveAttribute("title", "This image has no render settings sidecar.");
+  });
+
+  it("the filmstrip is a labelled, keyboard-scrollable strip, not a clipped row", () => {
+    const done = aJob({ state: "done" });
+    stubFetch(capsRoute());
+    renderApp(<Stage {...stageProps({ gallery: [galleryItem(done)], jobs: [done] })} />);
+    const strip = screen.getByRole("region", { name: "Earlier renders" });
+    expect(strip).toHaveAttribute("data-scroll-strip");
+    expect(strip).toHaveAttribute("tabindex", "0");
   });
 });
