@@ -64,8 +64,8 @@ export function designToolDefs(): ToolDef[] {
   ];
 }
 
-/** Refuses URLs that could reach this machine or the local network. */
-function guardUrl(raw: unknown): URL {
+/** Refuses URLs that could reach this machine or the local network. Exported for tests. */
+export function guardUrl(raw: unknown): URL {
   let url: URL;
   try {
     url = new URL(String(raw));

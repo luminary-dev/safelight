@@ -85,8 +85,8 @@ function within(abs: string, base: string): boolean {
   return abs === base || abs.startsWith(base + path.sep);
 }
 
-/** Resolves a path against the root; anything beyond root or the approved list pauses to ask the user. */
-async function resolvePath(access: CodeAccess, rel: unknown, tool: string): Promise<string> {
+/** Resolves a path against the root; anything beyond root or the approved list pauses to ask the user. Exported for tests. */
+export async function resolvePath(access: CodeAccess, rel: unknown, tool: string): Promise<string> {
   const normRoot = path.resolve(access.root);
   const abs = path.resolve(normRoot, typeof rel === "string" && rel ? rel : ".");
   if (within(abs, normRoot)) return abs;

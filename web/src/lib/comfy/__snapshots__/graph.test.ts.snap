@@ -1,0 +1,421 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildGraph > checkpoint img2img 1`] = `
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "dreamshaper_8.safetensors",
+    },
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "1",
+        1,
+      ],
+      "text": "a test print",
+    },
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "1",
+        1,
+      ],
+      "text": "",
+    },
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "studio/in.png",
+    },
+  },
+  "5": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "crop": "center",
+      "height": 1024,
+      "image": [
+        "4",
+        0,
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+    },
+  },
+  "6": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "5",
+        0,
+      ],
+      "vae": [
+        "1",
+        2,
+      ],
+    },
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 1,
+      "denoise": 0.55,
+      "latent_image": [
+        "6",
+        0,
+      ],
+      "model": [
+        "1",
+        0,
+      ],
+      "negative": [
+        "3",
+        0,
+      ],
+      "positive": [
+        "2",
+        0,
+      ],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": 7,
+      "steps": 25,
+    },
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0,
+      ],
+      "vae": [
+        "1",
+        2,
+      ],
+    },
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "studio/checkpoint",
+      "images": [
+        "8",
+        0,
+      ],
+    },
+  },
+}
+`;
+
+exports[`buildGraph > flux txt2img with dual encoders 1`] = `
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "flux1-dev-Q8_0.gguf",
+    },
+  },
+  "2": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "t5xxl_fp8.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux",
+    },
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux_ae.safetensors",
+    },
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0,
+      ],
+      "text": "a test print",
+    },
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0,
+      ],
+      "text": "",
+    },
+  },
+  "6": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "batch_size": 1,
+      "height": 1024,
+      "width": 1024,
+    },
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 1,
+      "denoise": 1,
+      "latent_image": [
+        "6",
+        0,
+      ],
+      "model": [
+        "1",
+        0,
+      ],
+      "negative": [
+        "5",
+        0,
+      ],
+      "positive": [
+        "4",
+        0,
+      ],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": 7,
+      "steps": 25,
+    },
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0,
+      ],
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "studio/flux",
+      "images": [
+        "8",
+        0,
+      ],
+    },
+  },
+}
+`;
+
+exports[`buildGraph > qwen-image img2img with references 1`] = `
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "qwen-image-2.1-Q4_K_M.gguf",
+    },
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+    },
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors",
+    },
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "studio/ref1.png",
+    },
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "studio/ref2.png",
+    },
+  },
+  "6": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0,
+      ],
+      "images.image_1": [
+        "4",
+        0,
+      ],
+      "images.image_2": [
+        "5",
+        0,
+      ],
+      "negative_prompt": "",
+      "prompt": "a test print",
+      "resolution": 1024,
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 1,
+      "denoise": 1,
+      "latent_image": [
+        "6",
+        2,
+      ],
+      "model": [
+        "1",
+        0,
+      ],
+      "negative": [
+        "6",
+        1,
+      ],
+      "positive": [
+        "6",
+        0,
+      ],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": 7,
+      "steps": 25,
+    },
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0,
+      ],
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "studio/qwen",
+      "images": [
+        "8",
+        0,
+      ],
+    },
+  },
+}
+`;
+
+exports[`buildGraph > qwen-image txt2img 1`] = `
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "qwen-image-2.1-Q4_K_M.gguf",
+    },
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+    },
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors",
+    },
+  },
+  "4": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0,
+      ],
+      "negative_prompt": "",
+      "prompt": "a test print",
+      "resolution": 1024,
+    },
+  },
+  "5": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "batch_size": 1,
+      "height": 1024,
+      "width": 1024,
+    },
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 1,
+      "denoise": 1,
+      "latent_image": [
+        "5",
+        0,
+      ],
+      "model": [
+        "1",
+        0,
+      ],
+      "negative": [
+        "4",
+        1,
+      ],
+      "positive": [
+        "4",
+        0,
+      ],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": 7,
+      "steps": 25,
+    },
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "6",
+        0,
+      ],
+      "vae": [
+        "3",
+        0,
+      ],
+    },
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "studio/qwen",
+      "images": [
+        "7",
+        0,
+      ],
+    },
+  },
+}
+`;

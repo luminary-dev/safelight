@@ -9,7 +9,8 @@ export const INPUT_DIR = process.env.COMFY_INPUT_DIR ?? path.resolve(process.cwd
 export function safeJoin(root: string, ...parts: string[]): string | null {
   const full = path.resolve(root, ...parts.filter(Boolean));
   const rel = path.relative(root, full);
-  if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  // Match ".." only as a path segment: a folder legitimately named "..a" must not be refused.
+  if (rel === ".." || rel.startsWith(".." + path.sep) || path.isAbsolute(rel)) return null;
   return full;
 }
 
