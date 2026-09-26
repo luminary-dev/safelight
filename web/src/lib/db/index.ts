@@ -61,7 +61,7 @@ let dbPath: string | null = null;
 
 function migrate(d: Database.Database) {
   d.exec("CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
-  const applied = new Set(d.prepare("SELECT id FROM schema_migrations").all().map((r) => (r as { id: number }).id));
+  const applied = new Set((d.prepare("SELECT id FROM schema_migrations").all() as { id: number }[]).map((r) => r.id));
   for (const m of MIGRATIONS) {
     if (applied.has(m.id)) continue;
     const run = d.transaction(() => {
