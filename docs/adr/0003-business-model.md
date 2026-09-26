@@ -1,7 +1,11 @@
 # ADR 0003 — Business model: one-time license with a signed offline license file
 
-**Status: PROPOSED — a recommendation only. The owner has not decided; nothing in this
-document is built, and nothing will be built until the owner signs off.**
+**Status: ACCEPTED (owner, 2026-09-26).** The minimum mechanism is built: Ed25519-signed
+offline license file (`web/src/lib/license.ts`, `/api/license`), signing tooling in
+`scripts/license/` (the private key never enters the repo — generate it on one offline
+machine with `keygen.mjs`). Unlicensed Safelight remains fully functional; nothing is
+gated. Stripe checkout is **not built** — it needs the owner's Stripe account and will be
+wired when that exists.
 
 ## Context
 

@@ -6,6 +6,12 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- One-time license mechanism (ADR 0003, accepted): an Ed25519-signed offline license file
+  verified locally against a public key compiled into the app — no account, no server
+  round-trip, no phone-home. `web/src/lib/license.ts` + `/api/license` (GET status /
+  POST validate-then-save / DELETE), signing tooling in `scripts/license/` (keygen + sign;
+  the private key lives on one offline machine and never enters the repo). Unlicensed
+  Safelight stays fully functional — nothing is gated. Stripe checkout is not built yet.
 - Responsive integrity (UI brief, Tier A): the Stage's ten image actions no longer clip
   off-screen — measured at 1440 the bar overflowed 129px and hid Save/Open/Delete, at 1024 it
   hid 7 of 10; it now collapses into a "More" menu (Delete always behind its confirm there)

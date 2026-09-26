@@ -11,7 +11,7 @@ All of these must pass the audit: **1920, 1680, 1440, 1366, 1280, 1152, 1024, 90
 768, 640, 480, 390, 360** — plus 1024 and 768 in both orientations, and 200 % browser zoom
 at 1440 (an accessibility requirement, WCAG 1.4.4, not an extra).
 
-## Phone decision (proposed — owner may veto)
+## Phone decision (final)
 
 | Range | Support level |
 |---|---|
@@ -19,7 +19,7 @@ at 1440 (an accessibility requirement, WCAG 1.4.4, not an extra).
 | 480–767 | **Degraded but usable.** Single column, one region at a time; secondary affordances may collapse into menus, but every function stays reachable. |
 | < 480 | **Out of scope, with an honest in-app message.** The app must say so on screen rather than silently clip. |
 
-Status: **proposed by the responsive-work coordinator on 2026-09-26; the owner may veto.**
+Status: **final — accepted by the owner on 2026-09-26.**
 Whatever the final answer, this table, the audit matrix, and `TEST-BRIEF.md` §13 must agree.
 
 ## Breakpoint semantics
