@@ -198,7 +198,7 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: ToolCon
 }
 
 // ---------------- OpenAI (and OpenAI-compatible: OpenRouter, Groq) ----------------
-type OpenAICompatProvider = Extract<ProviderId, "openai" | "openrouter" | "groq">;
+type OpenAICompatProvider = Exclude<ProviderId, "anthropic" | "gemini">;
 
 const runOpenAI = async (turns: ChatTurn[], model: string, ctx: ToolContext, provider: OpenAICompatProvider = "openai"): Promise<void> => {
   const meta = PROVIDER_META[provider];

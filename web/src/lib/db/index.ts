@@ -130,6 +130,21 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       CREATE VIRTUAL TABLE library_fts USING fts5(path UNINDEXED, prompt, model);
     `,
   },
+  {
+    // Per-project agent memory: explicit, user-visible notes the agent reads and appends to,
+    // so long projects do not restart cold.
+    id: 6,
+    sql: `
+      CREATE TABLE project_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        source TEXT NOT NULL DEFAULT 'agent',
+        note TEXT NOT NULL
+      );
+      CREATE INDEX project_notes_project ON project_notes (project_id, ts DESC);
+    `,
+  },
 ];
 
 let db: Database.Database | null = null;

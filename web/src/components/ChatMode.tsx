@@ -15,7 +15,7 @@ import remarkGfm from "remark-gfm";
 import { ModelPicker } from "./ModelPicker";
 
 export interface ChatModelInfo {
-  provider: "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq";
+  provider: "ollama" | "openai" | "anthropic" | "gemini" | "openrouter" | "groq" | "mistral" | "deepseek" | "xai" | "together";
   id: string;
   label: string;
   tags: string[];
@@ -29,6 +29,10 @@ export const PROVIDER_LABEL: Record<ChatModelInfo["provider"], string> = {
   gemini: "Gemini",
   openrouter: "OpenRouter",
   groq: "Groq",
+  mistral: "Mistral",
+  deepseek: "DeepSeek",
+  xai: "xAI",
+  together: "Together",
 };
 
 /** Stable key for a chat model across providers. */
