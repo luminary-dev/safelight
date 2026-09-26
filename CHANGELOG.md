@@ -12,6 +12,13 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Runtime observability (Workstreams G + N): agent runs persist with their full event history
+  (`GET /api/runs`, capped at 200, restore-ready), every cloud provider call lands in a cost
+  ledger with a maintained pricing table (`GET /api/usage` — by day, provider, mode; unpriced
+  models flagged), daily/monthly spend limits warn softly and hard-stop a run mid-loop, server
+  logs are structured and secret-redacted in `data/logs/`, and `/api/health` now reports
+  Ollama resident models, disk free, and per-provider reachability. Local models never count
+  toward spend.
 - Settings (Workstream R): a gear icon opens one surface for everything — provider keys and
   MCP shortcuts, saved themes with apply/reset, daily and monthly spend limits (soft warning,
   hard stop), a 30-day usage summary, and export/import of all app data. The model manager
