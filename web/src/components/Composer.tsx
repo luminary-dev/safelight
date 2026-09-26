@@ -1,12 +1,12 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { BookOpen, ChevronDown, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ControlType, ImageCapabilities, ModelCatalog, ModelEntry } from "@/lib/comfy/types";
 import { SIZE_PRESETS, SIZE_SCALES, randomSeed, scaledSize } from "@/lib/presets";
-import type { Settings } from "@/lib/safelight-state";
+import { addSweepGroup, toRequest, type Settings } from "@/lib/safelight-state";
 import { cn } from "@/lib/utils";
 import { InputImages } from "./ImageControls";
 import { ModelPicker, type PickerOption } from "./ModelPicker";
@@ -15,6 +15,14 @@ import { Select, Slider, Toggle } from "./ui";
 const SEGMENT_ON = "h-8 rounded-[9px]! px-3 font-display text-[13px] font-medium text-ink-muted hover:bg-transparent hover:text-ink data-[state=on]:bg-paper-2 data-[state=on]:font-semibold data-[state=on]:text-ink data-[state=on]:shadow-[var(--shadow-hairline)]";
 
 const CONTROL_PATCH_FILE = "Z-Image-Turbo-Fun-Controlnet-Union.safetensors";
+
+function browserClientId(): string {
+  try {
+    return localStorage.getItem("safelight.clientId.v1") ?? "safelight";
+  } catch {
+    return "safelight";
+  }
+}
 
 /**
  * ControlNet guidance for image edits, collapsed by default. The uploaded reference image
@@ -94,6 +102,140 @@ function ControlNetSection({ modelName, controlType, controlStrength, onChange }
   );
 }
 
+interface SavedPromptDto {
+  id: string;
+  title: string;
+  text: string;
+  negative: string;
+  tags: string[];
+}
+
+/** Auto title for a saved prompt: its first few words. */
+function autoPromptTitle(text: string): string {
+  const words = text.trim().split(/\s+/).slice(0, 6).join(" ");
+  return (words.length > 48 ? `${words.slice(0, 48).trimEnd()}…` : words) || "Untitled prompt";
+}
+
+/**
+ * The prompt library popover: save the current prompt, insert a saved one
+ * (wildcards like `{a|b}` and `__title__` expand at render time), or delete.
+ */
+function PromptsPopover({ prompt, negativePrompt, onApply }: { prompt: string; negativePrompt: string; onApply: (patch: { prompt?: string; negativePrompt?: string }) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [items, setItems] = useState<SavedPromptDto[] | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    const t = setTimeout(
+      async () => {
+        try {
+          const res = await fetch(`/api/prompts${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""}`, { signal: controller.signal });
+          if (!res.ok) return;
+          const data = (await res.json()) as { prompts?: SavedPromptDto[] };
+          setItems(data.prompts ?? []);
+        } catch {
+          /* aborted or offline */
+        }
+      },
+      query ? 250 : 0,
+    );
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [open, query, reloadKey]);
+
+  const save = async () => {
+    if (!prompt.trim()) {
+      setNote("Nothing to save — the prompt is empty.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/prompts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: autoPromptTitle(prompt), text: prompt, negative: negativePrompt }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Saving failed.");
+      setNote("Saved.");
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Saving failed.");
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      await fetch(`/api/prompts?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch {
+      /* the reload shows the truth either way */
+    }
+    setReloadKey((k) => k + 1);
+  };
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="btn-quiet h-7 px-2 text-[12px]" title="Saved prompts">
+        <BookOpen className="size-3.5" /> Prompts
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-40 mt-1.5 flex w-[300px] flex-col gap-2 rounded-[14px] border border-line bg-paper-2 p-3 shadow-[var(--shadow-raised)]">
+          <div className="flex items-center gap-2">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title or tag" className="field h-8 flex-1 text-[12px]" aria-label="Search saved prompts" />
+            <button type="button" className="btn-quiet h-8 shrink-0 px-2 text-[12px]" onClick={() => void save()} title="Save the current prompt">
+              Save
+            </button>
+          </div>
+          {note ? <p className="text-[11.5px] text-faint">{note}</p> : null}
+          <div className="flex max-h-[260px] flex-col gap-1 overflow-y-auto">
+            {items === null ? (
+              <p className="p-1 text-[12px] text-faint">Loading…</p>
+            ) : items.length === 0 ? (
+              <p className="p-1 text-[12px] leading-relaxed text-faint [text-wrap:pretty]">
+                Nothing saved yet. Save prompts here, then reuse them — <code className="code">{"{a|b}"}</code> picks one at render time and <code className="code">__title__</code> inserts another saved prompt.
+              </p>
+            ) : (
+              items.map((p) => (
+                <div key={p.id} className="group flex items-start gap-1.5 rounded-[10px] p-1.5 hover:bg-pill">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    title={p.text}
+                    onClick={() => {
+                      onApply({ prompt: p.text, ...(p.negative ? { negativePrompt: p.negative } : {}) });
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="block truncate text-[12.5px] font-medium text-ink">{p.title}</span>
+                    <span className="block truncate text-[11px] text-faint">{p.text}</span>
+                  </button>
+                  <button type="button" className="btn-quiet h-6 shrink-0 px-1 opacity-0 group-hover:opacity-100" aria-label={`Delete "${p.title}"`} onClick={() => void remove(p.id)}>
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type SweepKind = "" | "seed" | "cfg" | "steps";
+
+interface SweepQueuedPoint {
+  id: string;
+  seed: number;
+  value: number;
+  label: string;
+}
+
 /** The left settings column in Image mode: prompt, shape, count, model, and the create button. */
 export function Composer({
   catalog,
@@ -144,6 +286,135 @@ export function Composer({
   const pickerDefaultOpen = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("picker") === "1";
   const mp = ((settings.width * settings.height) / 1e6).toFixed(settings.width * settings.height >= 1e6 ? 0 : 1);
 
+  // ---------- prompt enhance (with undo) ----------
+  const [undoPrompt, setUndoPrompt] = useState<string | null>(null);
+  const [enhanceBusy, setEnhanceBusy] = useState(false);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  const enhance = async () => {
+    const original = settings.prompt;
+    if (!original.trim() || enhanceBusy) return;
+    setEnhanceBusy(true);
+    setEnhanceError(null);
+    try {
+      const res = await fetch("/api/prompts/enhance", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: original, clientId: browserClientId() }),
+      });
+      const data = (await res.json()) as { text?: string; error?: string };
+      if (!res.ok || !data.text) throw new Error(data.error ?? "Enhance failed.");
+      setUndoPrompt(original);
+      onChange({ prompt: data.text });
+    } catch (err) {
+      setEnhanceError(err instanceof Error ? err.message : "Enhance failed.");
+    } finally {
+      setEnhanceBusy(false);
+    }
+  };
+
+  // ---------- swap guard banner state (§O); the probe effect lives below ----------
+  const [swapWarning, setSwapWarning] = useState<string | null>(null);
+  const [warningDismissedFor, setWarningDismissedFor] = useState<string | null>(null);
+
+  // ---------- sweep (seed / parameter grid) ----------
+  const [sweepOpen, setSweepOpen] = useState(false);
+  const [sweepKind, setSweepKind] = useState<SweepKind>("");
+  const [sweepCount, setSweepCount] = useState(4);
+  const [sweepValues, setSweepValues] = useState("");
+  const [sweepBusy, setSweepBusy] = useState(false);
+  const [sweepError, setSweepError] = useState<string | null>(null);
+  const parsedSweepValues = sweepValues
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => Number.isFinite(n))
+    .slice(0, 6);
+  const sweepActive = sweepKind !== "" && settings.mode === "txt2img" && !isCloud;
+  const sweepReady = !sweepActive || sweepKind === "seed" || parsedSweepValues.length >= 2;
+  const sweepPointCount = sweepKind === "seed" ? sweepCount : parsedSweepValues.length;
+
+  const runSweep = async () => {
+    if (!settings.model || sweepKind === "") return;
+    setSweepBusy(true);
+    setSweepError(null);
+    try {
+      const seed = settings.lockSeed ? settings.seed : randomSeed();
+      const sweep = sweepKind === "seed" ? { kind: "seed", count: sweepCount } : { kind: sweepKind, values: parsedSweepValues };
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...toRequest(settings, seed), clientId: browserClientId(), sweep }),
+      });
+      const data = (await res.json()) as { group?: string; points?: SweepQueuedPoint[]; warning?: string; error?: string };
+      if (!res.ok || !data.group || !data.points) throw new Error(data.error ?? "Failed to queue the sweep.");
+      addSweepGroup({
+        group: data.group,
+        kind: sweepKind,
+        prompt: settings.prompt,
+        width: settings.width,
+        height: settings.height,
+        startedAt: Date.now(),
+        cells: data.points.map((p) => ({ ...p, state: "queued" as const, outputs: [] })),
+      });
+      if (data.warning) setSwapWarning(data.warning);
+    } catch (err) {
+      setSweepError(err instanceof Error ? err.message : "Failed to queue the sweep.");
+    } finally {
+      setSweepBusy(false);
+    }
+  };
+
+  // ---------- swap guard probe (§O): a debounced preflight estimate on size/model changes ----------
+  const modelName = settings.model?.name;
+  const modelFolder = settings.model?.folder;
+  const teKey = settings.textEncoders.join("|");
+  useEffect(() => {
+    const controller = new AbortController();
+    const local = Boolean(modelName) && modelFolder !== "cloud" && online;
+    const t = setTimeout(
+      async () => {
+        if (!local) {
+          setSwapWarning(null);
+          return;
+        }
+        try {
+          const res = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              preflight: true,
+              model: { name: modelName, folder: modelFolder },
+              textEncoders: teKey ? teKey.split("|") : [],
+              vae: settings.vae || undefined,
+              width: settings.width,
+              height: settings.height,
+            }),
+            signal: controller.signal,
+          });
+          if (!res.ok) return;
+          const data = (await res.json()) as { warning?: string | null };
+          setSwapWarning(data.warning ?? null);
+        } catch {
+          /* aborted or offline: keep the last verdict */
+        }
+      },
+      local ? 500 : 0,
+    );
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [modelName, modelFolder, teKey, settings.vae, settings.width, settings.height, online]);
+
+  const generate = () => {
+    if (sweepActive) {
+      if (sweepReady && !sweepBusy) void runSweep();
+      return;
+    }
+    onGenerate();
+  };
+
   return (
     <section className="flex min-h-0 flex-col gap-4 overflow-y-auto border-b border-line p-5 lg:border-b-0 lg:border-r">
       <ToggleGroup type="single" value={settings.mode} onValueChange={(v) => v && onChange({ mode: v as Settings["mode"] })} spacing={0} className="grid w-full grid-cols-2 rounded-[12px] bg-paper p-1" aria-label="Generation mode">
@@ -155,8 +426,44 @@ export function Composer({
         </ToggleGroupItem>
       </ToggleGroup>
 
+      {swapWarning && warningDismissedFor !== swapWarning ? (
+        <div className="flex items-start gap-2 rounded-[12px] border border-terracotta/50 bg-paper px-3 py-2">
+          <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-ink [text-wrap:pretty]">
+            <span className="font-medium">Memory:</span> {swapWarning}
+          </p>
+          <button type="button" className="btn-quiet h-6 shrink-0 px-1.5" aria-label="Dismiss memory warning" onClick={() => setWarningDismissedFor(swapWarning)}>
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-        <h2 className="font-display text-[19px] font-bold tracking-[-0.01em] text-ink">What should we make?</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-display text-[19px] font-bold tracking-[-0.01em] text-ink">What should we make?</h2>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <PromptsPopover prompt={settings.prompt} negativePrompt={settings.negativePrompt} onApply={onChange} />
+            <button type="button" className="btn-quiet h-7 px-2 text-[12px]" onClick={() => void enhance()} disabled={enhanceBusy || !settings.prompt.trim()} title="Expand the prompt with concrete visual detail">
+              <Sparkles className="size-3.5" /> {enhanceBusy ? "Enhancing…" : "Enhance"}
+            </button>
+          </div>
+        </div>
+        {undoPrompt !== null || enhanceError ? (
+          <div className="flex items-center gap-2">
+            {undoPrompt !== null ? (
+              <button
+                type="button"
+                className="btn-quiet h-6 px-2 text-[11.5px]"
+                onClick={() => {
+                  onChange({ prompt: undoPrompt });
+                  setUndoPrompt(null);
+                }}
+              >
+                <Undo2 className="size-3" /> Undo enhance
+              </button>
+            ) : null}
+            {enhanceError ? <p className="min-w-0 flex-1 truncate font-mono text-[11px] text-danger">{enhanceError}</p> : null}
+          </div>
+        ) : null}
         {isEdit ? (
           <InputImages
             images={settings.images}
@@ -181,7 +488,7 @@ export function Composer({
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
-              if (canGenerate) onGenerate();
+              if (canGenerate) generate();
             }
           }}
           rows={4}
@@ -235,6 +542,55 @@ export function Composer({
           ))}
         </ToggleGroup>
       </div>
+
+      {!isCloud && settings.mode === "txt2img" ? (
+        <div className="flex flex-col gap-2">
+          <button type="button" onClick={() => setSweepOpen((o) => !o)} className="inline-flex items-center gap-1.5 self-start text-[12px] font-medium text-faint hover:text-ink">
+            <ChevronDown className={cn("size-3 transition-transform", sweepOpen && "rotate-180")} /> Sweep
+            {sweepKind ? <span className="rounded-full bg-pill px-2 py-0.5 font-mono text-[10px] text-ink">{sweepKind}</span> : null}
+          </button>
+          {sweepOpen ? (
+            <div className="flex flex-col gap-2 rounded-[12px] bg-paper p-3">
+              <div className="form-row">
+                <span className="form-label">Sweep</span>
+                <Select
+                  value={sweepKind}
+                  onChange={(v) => setSweepKind(v as SweepKind)}
+                  placeholder="Off"
+                  options={[
+                    { value: "", label: "Off" },
+                    { value: "seed", label: "Seed variations" },
+                    { value: "cfg", label: "CFG values" },
+                    { value: "steps", label: "Step counts" },
+                  ]}
+                  ariaLabel="Sweep type"
+                />
+              </div>
+              {sweepKind === "seed" ? (
+                <div className="form-row">
+                  <span className="form-label">Count</span>
+                  <Slider value={sweepCount} min={2} max={9} step={1} onChange={(v) => setSweepCount(Math.round(v))} />
+                </div>
+              ) : null}
+              {sweepKind === "cfg" || sweepKind === "steps" ? (
+                <div className="form-row">
+                  <span className="form-label">Values</span>
+                  <input value={sweepValues} onChange={(e) => setSweepValues(e.target.value)} placeholder={sweepKind === "cfg" ? "1, 2.5, 4" : "10, 20, 30"} className="field h-9 font-mono text-xs" aria-label="Sweep values (comma-separated)" />
+                </div>
+              ) : null}
+              {sweepKind ? (
+                <p className="text-[11.5px] leading-relaxed text-faint [text-wrap:pretty]">
+                  {sweepKind === "seed"
+                    ? `Renders ${sweepCount} variations of these settings with seeds derived from the ${settings.lockSeed ? "locked" : "base"} seed. The results appear as a grid on the Stage.`
+                    : !sweepReady
+                      ? "Enter 2–6 comma-separated values."
+                      : `Renders one image per ${sweepKind} value (${parsedSweepValues.join(", ")}), same seed. The results appear as a grid on the Stage.`}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-2.5 rounded-[16px] bg-paper p-3.5">
         {catalog ? (
@@ -372,10 +728,11 @@ export function Composer({
         </p>
       ) : null}
       {error ? <p className="break-words font-mono text-[11px] leading-relaxed text-danger">{error}</p> : null}
+      {sweepError ? <p className="break-words font-mono text-[11px] leading-relaxed text-danger">{sweepError}</p> : null}
 
       <div className="mt-auto flex items-center gap-3 pt-2">
-        <button id="generate-button" type="button" disabled={!canGenerate} onClick={onGenerate} className="btn-primary h-[52px] flex-1 rounded-[14px] text-[15px]">
-          {submitting ? "Queueing" : settings.batch > 1 ? `Create ${settings.batch} images` : "Create image"}
+        <button id="generate-button" type="button" disabled={!canGenerate || sweepBusy || (sweepActive && !sweepReady)} onClick={generate} className="btn-primary h-[52px] flex-1 rounded-[14px] text-[15px]">
+          {submitting || sweepBusy ? "Queueing" : sweepActive ? `Create ${sweepPointCount} variations` : settings.batch > 1 ? `Create ${settings.batch} images` : "Create image"}
           <span className="font-mono text-[12px] font-medium opacity-70">⌘⏎</span>
         </button>
       </div>

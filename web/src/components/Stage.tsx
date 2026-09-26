@@ -3,10 +3,10 @@
 /* eslint-disable @next/next/no-img-element */
 import { Brush, Download, Eraser, ExternalLink, Pencil, RefreshCw, Shuffle, Trash2, UnfoldHorizontal, X, ZoomIn } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { GalleryItem, ImageCapabilities, JobOutput, JobStatus } from "@/lib/comfy/types";
-import { viewUrl, type Job } from "@/lib/safelight-state";
+import { getSweepGroups, patchSweepCell, removeSweepGroup, subscribeSweeps, viewUrl, type Job, type SweepCellState, type SweepGroupState } from "@/lib/safelight-state";
 import type { ProgressState } from "@/hooks/useComfySocket";
 import { ConfirmDelete } from "./ConfirmDelete";
 import { MaskCanvas, OutpaintControls, type InpaintSubmission, type OutpaintSubmission } from "./MaskCanvas";
@@ -34,6 +34,104 @@ function browserClientId(): string {
   } catch {
     return "safelight";
   }
+}
+
+// ---------- sweep grids ----------
+
+const KIND_LABEL: Record<SweepGroupState["kind"], string> = { seed: "Seed sweep", cfg: "CFG sweep", steps: "Steps sweep" };
+
+function SweepCell({ group, cell }: { group: SweepGroupState; cell: SweepCellState }) {
+  const image = cell.outputs.find((o) => (o.kind ?? "image") === "image");
+  const pending = cell.state === "queued" || cell.state === "running";
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="relative overflow-hidden rounded-[8px] border border-line bg-pill" style={{ aspectRatio: `${group.width} / ${group.height}` }}>
+        {image ? (
+          <img src={viewUrl(image)} alt={`${cell.label} result`} className="absolute inset-0 h-full w-full object-cover" />
+        ) : cell.state === "error" ? (
+          <div className="absolute inset-0 flex items-center justify-center p-2">
+            <p className="line-clamp-3 text-center font-mono text-[10px] leading-relaxed text-danger">{cell.error ?? "Failed."}</p>
+          </div>
+        ) : (
+          <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-pill via-paper-2 to-pill" />
+        )}
+        {pending ? (
+          <button
+            type="button"
+            className="btn-quiet absolute right-1 top-1 h-6 bg-paper/80 px-1.5 hover:border-danger/40 hover:text-danger"
+            aria-label={`Cancel ${cell.label}`}
+            title="Cancel this cell"
+            onClick={() => void fetch(`/api/jobs/${cell.id}`, { method: "DELETE" }).catch(() => undefined)}
+          >
+            <X className="size-3" />
+          </button>
+        ) : null}
+      </div>
+      <span className="truncate text-center font-mono text-[10px] text-ink-muted" title={cell.label}>
+        {cell.label}
+        {pending ? ` · ${cell.state}` : ""}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Grid cards for sweep groups: every job sharing a sweep group renders as one
+ * card, each cell labelled with its seed or parameter value, cancellable while
+ * pending. State lives in the shared sweep store the Composer writes to.
+ */
+function SweepGrids() {
+  const groups = useSyncExternalStore(subscribeSweeps, getSweepGroups, getSweepGroups);
+  const pending = groups.some((g) => g.cells.some((c) => c.state === "queued" || c.state === "running"));
+
+  useEffect(() => {
+    if (!pending) return;
+    let stopped = false;
+    const tick = async () => {
+      for (const g of getSweepGroups()) {
+        for (const c of g.cells) {
+          if (c.state !== "queued" && c.state !== "running") continue;
+          const res = await fetch(`/api/jobs/${c.id}`).catch(() => null);
+          if (stopped) return;
+          if (!res?.ok) continue;
+          const status = (await res.json()) as JobStatus;
+          if (status.state !== c.state || status.outputs.length > 0) patchSweepCell(g.group, c.id, { state: status.state, outputs: status.outputs, error: status.error });
+        }
+      }
+    };
+    const t = setInterval(() => void tick(), 1500);
+    void tick();
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
+  }, [pending]);
+
+  if (groups.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      {groups.map((g) => (
+        <div key={g.group} className="card flex flex-col gap-2 p-3">
+          <div className="flex items-center gap-3">
+            <span className="text-[12.5px] font-medium text-ink">
+              {KIND_LABEL[g.kind]} · {g.cells.length}
+            </span>
+            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-faint" title={g.prompt}>
+              {g.prompt}
+            </span>
+            <button type="button" className="btn-quiet h-6 shrink-0 px-1.5" aria-label="Dismiss sweep" title="Dismiss (renders stay in the gallery)" onClick={() => removeSweepGroup(g.group)}>
+              <X className="size-3.5" />
+            </button>
+          </div>
+          <div className={`grid gap-2 ${g.cells.length <= 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-5"}`}>
+            {g.cells.map((c) => (
+              <SweepCell key={c.id} group={g} cell={c} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** A one-click Stage action (recreate, vary, upscale, background removal) being tracked locally. */
@@ -464,6 +562,8 @@ export function Stage({
           ))}
         </div>
       ) : null}
+
+      <SweepGrids />
 
       {queue.length > 1 || (queue.length === 1 && queue[0].job.id !== activeJob?.id) ? <RunQueue queue={queue} progress={progress} /> : null}
 

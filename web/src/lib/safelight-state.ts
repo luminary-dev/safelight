@@ -1,4 +1,4 @@
-import type { ControlType, GenerateRequest, JobOutput, ModelCatalog, ModelEntry, Mode } from "@/lib/comfy/types";
+import type { ControlType, GenerateRequest, JobOutput, JobState, ModelCatalog, ModelEntry, Mode } from "@/lib/comfy/types";
 
 export interface UploadedImage {
   ref: string;
@@ -132,6 +132,79 @@ export function toRequest(s: Settings, seed: number): GenerateRequest {
 export function viewUrl(o: JobOutput): string {
   const p = new URLSearchParams({ filename: o.filename, subfolder: o.subfolder ?? "", type: o.type ?? "output" });
   return `/api/view?${p}`;
+}
+
+// ---------- sweep groups (seed / parameter grids) ----------
+
+/**
+ * Sweep jobs are queued by the Composer straight against /api/generate, so the
+ * grid state lives in this small shared store (useSyncExternalStore-shaped)
+ * that both the Composer (writes) and the Stage (renders, polls) see.
+ * It is per-tab and in-memory; each job's sidecar carries the durable group id.
+ */
+export interface SweepCellState {
+  id: string;
+  seed: number;
+  /** The swept value: the seed for seed sweeps, the cfg/steps value otherwise. */
+  value: number;
+  label: string;
+  state: JobState;
+  outputs: JobOutput[];
+  error?: string;
+}
+
+export interface SweepGroupState {
+  group: string;
+  kind: "seed" | "cfg" | "steps";
+  prompt: string;
+  width: number;
+  height: number;
+  startedAt: number;
+  cells: SweepCellState[];
+}
+
+let sweepGroups: SweepGroupState[] = [];
+const sweepListeners = new Set<() => void>();
+
+function emitSweeps() {
+  for (const l of sweepListeners) l();
+}
+
+export function subscribeSweeps(listener: () => void): () => void {
+  sweepListeners.add(listener);
+  return () => sweepListeners.delete(listener);
+}
+
+export function getSweepGroups(): SweepGroupState[] {
+  return sweepGroups;
+}
+
+export function addSweepGroup(group: SweepGroupState) {
+  sweepGroups = [group, ...sweepGroups].slice(0, 12);
+  emitSweeps();
+}
+
+export function removeSweepGroup(group: string) {
+  const next = sweepGroups.filter((g) => g.group !== group);
+  if (next.length === sweepGroups.length) return;
+  sweepGroups = next;
+  emitSweeps();
+}
+
+export function patchSweepCell(group: string, id: string, patch: Partial<SweepCellState>) {
+  let changed = false;
+  const next = sweepGroups.map((g) => {
+    if (g.group !== group) return g;
+    const cells = g.cells.map((c) => {
+      if (c.id !== id) return c;
+      changed = true;
+      return { ...c, ...patch };
+    });
+    return changed ? { ...g, cells } : g;
+  });
+  if (!changed) return;
+  sweepGroups = next;
+  emitSweeps();
 }
 
 export interface Job {

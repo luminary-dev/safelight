@@ -6,6 +6,12 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Prompt library, sweeps, and a memory guard (Workstream J, round three): saved prompts with
+  `{a|b}` and `__title__` wildcards expanded per render and seeded by the render seed (a
+  locked seed reproduces the expansion), one-click Enhance with undo, seed/CFG/steps sweeps
+  rendered as a labelled grid with per-cell cancel, and a preflight that estimates a local
+  render's real memory footprint from the model files on disk and warns before it would push
+  the machine into swap — never blocking, always naming the numbers.
 - Detached agent runs (Workstream G, round three): closing or reloading the page no longer
   kills a run — the run continues server-side, the page reconnects to it and rebuilds the
   transcript from the persisted event log, Stop now cancels the run itself

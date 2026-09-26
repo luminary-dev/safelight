@@ -1,7 +1,9 @@
 import "server-only";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getHistory, getQueue, hasNode, listFolder, queuePrompt, type HistoryEntry } from "@/lib/comfy/client";
+import { getHistory, getQueue, hasNode, listFolder, queuePrompt, systemStats, type HistoryEntry } from "@/lib/comfy/client";
+import { parseExtraModelPaths } from "@/lib/models/paths";
 import { buildGraph, buildInpaintGraph, buildOutpaintGraph, buildRemoveBackgroundGraph, buildUpscaleGraph } from "@/lib/comfy/graph";
 import type { ControlType, GenerateRequest, ImageCapabilities, JobOutput, JobStatus, MaskEditRequest } from "@/lib/comfy/types";
 import { unloadOllamaModels } from "@/lib/ollama/client";
@@ -172,14 +174,228 @@ async function gateControl(req: GenerateRequest): Promise<GenerateRequest> {
   return { ...req, control: { ...req.control, patch } };
 }
 
-/** Queues a local render on ComfyUI, freeing Ollama's memory first. Returns the prompt id. */
-export async function queueLocal(req: GenerateRequest, clientId: string) {
+/**
+ * Queues a local render on ComfyUI, freeing Ollama's memory first. Returns the prompt id.
+ * `sidecarExtra` fields are recorded verbatim in the render's metadata sidecar
+ * (e.g. sweep group info); readers ignore fields they do not know.
+ */
+export async function queueLocal(req: GenerateRequest, clientId: string, opts: { sidecarExtra?: Record<string, unknown> } = {}) {
   req = await gateControl(req);
   const graph = buildGraph(req);
   const freed = await unloadOllamaModels();
   const result = await queuePrompt(graph, clientId);
-  rememberPendingSidecar(result.prompt_id, sidecarForRequest(req));
+  const sidecar = opts.sidecarExtra ? ({ ...sidecarForRequest(req), ...opts.sidecarExtra } as RenderSidecar) : sidecarForRequest(req);
+  rememberPendingSidecar(result.prompt_id, sidecar);
   return { id: result.prompt_id, graph, freed };
+}
+
+// ---------- sweeps (seed / parameter grids) ----------
+
+export type SweepSpec = { kind: "seed"; count: number } | { kind: "cfg" | "steps"; values: number[] };
+
+export interface SweepPoint {
+  req: GenerateRequest;
+  /** The swept value: the seed for seed sweeps, the cfg/steps value otherwise. */
+  value: number;
+  label: string;
+}
+
+/** Validates a sweep request body. Throws a user-readable error on bad shapes. */
+export function sanitizeSweep(raw: unknown): SweepSpec {
+  if (!raw || typeof raw !== "object") throw new Error("Bad sweep: pass { kind, count | values }.");
+  const s = raw as { kind?: unknown; count?: unknown; values?: unknown };
+  if (s.kind === "seed") {
+    return { kind: "seed", count: clampInt(s.count, 2, 9, 4) };
+  }
+  if (s.kind === "cfg" || s.kind === "steps") {
+    const values = (Array.isArray(s.values) ? s.values : [])
+      .map((v) => (typeof v === "string" ? Number(v) : v))
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v))
+      .map((v) => (s.kind === "cfg" ? Math.min(30, Math.max(0, v)) : clampInt(v, 1, 150, 1)))
+      .slice(0, 6);
+    if (values.length < 2) throw new Error(`A ${s.kind} sweep needs 2 to 6 comma-separated values.`);
+    return { kind: s.kind, values };
+  }
+  throw new Error('Unsupported sweep kind. Use "seed", "cfg" or "steps".');
+}
+
+/** Deterministic seed for sweep point `i`: point 0 keeps the base seed so a locked seed stays reproducible. */
+export function deriveSweepSeed(base: number, i: number): number {
+  if (i === 0) return base;
+  return (base + i * 0x9e3779b1) % Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * Fans one base request out into per-point requests. Seed sweeps derive each
+ * seed from the base; parameter sweeps keep the base seed and vary cfg/steps.
+ * Every point renders a single image (batch 1) so the grid maps 1:1 to jobs.
+ */
+export function sweepPoints(base: GenerateRequest, sweep: SweepSpec): SweepPoint[] {
+  if (sweep.kind === "seed") {
+    return Array.from({ length: sweep.count }, (_, i) => {
+      const seed = deriveSweepSeed(base.seed, i);
+      return { req: { ...base, seed, batch: 1 }, value: seed, label: `seed ${seed}` };
+    });
+  }
+  return sweep.values.map((value) => ({
+    req: { ...base, [sweep.kind]: value, batch: 1 },
+    value,
+    label: `${sweep.kind} ${value}`,
+  }));
+}
+
+// ---------- memory / swap guard (§O: warn before a render that will swap) ----------
+
+const GiB = 1024 ** 3;
+
+/**
+ * Where a model folder's files can live on disk. ComfyUI merges several
+ * registered paths per folder key (extra_model_paths.yaml plus the vendored
+ * models dir), so the estimator checks all of them.
+ */
+const FOLDER_ALIASES: Record<string, string[]> = {
+  unet_gguf: ["unet", "diffusion_models"],
+  diffusion_models: ["diffusion_models", "unet"],
+  checkpoints: ["checkpoints"],
+  text_encoders: ["text_encoders", "clip"],
+  vae: ["vae"],
+};
+
+let modelDirsCache: Record<string, string[]> | null = null;
+
+/** Every absolute directory that may hold files of a model folder, yaml order first. */
+function modelDirsFor(folder: string): string[] {
+  if (!modelDirsCache) {
+    const repoRoot = path.resolve(process.cwd(), "..");
+    const extraFile = process.env.COMFY_EXTRA_MODEL_PATHS ?? path.join(repoRoot, "comfyui", "extra_model_paths.yaml");
+    const vendored = path.join(repoRoot, "comfyui", "models");
+    let parsed: ReturnType<typeof parseExtraModelPaths> = { map: {} };
+    try {
+      parsed = parseExtraModelPaths(readFileSync(extraFile, "utf8"));
+    } catch {
+      /* no extra paths file: only the vendored tree */
+    }
+    const base = parsed.basePath ?? vendored;
+    const dirs: Record<string, string[]> = {};
+    for (const [key, subpaths] of Object.entries(parsed.map)) {
+      dirs[key] = subpaths.map((s) => path.join(base, s));
+    }
+    for (const key of new Set(Object.values(FOLDER_ALIASES).flat())) {
+      (dirs[key] ??= []).push(path.join(vendored, key));
+    }
+    modelDirsCache = dirs;
+  }
+  const keys = FOLDER_ALIASES[folder] ?? [folder];
+  return keys.flatMap((k) => modelDirsCache![k] ?? []);
+}
+
+/** File size of a model file as ComfyUI names it (may include a subfolder prefix). 0 when not found. */
+async function modelFileBytes(folder: string, name: string): Promise<number> {
+  for (const dir of modelDirsFor(folder)) {
+    try {
+      const s = await stat(path.join(dir, name));
+      if (s.isFile()) return s.size;
+    } catch {
+      /* try the next registered path */
+    }
+  }
+  return 0;
+}
+
+/**
+ * Resolution-dependent activation head-room, calibrated conservatively on this
+ * machine (26 GB unified memory): the ~20B Qwen stack (~14.6 GB of weights)
+ * starts swapping at ≥896 px (0.8 MP), which puts its activations near 5 GB
+ * there. Activations grow super-linearly with pixel count (attention over
+ * latent tokens), encoded as MP^1.5, and scale with the size of the weights.
+ */
+export function activationMarginBytes(width: number, height: number, weightsBytes: number): number {
+  const mp = Math.max(0.05, (width * height) / 1e6);
+  const weightScale = Math.max(1, weightsBytes / (8 * GiB));
+  return Math.round((0.75 + 3.5 * mp ** 1.5 * weightScale) * GiB);
+}
+
+export interface FootprintEstimate {
+  modelBytes: number;
+  textEncoderBytes: number;
+  vaeBytes: number;
+  marginBytes: number;
+  /** modelBytes + textEncoderBytes + vaeBytes + marginBytes. */
+  neededBytes: number;
+  /** Free unified memory (ComfyUI's ram_free) plus what unloading Ollama's resident models frees. */
+  freeBytes: number;
+  ollamaResidentBytes: number;
+  willSwap: boolean;
+  warning: string | null;
+}
+
+const fmtGb = (bytes: number) => {
+  const gb = bytes / GiB;
+  return gb >= 10 ? String(Math.round(gb)) : (Math.round(gb * 10) / 10).toString();
+};
+
+/** Largest same-aspect size (multiples of 32) whose estimated footprint still fits, or null. */
+function suggestedSize(width: number, height: number, weightsBytes: number, freeBytes: number): string | null {
+  const budget = freeBytes - weightsBytes - 0.75 * GiB;
+  if (budget <= 0) return null;
+  // Invert margin = 0.75 + 3.5 * mp^1.5 * scale (GiB) for the largest mp that fits.
+  const weightScale = Math.max(1, weightsBytes / (8 * GiB));
+  const mp = (budget / GiB / (3.5 * weightScale)) ** (2 / 3);
+  const factor = Math.sqrt((mp * 1e6) / (width * height));
+  if (factor >= 1 || factor <= 0.2) return null;
+  const round32 = (n: number) => Math.max(256, Math.floor((n * factor) / 32) * 32);
+  return `${round32(width)}×${round32(height)}`;
+}
+
+/** Pure decision + message, split from the I/O so tests can drive the math directly. */
+export function footprintVerdict(
+  parts: { modelBytes: number; textEncoderBytes: number; vaeBytes: number; width: number; height: number },
+  ramFreeBytes: number,
+  ollamaResidentBytes: number,
+): FootprintEstimate {
+  const weights = parts.modelBytes + parts.textEncoderBytes + parts.vaeBytes;
+  const marginBytes = activationMarginBytes(parts.width, parts.height, weights);
+  const neededBytes = weights + marginBytes;
+  const freeBytes = ramFreeBytes + ollamaResidentBytes;
+  // Without the model file on disk there is nothing to estimate; never cry wolf.
+  const willSwap = parts.modelBytes > 0 && neededBytes > freeBytes;
+  let warning: string | null = null;
+  if (willSwap) {
+    const smaller = suggestedSize(parts.width, parts.height, weights, freeBytes);
+    const freeNote = ollamaResidentBytes > 0 ? ` free (after unloading Ollama's resident chat models, ~${fmtGb(ollamaResidentBytes)} GB of it)` : " free";
+    const advice = smaller ? `consider ${smaller} or closing apps` : "consider a smaller size or closing apps";
+    warning = `~${fmtGb(neededBytes)} GB needed, ${fmtGb(freeBytes)} GB${freeNote} — this render will likely swap and slow dramatically; ${advice}.`;
+  }
+  return { modelBytes: parts.modelBytes, textEncoderBytes: parts.textEncoderBytes, vaeBytes: parts.vaeBytes, marginBytes, neededBytes, freeBytes, ollamaResidentBytes, willSwap, warning };
+}
+
+/** Bytes Ollama currently keeps resident (freed before every local render). Best effort. */
+async function ollamaResidentBytes(): Promise<number> {
+  const url = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
+  try {
+    const res = await fetch(`${url}/api/ps`, { cache: "no-store", signal: AbortSignal.timeout(1500) });
+    if (!res.ok) return 0;
+    const data = (await res.json()) as { models?: { size?: number }[] };
+    return (data.models ?? []).reduce((sum, m) => sum + (m.size ?? 0), 0);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Estimates the unified-memory footprint of a local render (weights on disk +
+ * a resolution-dependent activation margin) against the free RAM ComfyUI
+ * reports — the same source /api/health uses. Throws only when ComfyUI is down.
+ */
+export async function estimateLocalFootprint(req: GenerateRequest): Promise<FootprintEstimate> {
+  const [modelBytes, teBytes, vaeBytes, stats, ollamaBytes] = await Promise.all([
+    modelFileBytes(req.model.folder, req.model.name),
+    Promise.all(req.textEncoders.map((t) => modelFileBytes("text_encoders", t))).then((sizes) => sizes.reduce((a, b) => a + b, 0)),
+    req.vae ? modelFileBytes("vae", req.vae) : Promise.resolve(0),
+    systemStats(),
+    ollamaResidentBytes(),
+  ]);
+  return footprintVerdict({ modelBytes, textEncoderBytes: teBytes, vaeBytes, width: req.width, height: req.height }, stats.system.ram_free, ollamaBytes);
 }
 
 /** A mask-edit request that may also carry explicit render settings (model, steps, …). */
