@@ -10,6 +10,16 @@ function allowedHosts(): Set<string> {
   return new Set(["localhost", "127.0.0.1", "[::1]", ...extra]);
 }
 
+/** Hostname from a Host header. Bracketed IPv6 literals ("[::1]:3000") contain colons, so a plain split(":") would truncate them to "[". */
+function hostHeaderName(host: string): string {
+  const h = host.trim().toLowerCase();
+  if (h.startsWith("[")) {
+    const end = h.indexOf("]");
+    return end === -1 ? h : h.slice(0, end + 1);
+  }
+  return h.split(":")[0];
+}
+
 /**
  * Two localhost-app defenses on every API route:
  * - Host allowlist, so DNS-rebinding pages cannot reach the API through a hostname they control.
@@ -18,7 +28,7 @@ function allowedHosts(): Set<string> {
  *   send Origin on cross-site mutations.
  */
 export function middleware(request: NextRequest) {
-  const hostname = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
+  const hostname = hostHeaderName(request.headers.get("host") ?? "");
   if (!allowedHosts().has(hostname)) {
     return NextResponse.json({ error: "This host is not allowed to reach the Safelight API." }, { status: 403 });
   }

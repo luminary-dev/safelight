@@ -5,6 +5,14 @@ All notable changes to Safelight are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Security (TEST-BRIEF phase 2): a symlink planted inside `outputs/` could read files
+  anywhere on disk through `/api/view` and delete files anywhere through the gallery DELETE —
+  both now realpath-confined with proving tests; IPv6 `[::1]` hosts pass the API host
+  allowlist as intended; null-byte file references return 400 instead of 500. The middleware
+  origin/host control, approvals gate, rate limiter, vault keychain flow, and every
+  path-taking image surface gained 108 hermetic tests (577 → 685).
+
 ### Added
 - Desktop app (Workstream Q, executed): a Tauri 2 shell in `desktop/` — Safelight.app builds
   and runs. It attaches to a healthy running Safelight server or extracts the bundled web

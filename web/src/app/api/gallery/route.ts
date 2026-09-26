@@ -1,4 +1,4 @@
-import { readdir, stat, unlink } from "node:fs/promises";
+import { readdir, realpath, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 import type { GalleryItem } from "@/lib/comfy/types";
@@ -44,11 +44,22 @@ export async function DELETE(request: NextRequest) {
   }
   const filename = body.filename ?? "";
   const subfolder = body.subfolder ?? "";
-  if (!filename || !IMAGE_EXT.test(filename) || filename.includes("/") || filename.includes("..") || subfolder.includes("..")) {
+  if (!filename || !IMAGE_EXT.test(filename) || filename.includes("/") || filename.includes("..") || subfolder.includes("..") || filename.includes("\0") || subfolder.includes("\0")) {
     return Response.json({ error: "Bad file reference." }, { status: 400 });
   }
   const full = safeJoin(OUTPUT_DIR, subfolder, filename);
   if (!full) return Response.json({ error: "Bad file reference." }, { status: 400 });
+  // safeJoin confines lexically; a symlink planted inside outputs could still resolve the unlink
+  // somewhere else (lib/library/confine.ts guards the same way). A missing file falls through so
+  // ENOENT keeps its 404 contract below.
+  try {
+    const [rootReal, fileReal] = await Promise.all([realpath(OUTPUT_DIR), realpath(full)]);
+    if (fileReal !== rootReal && !fileReal.startsWith(rootReal + path.sep)) {
+      return Response.json({ error: "Bad file reference." }, { status: 400 });
+    }
+  } catch {
+    /* the file (or the root) does not exist — unlink reports that as 404 */
+  }
   try {
     await unlink(full);
     return Response.json({ ok: true });

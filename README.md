@@ -5,16 +5,19 @@ against your own models on your own machine, with cloud models available when yo
 and nothing leaving the machine that you did not send.
 
 The promise is **privacy plus range**: local-first inference (ComfyUI for images, Ollama for
-text), with OpenAI, Anthropic, Gemini, OpenRouter, and Groq as opt-in accelerants behind an
-encrypted key vault. Everything you make lands as normal files in folders you own.
+text), with eleven cloud providers — OpenAI, Anthropic, Gemini, OpenRouter, Groq, Mistral,
+DeepSeek, xAI, Together, Cerebras, and Vercel AI Gateway — as opt-in accelerants behind an
+encrypted key vault. A **Local only** switch in Settings hard-disables every outbound call,
+with a visible badge and an audit log. Everything you make lands as normal files in folders
+you own.
 
 Safelight is a Luminary product, source-available under the **Business Source License 1.1**
 (see [LICENSE](LICENSE) and [docs/adr/0002](docs/adr/0002-license-bsl-1.1.md)).
 
 > **TODO(screenshots):** add one screenshot per mode here (Chat, Image, Code, Design,
-> Library) once the UI settles.
+> Library, Blueprints) once the UI settles.
 
-## The five modes
+## The six modes
 
 Switched from the left rail (`web/src/components/Sidebar.tsx`), each with its own sessions,
 searchable with ⌘K, and groupable into projects.
@@ -23,12 +26,22 @@ searchable with ⌘K, and groupable into projects.
   as markdown with syntax-highlighted code blocks, copy buttons, and a regenerate action.
   Attach reference photos (paperclip, drop, or paste) to vision-capable models. Toggle
   **Agent** and the model can call Safelight's image tools; hover a reply for "Use as image
-  prompt" or "Use with the photo as reference" to hand it straight to Image mode.
+  prompt" or "Use with the photo as reference" to hand it straight to Image mode. Branch a
+  conversation from any message, edit-and-resend, tune per-session system prompt and sampling
+  params, attach PDFs/text/CSV (extracted locally), see a live ~token/cost estimate, and use
+  voice both ways through the browser's own speech engine. Agent runs are **detached**:
+  reloading the page reconnects to a running agent instead of killing it.
 - **Image** — an editorial split: composer on the left (model picker, prompt, aspect and
   megapixel pills, steps, seed, batch, and a "More settings" disclosure for CFG, denoise,
   negative prompt, sampler, scheduler, text encoders, VAE, LoRA), stage on the right with the
   latest render large, live progress over a WebSocket, a render queue, and a filmstrip
   filtered to this session or everything. Text-to-image and from-image modes; ⌘⏎ generates.
+  Every render writes a metadata sidecar, so **Recreate** and **Vary** are one click; the
+  Stage adds mask-brush **inpainting**, directional **outpainting**, upscale, and background
+  removal (gated honestly on installed models); the composer adds a prompt library with
+  wildcards, seed/CFG/steps **sweeps** rendered as a grid, and a memory guard that warns
+  before a render would push the machine into swap. An in-app **model manager** downloads
+  from Hugging Face and Civitai with checksum verification straight into `~/models`.
 - **Code** — point a session at an absolute folder path (typed or picked with the built-in
   folder browser) and a tool-capable model can explore, grep, glob, read, and edit files
   inside it — and nowhere else. Any path outside the workspace pauses the run for an explicit
@@ -40,22 +53,40 @@ searchable with ⌘K, and groupable into projects.
   swatch cards. Saving enforces WCAG AA contrast in code (failing pairs are rejected with
   their ratios named); a saved theme can be applied live to Safelight itself and exported as
   CSS variables, a Tailwind v4 `@theme` block, or DTCG design-tokens JSON.
-- **Library** — everything ever rendered (local and cloud) as a grid read from `outputs/`,
-  with a full-size viewer, download, delete, and an "Edit in Image" shortcut that reopens any
-  render as an img2img input.
+- **Library** — a real asset manager over everything ever rendered: SQLite-indexed with
+  full-text prompt search, model/tag/favorite/date filters, generated thumbnails, a
+  virtualized grid, metadata inspector, compare slider, duplicate detection, and bulk
+  export/delete — plus the "Edit in Image" shortcut on any render.
+- **Blueprints** — all 116 workflow templates the vendored render engine ships, parsed into
+  runnable capabilities: a searchable catalog grouped by image/video/audio/3D/utility with
+  honest ready/missing chips naming exactly which model files each one still needs, and a
+  generated run form for any that are ready.
 
 ## Capability matrix
 
 | Capability | Local | Cloud | Notes |
 |---|---|---|---|
-| Chat | Ollama | OpenAI, Anthropic, Gemini, OpenRouter, Groq | streaming, markdown, vision with capable models |
+| Chat | Ollama | 11 providers (OpenAI, Anthropic, Gemini, OpenRouter, Groq, Mistral, DeepSeek, xAI, Together, Cerebras, AI Gateway) | streaming, markdown, vision, attachments, voice, branching |
 | Image generation | ComfyUI (Qwen-Image, Flux, SDXL, SD 1.5) | OpenAI, Gemini | txt2img + img2img/reference edit |
 | Image editing | Qwen-Image references | providers flagged `edit` | "Edit in Image" from any render |
 | Coding agent | any tool-capable model | any tool-capable model | file tools + `run_command` behind per-command approval |
 | Design research | any tool-capable model | any tool-capable model | web search, page fetch, WCAG-AA-gated themes that apply and export |
-| Agent tool loop | Ollama (tool-capable models) | all five providers | NDJSON stream, approvals, retries |
+| Agent tool loop | Ollama (tool-capable models) | all eleven providers | detached runs that survive reloads, per-project memory, sub-agents, spend limits, cost ledger |
+| Video / audio / 3D | ComfyUI blueprints (registry of 116) | — | gated on installed models; outputs collected and served |
 | MCP tools | user-added servers (stdio) | user-added servers (HTTP) | plug icon in the sidebar; non-read-only tools ask Allow/Deny before every call |
 | Data portability | `/api/export` / `/api/import` | — | full JSON dump, never includes keys |
+
+## Install
+
+Three ways to run Safelight:
+
+1. **Desktop app (macOS)** — build `desktop/` (Tauri 2; see [desktop/README.md](desktop/README.md)).
+   The app attaches to a running Safelight server or spawns its own with its own data
+   directory, and uses any running ComfyUI/Ollama. Unsigned for now; needs Node 22+.
+2. **Docker** — the headless/server path: [docs/deploy.md](docs/deploy.md)
+   (`docker-compose.yml`; your local GPL ComfyUI clone is bind-mounted, never baked into an
+   image).
+3. **From source** — below.
 
 ## Setup from scratch
 
@@ -112,11 +143,17 @@ steps / cfg 6 / dpmpp_2m·karras.
 ## Verification
 
 ```bash
-pnpm verify   # typecheck + lint + unit tests + production build, from the repo root
+pnpm verify           # typegen + typecheck + lint + unit tests with coverage thresholds
+                      # + quality-gate drift check + production build
+pnpm --dir web e2e    # 16 Playwright tests against an isolated instance (throwaway data,
+                      # backends deliberately unreachable — never your real data)
 ```
 
-CI (`.github/workflows/verify.yml`) runs the same gate plus a production dependency audit on
-every push and PR.
+577 unit tests across 58 files run in under two seconds; coverage is measured over the full
+shipped surface (routes and components included) with ratcheting floors — see
+[docs/quality-gates.md](docs/quality-gates.md) for the honest 1.0 gate table, which CI
+verifies against a fresh run. CI (`.github/workflows/verify.yml`) adds a production
+dependency audit and a full-history gitleaks secret scan on every push and PR.
 
 ## Data layout — what lives where
 
@@ -138,10 +175,11 @@ JSON document (never keys); `POST /api/import` merges it back by id.
 Sidebar → key icon. Keys are validated with one cheap authenticated call on save ("Key
 works" / "The provider rejected this key"), stored only in the encrypted vault, and only
 ever used server-side — the API returns at most a `…abcd` hint. Environment variables
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and
-`GROQ_API_KEY` work as fallbacks, and each provider accepts a custom base URL (Azure OpenAI,
-vLLM, LiteLLM gateways) via `SAFELIGHT_<PROVIDER>_BASE_URL`. OpenAI and Gemini add image
-models; all five add chat models. Cloud renders are saved to `outputs/cloud/` so they appear
+(`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, … — see `.env.example` for all
+eleven) work as fallbacks, and each provider accepts a custom base URL (Azure OpenAI, vLLM,
+LiteLLM gateways) from the keys dialog or `SAFELIGHT_<PROVIDER>_BASE_URL`. OpenAI and Gemini
+add image models; all eleven add chat models. Every cloud call lands in a cost ledger with
+daily/monthly spend limits (global and per-provider) in Settings. Cloud renders are saved to `outputs/cloud/` so they appear
 in the Library like local ones. See [docs/providers-and-keys.md](docs/providers-and-keys.md).
 
 ## Memory on a 26 GB Mac
@@ -169,15 +207,16 @@ reason and a fix action.
 safelight/
   comfyui/    ComfyUI backend + ComfyUI-GGUF node (cloned, not committed; see patch note)
   web/        Next.js app — the entire product surface, http://localhost:3001
-  scripts/    launchers (comfy.sh, dev.sh)
+  desktop/    Tauri 2 desktop shell (attach-or-spawn supervisor)
+  scripts/    launchers (comfy.sh, dev.sh) and CI helpers
   data/       SQLite DB, encrypted keys, backups (gitignored)
   outputs/    generated images land here (gitignored)
   inputs/     uploaded reference images (gitignored)
   docs/       documentation and architecture decision records
 ```
 
-Deep links: `?mode=chat|image|code|design|library` opens a mode, `?theme=light|dark` forces
-a theme for that load.
+Deep links: `?mode=chat|image|code|design|library|blueprints` opens a mode,
+`?theme=light|dark` forces a theme for that load.
 
 ## Documentation
 
