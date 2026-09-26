@@ -7,6 +7,7 @@ import { KIND_LABEL, SELECTABLE_KINDS, folderForKind, formatBytes } from "@/lib/
 import { STARTER_PICKS } from "@/lib/models/registry";
 import type { DownloadProgress, FileKind, RemoteFile, SearchResult } from "@/lib/models/types";
 import { cn } from "@/lib/utils";
+import { useDialogFocus } from "./shell";
 
 type Tab = "starter" | "search";
 type Source = "hf" | "civitai";
@@ -31,6 +32,8 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
   // For files whose kind is unknown, the user picks a target folder here (keyed by downloadUrl).
   const [kindChoice, setKindChoice] = useState<Record<string, FileKind>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, cardRef);
 
   const poll = useCallback(async () => {
     try {
@@ -170,28 +173,29 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
         <motion.div
           role="dialog"
           aria-modal="true"
-          aria-label="Model manager"
+          aria-labelledby="models-dialog-title"
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: reduce ? 0 : 0.18 }}
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[8vh] backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
+            ref={cardRef}
             initial={reduce ? false : { y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduce ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="card-raised w-full max-w-[640px] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <span className="eyebrow text-terracotta">Model manager</span>
-                <h2 className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Get models</h2>
+                <h2 id="models-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Get models</h2>
                 <p className="mt-1.5 text-sm text-ink-muted">Downloads land in the right models folder automatically, with checksum verification and a disk-space check.</p>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={onClose}>
+              <button type="button" className="btn-quiet px-2" aria-label="Close" data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
@@ -201,6 +205,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                 <button
                   key={t}
                   type="button"
+                  aria-pressed={tab === t}
                   onClick={() => setTab(t)}
                   className={cn("rounded-full px-3 py-1 font-mono text-[11px]", tab === t ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
                 >
@@ -217,6 +222,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void search()}
                     placeholder={source === "hf" ? "Search Hugging Face (GGUF)…" : "Search Civitai…"}
+                    aria-label="Search models"
                     className="field flex-1 text-sm"
                     autoFocus
                   />
@@ -229,6 +235,7 @@ export function ModelManagerDialog({ open, onClose }: { open: boolean; onClose: 
                     <button
                       key={s}
                       type="button"
+                      aria-pressed={source === s}
                       onClick={() => {
                         setSource(s);
                         setResults(null);

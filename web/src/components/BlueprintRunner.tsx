@@ -130,7 +130,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
   };
 
   if (loadError) return <p className={`break-words font-mono text-[11px] leading-relaxed text-danger ${className}`}>{loadError}</p>;
-  if (!spec) return <span className={`pulse block h-[180px] w-full rounded-[16px] bg-pill ${className}`} />;
+  if (!spec) return <span role="status" aria-label="Loading the blueprint" className={`pulse block h-[180px] w-full rounded-[16px] bg-pill ${className}`} />;
 
   const missing = spec.status === "missing";
   const requiredReady = spec.inputs.filter((i) => isMediaKind(i.kind) && i.required).every((i) => media[i.key]);
@@ -229,6 +229,7 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
         <div key={input.key} className="flex flex-col gap-1.5">
           <span className="text-[13px] font-medium text-faint">{input.label}</span>
           <textarea
+            aria-label={input.label}
             value={String(values[input.key] ?? input.default ?? "")}
             onChange={(e) => setValues((v) => ({ ...v, [input.key]: e.target.value }))}
             rows={input.kind === "prompt" ? 3 : 2}
@@ -273,7 +274,9 @@ export function BlueprintRunner({ id, onQueued, className = "" }: { id: string; 
         <div className="flex flex-col gap-2 rounded-[12px] bg-paper p-3">
           <div className="flex items-center justify-between font-mono text-[11px] text-faint">
             <span>job {job.id.slice(0, 8)}</span>
-            <span className={job.state === "error" ? "text-danger" : job.state === "done" ? "text-green" : ""}>{job.state}</span>
+            <span role="status" className={job.state === "error" ? "text-danger" : job.state === "done" ? "text-green" : ""}>
+              {job.state}
+            </span>
           </div>
           {job.error ? <p className="break-words font-mono text-[11px] leading-relaxed text-danger">{job.error}</p> : null}
           {job.outputs.length > 0 ? (

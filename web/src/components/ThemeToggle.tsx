@@ -44,7 +44,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="outline" size="icon" aria-label={LABEL[pref]} onClick={toggle} className={className}>
+        <Button variant="outline" size="icon" aria-label={pref === "light" ? "Switch to dark theme" : "Switch to light theme"} onClick={toggle} className={className}>
           <Icon className="size-3.5" />
         </Button>
       </TooltipTrigger>

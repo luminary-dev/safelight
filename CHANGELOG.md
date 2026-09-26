@@ -12,6 +12,12 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Accessibility (Workstream T): a visible keyboard focus ring on every interactive control,
+  dialogs with proper labels, focus trap and focus return, live regions announcing status,
+  queue, and loading changes, a keyboard-operable compare slider, reduced-motion-aware
+  transitions, verified 1024px/tablet layouts, and a WCAG AA regression test over the core
+  palette (one documented shortfall: the light lime accent on paper is 3.1:1 — a design
+  decision, flagged rather than silently recolored).
 - Docker deployment (Workstream Q): a multi-stage web image (standalone Next, non-root,
   /data volume — built and smoke-tested: health, sessions DB, host-allowlist 403 all
   verified in-container) and a GPL-safe compose stack where the user's local ComfyUI clone

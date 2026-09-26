@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { applyTheme, clearTheme } from "@/lib/theme/apply";
 import type { ThemeColors } from "@/lib/theme/contrast";
 import { cn } from "@/lib/utils";
+import { useDialogFocus } from "./shell";
 
 interface ThemeRow {
   name: string;
@@ -68,6 +69,8 @@ export function SettingsDialog({
   const [logLines, setLogLines] = useState<string[] | null>(null);
   const [importNote, setImportNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, cardRef);
 
   const load = useCallback(
     () =>
@@ -160,27 +163,28 @@ export function SettingsDialog({
         <motion.div
           role="dialog"
           aria-modal="true"
-          aria-label="Settings"
+          aria-labelledby="settings-dialog-title"
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: reduce ? 0 : 0.18 }}
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[6vh] backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
+            ref={cardRef}
             initial={reduce ? false : { y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduce ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="card-raised w-full max-w-[620px] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <span className="eyebrow text-terracotta">Settings</span>
-                <h2 className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Everything in one place</h2>
+                <h2 id="settings-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Everything in one place</h2>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={onClose}>
+              <button type="button" className="btn-quiet px-2" aria-label="Close" data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
@@ -240,7 +244,7 @@ export function SettingsDialog({
                 <button type="button" className="btn-primary h-8 rounded-full px-4 text-[13px]" onClick={() => void saveLimits()}>
                   Save limits
                 </button>
-                {savedNote ? <span className="font-mono text-[11px] text-ink-muted">{savedNote}</span> : null}
+                {savedNote ? <span role="status" className="font-mono text-[11px] text-ink-muted">{savedNote}</span> : null}
               </div>
               {usage && usage !== "unavailable" && usage.totals ? (
                 <p className="font-mono text-[12px] text-ink-muted">
@@ -260,6 +264,7 @@ export function SettingsDialog({
                   type="button"
                   role="switch"
                   aria-checked={localOnly}
+                  aria-label="Local only"
                   onClick={async () => {
                     const next = !localOnly;
                     const res = await fetch("/api/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ localOnly: next ? true : null }) }).catch(() => null);
@@ -341,7 +346,7 @@ export function SettingsDialog({
                     e.target.value = "";
                   }}
                 />
-                {importNote ? <span className="font-mono text-[11px] text-ink-muted">{importNote}</span> : null}
+                {importNote ? <span role="status" className="font-mono text-[11px] text-ink-muted">{importNote}</span> : null}
               </div>
             </Section>
           </motion.div>

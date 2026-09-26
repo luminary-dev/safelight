@@ -74,23 +74,23 @@ export function BlueprintsWorkspace() {
       <div className="mb-1 flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-[-0.02em] text-ink">Blueprints</h1>
-          <p className="mt-1 text-sm text-ink-muted">
+          <p role="status" className="mt-1 text-sm text-ink-muted">
             {data ? `${data.blueprints.length} workflows from the render engine · ${readyCount} ready on this machine` : "Loading the registry…"}
             {data && !data.online ? " · ComfyUI is offline, readiness unknown" : ""}
           </p>
         </div>
         <label className="flex w-[260px] items-center gap-2.5 rounded-[12px] bg-paper-2 px-3 py-2.5 shadow-[var(--shadow-hairline)]">
           <Search className="size-3.5 shrink-0 text-placeholder" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search blueprints" className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-placeholder" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search blueprints" aria-label="Search blueprints" className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-placeholder" />
         </label>
       </div>
 
       <div className="mb-4 mt-3 flex flex-wrap gap-1.5">
-        <button type="button" onClick={() => setCategory(null)} className={cn("rounded-full px-3 py-1 font-mono text-[11px]", category === null ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}>
+        <button type="button" aria-pressed={category === null} onClick={() => setCategory(null)} className={cn("rounded-full px-3 py-1 font-mono text-[11px]", category === null ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}>
           All
         </button>
         {CATEGORY_ORDER.map((c) => (
-          <button key={c} type="button" onClick={() => setCategory(c)} className={cn("rounded-full px-3 py-1 font-mono text-[11px]", category === c ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}>
+          <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)} className={cn("rounded-full px-3 py-1 font-mono text-[11px]", category === c ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}>
             {CATEGORY_LABEL[c]}
           </button>
         ))}
@@ -131,7 +131,7 @@ export function BlueprintsWorkspace() {
           </ul>
         </section>
       ))}
-      {data && filtered.length === 0 ? <p className="text-[13px] text-placeholder">Nothing matches.</p> : null}
+      {data && filtered.length === 0 ? <p role="status" className="text-[13px] text-placeholder">Nothing matches.</p> : null}
     </div>
   );
 }

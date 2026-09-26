@@ -194,7 +194,7 @@ export function Sidebar({
 
       <label className="flex items-center gap-2.5 rounded-[12px] bg-paper-2 px-3 py-2.5 shadow-[var(--shadow-hairline)]">
         <Search className="size-3.5 shrink-0 text-placeholder" />
-        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-placeholder" />
+        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" aria-label="Search sessions" className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-placeholder" />
         <span className="rounded-[5px] bg-terracotta-wash px-1.5 py-0.5 font-mono text-[11px] font-medium text-terracotta">⌘K</span>
       </label>
 
@@ -212,6 +212,7 @@ export function Sidebar({
           <button
             key={value}
             type="button"
+            aria-current={mode === value ? "page" : undefined}
             onClick={() => onMode(value)}
             className={cn(
               "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-left font-display text-[15px] transition-colors",
@@ -265,6 +266,7 @@ export function Sidebar({
                   <div key={s.id} className="group/r relative">
                     <button
                       type="button"
+                      aria-current={s.id === activeId ? "true" : undefined}
                       onClick={() => onSelectSession(s.id)}
                       className={cn(
                         "flex w-full items-center gap-2 truncate rounded-[10px] px-3 py-2 text-left text-[14px] transition-colors",
@@ -337,8 +339,10 @@ export function Sidebar({
           <Popover open={statusOpen} onOpenChange={setStatusOpen}>
             <PopoverTrigger asChild>
               <button type="button" className="flex min-w-0 items-center gap-2 text-left font-display text-[13px] font-semibold text-ink" aria-label="System status">
-                <span className={cn("size-[7px] shrink-0 rounded-full", TONE_DOT[overall.tone])} style={overall.tone === "ok" ? { boxShadow: "0 0 0 3px var(--green-wash)" } : undefined} />
-                <span className="truncate">{queueCount > 0 ? `Rendering · ${queueCount} in queue` : overall.label}</span>
+                <span aria-hidden className={cn("size-[7px] shrink-0 rounded-full", TONE_DOT[overall.tone])} style={overall.tone === "ok" ? { boxShadow: "0 0 0 3px var(--green-wash)" } : undefined} />
+                <span aria-live="polite" aria-atomic="true" className="truncate">
+                  {queueCount > 0 ? `Rendering · ${queueCount} in queue` : overall.label}
+                </span>
               </button>
             </PopoverTrigger>
             <PopoverContent align="start" side="top" sideOffset={8} className="glass w-[320px] gap-0 rounded-[16px] p-0 ring-0">

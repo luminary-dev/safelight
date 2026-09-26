@@ -2,8 +2,9 @@
 
 import { Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useDialogFocus } from "./shell";
 
 interface McpServerView {
   id: string;
@@ -30,6 +31,8 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: "", transport: "stdio" as "stdio" | "http", command: "", url: "" });
   const [busy, setBusy] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, cardRef);
 
   // No synchronous setState here: all state lands from the fetch's continuations.
   const load = useCallback(
@@ -92,32 +95,38 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
         <motion.div
           role="dialog"
           aria-modal="true"
-          aria-label="MCP servers"
+          aria-labelledby="mcp-dialog-title"
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: reduce ? 0 : 0.18 }}
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[8vh] backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
+            ref={cardRef}
             initial={reduce ? false : { y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduce ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="card-raised w-full max-w-[560px] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <span className="eyebrow text-terracotta">MCP servers</span>
-                <h2 className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Extend the agents</h2>
+                <h2 id="mcp-dialog-title" className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Extend the agents</h2>
                 <p className="mt-1.5 text-sm text-ink-muted">Tools from connected servers appear in Chat, Code and Design. Anything that can change something asks you first.</p>
               </div>
-              <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={onClose}>
+              <button type="button" className="btn-quiet px-2" aria-label="Close" data-initial-focus onClick={onClose}>
                 <X size={16} />
               </button>
             </div>
 
+            {!loaded && !error ? (
+              <p role="status" className="py-3 text-sm text-placeholder">
+                Loading servers…
+              </p>
+            ) : null}
             {servers.length === 0 && loaded ? <p className="py-3 text-sm text-placeholder">No servers yet. Add one below — for example an npx-run filesystem or GitHub server.</p> : null}
 
             <ul className="flex flex-col divide-y divide-line">
@@ -132,6 +141,9 @@ export function McpDialog({ open, onClose }: { open: boolean; onClose: () => voi
                     <span className="flex shrink-0 items-center gap-1.5">
                       <button
                         type="button"
+                        role="switch"
+                        aria-checked={s.enabled}
+                        aria-label={`${s.name} enabled`}
                         onClick={() => void toggle(s)}
                         className={cn("rounded-full px-2.5 py-1 font-mono text-[11px] transition-colors", s.enabled ? "bg-terracotta-wash text-terracotta" : "border border-line text-ink-muted hover:text-ink")}
                       >

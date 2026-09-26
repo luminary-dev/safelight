@@ -37,8 +37,8 @@ export function DuplicatesView({
   }, [reloadKey]);
 
   if (error) return <p className="py-16 text-center font-mono text-xs text-danger">{error}</p>;
-  if (groups === null) return <p className="py-16 text-center text-[14px] text-ink-muted">Comparing perceptual hashes…</p>;
-  if (groups.length === 0) return <p className="py-16 text-center text-[14px] text-ink-muted">No near-duplicates found. Every print is one of a kind.</p>;
+  if (groups === null) return <p role="status" className="py-16 text-center text-[14px] text-ink-muted">Comparing perceptual hashes…</p>;
+  if (groups.length === 0) return <p role="status" className="py-16 text-center text-[14px] text-ink-muted">No near-duplicates found. Every print is one of a kind.</p>;
 
   return (
     <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-4">

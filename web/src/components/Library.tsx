@@ -11,6 +11,7 @@ import { DuplicatesView } from "./library/DuplicatesView";
 import { Inspector } from "./library/Inspector";
 import { LibraryGrid } from "./library/LibraryGrid";
 import { fullUrl, type LibraryFacets, type LibraryItem, type LibraryResponse, thumbUrl, toJobOutput } from "./library/types";
+import { useDialogFocus } from "./shell";
 
 const PAGE = 120;
 const SORTS = [
@@ -57,6 +58,10 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
   const [exportOpen, setExportOpen] = useState(false);
   const [exportDest, setExportDest] = useState("");
   const [busy, setBusy] = useState(false);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(viewer !== null, viewerRef);
+  useDialogFocus(exportOpen, exportRef);
 
   const inspect = useMemo(() => (inspectPath ? (items.find((i) => i.path === inspectPath) ?? null) : null), [items, inspectPath]);
   const comparePair = useMemo(() => {
@@ -226,6 +231,13 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
     return () => window.removeEventListener("keydown", onKey);
   }, [viewer]);
 
+  useEffect(() => {
+    if (!exportOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setExportOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [exportOpen]);
+
   // ---------- tiles ----------
   const renderTile = useCallback(
     (item: LibraryItem) => {
@@ -364,7 +376,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
 
       {error ? <p className="font-mono text-xs text-danger">{error}</p> : null}
       {notice ? (
-        <p className="flex items-center justify-between rounded-[12px] bg-pill px-3 py-2 font-mono text-[11.5px] text-ink-muted">
+        <p role="status" className="flex items-center justify-between rounded-[12px] bg-pill px-3 py-2 font-mono text-[11.5px] text-ink-muted">
           {notice}
           <button type="button" aria-label="Dismiss" onClick={() => setNotice(null)} className="text-faint hover:text-ink">
             <X className="size-3.5" />
@@ -398,7 +410,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
 
       {selected.length > 0 ? (
         <div className="flex items-center justify-between gap-3 rounded-[16px] border border-line bg-paper-2 px-4 py-2.5 shadow-[var(--shadow-hairline)]">
-          <span className="font-mono text-[12px] text-ink-muted">
+          <span role="status" aria-live="polite" className="font-mono text-[12px] text-ink-muted">
             {selected.length} selected
           </span>
           <span className="flex items-center gap-1.5">
@@ -427,7 +439,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
       ) : null}
 
       {viewer ? (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex flex-col bg-paper/95 backdrop-blur-md" onClick={() => setViewer(null)}>
+        <div ref={viewerRef} role="dialog" aria-modal="true" aria-label="Image viewer" className="fixed inset-0 z-50 flex flex-col bg-paper/95 backdrop-blur-md" onClick={() => setViewer(null)}>
           <div className="flex items-center justify-between gap-3 px-6 py-4" onClick={(e) => e.stopPropagation()}>
             <p className="min-w-0 truncate font-mono text-xs text-ink-muted">{viewer.path}</p>
             <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={() => setViewer(null)}>
@@ -443,10 +455,10 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
       {comparing && comparePair ? <CompareView a={comparePair[0]} b={comparePair[1]} onClose={() => setComparing(false)} /> : null}
 
       {exportOpen ? (
-        <div role="dialog" aria-modal="true" aria-label="Export images" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[16vh] backdrop-blur-sm" onClick={() => setExportOpen(false)}>
-          <div className="card-raised w-full max-w-[460px] p-6" onClick={(e) => e.stopPropagation()}>
+        <div role="dialog" aria-modal="true" aria-labelledby="export-dialog-title" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/20 p-4 pt-[16vh] backdrop-blur-sm" onClick={() => setExportOpen(false)}>
+          <div ref={exportRef} className="card-raised w-full max-w-[460px] p-6" onClick={(e) => e.stopPropagation()}>
             <span className="eyebrow text-terracotta">Export</span>
-            <h2 className="mt-1.5 font-display text-xl font-normal tracking-[-0.02em]">
+            <h2 id="export-dialog-title" className="mt-1.5 font-display text-xl font-normal tracking-[-0.02em]">
               Copy {selected.length} image{selected.length === 1 ? "" : "s"} to a folder
             </h2>
             <p className="mt-1.5 text-sm text-ink-muted">An absolute folder inside your home. It is created if it does not exist; sidecar metadata travels along.</p>
@@ -454,6 +466,7 @@ export function Library({ gallery, onUseAsInput, onDelete }: { gallery: GalleryI
               value={exportDest}
               onChange={(e) => setExportDest(e.target.value)}
               placeholder="/Users/you/Desktop/safelight-export"
+              aria-label="Destination folder"
               className="field mt-3 w-full font-mono text-xs"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && exportDest.trim() && void bulk("export", exportDest.trim())}
