@@ -118,13 +118,16 @@ struct ServerPlan {
 }
 
 fn start_or_attach(app_data: &Path, resource_dir: &Path) -> Result<(ServerPlan, Option<Child>), String> {
+    // Default to the app's OWN production server (3210). Never attach to 3001 unless
+    // explicitly asked: that's where a Turbopack DEV server lives, and WebKit renders
+    // dev output as a white page (Chrome tolerates it; WKWebView does not).
     let preferred: u16 = std::env::var("SAFELIGHT_DESKTOP_PORT")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(3001);
+        .unwrap_or(3210);
     let mut candidates = vec![preferred];
-    for p in [3210u16, 3220] {
-        if p != preferred {
+    for p in [3210u16, 3220, 3230] {
+        if p != preferred && !candidates.contains(&p) {
             candidates.push(p);
         }
     }

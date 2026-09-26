@@ -39,9 +39,19 @@ rm -rf dmg-stage
 
 ## Env
 
-- `SAFELIGHT_DESKTOP_PORT` — preferred port (default 3001).
+- `SAFELIGHT_DESKTOP_PORT` — preferred port (default **3210**, the app's own production
+  server). Set `3001` explicitly to attach to a running dev server — note WKWebView renders
+  Turbopack dev output as a white page, so that is for server-side testing, not for using
+  the app. The bundle carries an ATS `NSAllowsLocalNetworking` exception so plain
+  http://127.0.0.1 loads at all in a release WebView.
 - `SAFELIGHT_NODE` — node binary override; otherwise a login-shell
   `command -v node`, then Homebrew paths.
+
+## Known limitations
+
+Killing the shell with SIGTERM/`pkill` (instead of quitting normally) orphans a spawned
+web server; the next launch attaches to it, so behavior stays correct, but the process
+lingers until killed. Process-group shutdown is on the plan (Workstream 1).
 
 ## Not yet (per the plan)
 
