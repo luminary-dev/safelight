@@ -83,7 +83,7 @@ function loadImages(g: GraphBuilder, req: GenerateRequest): NodeRef[] {
 }
 
 function save(g: GraphBuilder, images: NodeRef, prefix: string) {
-  g.add("SaveImage", { images, filename_prefix: `studio/${prefix}` });
+  g.add("SaveImage", { images, filename_prefix: `safelight/${prefix}` });
 }
 
 function buildQwenGraph(req: GenerateRequest): Graph {

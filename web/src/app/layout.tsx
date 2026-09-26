@@ -9,7 +9,7 @@ const mono = JetBrains_Mono({ variable: "--font-mono-face", subsets: ["latin"], 
 export const metadata: Metadata = {
   title: "Safelight",
   description: "Your private darkroom: image generation and chat with your own models.",
-  icons: { icon: "/h2o-cube.svg" },
+  icons: { icon: "/safelight-mark.svg" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Applies the saved theme before first paint so there is no flash. Light is the default. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var q=new URLSearchParams(location.search).get("theme");var t=q||localStorage.getItem("studio.theme");document.documentElement.classList.toggle("dark",t==="dark");}catch(e){}})();`,
+            __html: `(function(){try{var q=new URLSearchParams(location.search).get("theme");var t=q||(localStorage.getItem("safelight.theme")||localStorage.getItem("studio.theme"));document.documentElement.classList.toggle("dark",t==="dark");}catch(e){}})();`,
           }}
         />
       </head>

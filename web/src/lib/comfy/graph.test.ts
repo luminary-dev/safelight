@@ -33,11 +33,11 @@ describe("buildGraph", () => {
   });
 
   it("qwen-image img2img with references", () => {
-    expect(buildGraph(req({ mode: "img2img", images: ["studio/ref1.png", "studio/ref2.png"] }))).toMatchSnapshot();
+    expect(buildGraph(req({ mode: "img2img", images: ["safelight/ref1.png", "safelight/ref2.png"] }))).toMatchSnapshot();
   });
 
   it("qwen-image img2img with matchInputSize off uses the requested canvas", () => {
-    const g = buildGraph(req({ mode: "img2img", images: ["studio/ref1.png"], matchInputSize: false }));
+    const g = buildGraph(req({ mode: "img2img", images: ["safelight/ref1.png"], matchInputSize: false }));
     const empty = Object.values(g).find((n) => n.class_type === "EmptyLatentImage");
     expect(empty?.inputs).toMatchObject({ width: 1024, height: 1024 });
   });
@@ -68,7 +68,7 @@ describe("buildGraph", () => {
           model: { name: "dreamshaper_8.safetensors", folder: "checkpoints" },
           textEncoders: [],
           vae: "",
-          images: ["studio/in.png"],
+          images: ["safelight/in.png"],
           denoise: 0.55,
         }),
       ),

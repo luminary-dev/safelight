@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { GalleryItem, JobOutput } from "@/lib/comfy/types";
-import { stageLabel, viewUrl, type Job } from "@/lib/studio-state";
+import { stageLabel, viewUrl, type Job } from "@/lib/safelight-state";
 import type { ProgressState } from "@/hooks/useComfySocket";
 import { ConfirmDelete } from "./ConfirmDelete";
 

@@ -5,7 +5,7 @@ import { ArrowRight, ArrowUp, Bot, Check, Copy, Image as ImageSquare, ImagePlus,
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { JobOutput } from "@/lib/comfy/types";
-import { viewUrl } from "@/lib/studio-state";
+import { viewUrl } from "@/lib/safelight-state";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ModelPicker } from "./ModelPicker";
 
@@ -106,7 +106,7 @@ export function ChatMode({
   onMessages: (update: (prev: Message[]) => Message[]) => void;
   /** Changes when the user switches chats; used to cancel a stream that belongs to another session. */
   sessionId: string;
-  /** Agent mode: the model may call studio tools. */
+  /** Agent mode: the model may call Safelight tools. */
   agent: boolean;
   onAgent: (on: boolean) => void;
   onUseAsInput: (o: JobOutput) => void;
@@ -123,7 +123,7 @@ export function ChatMode({
   agentLocked?: boolean;
   /** Called when the user allows the agent a path beyond the workspace, so the session can remember it. */
   onApprovePath?: (path: string) => void;
-  /** Uploads files into the studio input folder and returns references usable by both chat and Image mode. */
+  /** Uploads files into the Safelight input folder and returns references usable by both chat and Image mode. */
   onUpload: (files: File[]) => Promise<ChatAttachment[]>;
 }) {
   const selected = models.find((m) => chatModelKey(m) === model) ?? null;
@@ -493,11 +493,11 @@ export function ChatMode({
                   agent ? "bg-terracotta-wash text-terracotta" : "text-ink-muted shadow-[0_0_0_1px_var(--line)] hover:text-ink"
                 }`}
               >
-                <Bot className="size-3.5" /> Studio tools
+                <Bot className="size-3.5" /> Safelight tools
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[260px] rounded-[8px] bg-ink px-2.5 py-1.5 font-sans text-[12px] leading-snug text-paper">
-              Lets the model use studio tools: generate and edit images, list models, browse recent renders. Needs a tool-capable model.
+              Lets the model use Safelight tools: generate and edit images, list models, browse recent renders. Needs a tool-capable model.
             </TooltipContent>
           </Tooltip>
           )}
@@ -535,7 +535,7 @@ export function ChatMode({
                 </Toggle>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[260px] rounded-[8px] bg-ink px-2.5 py-1.5 font-sans text-[12px] leading-snug text-paper">
-                Lets the model use studio tools: generate and edit images, list models, browse recent renders. Needs a tool-capable model.
+                Lets the model use Safelight tools: generate and edit images, list models, browse recent renders. Needs a tool-capable model.
               </TooltipContent>
             </Tooltip>
             <ModelPicker

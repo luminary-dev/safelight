@@ -17,7 +17,7 @@ export interface SelectOption {
   label: string;
 }
 
-/** Studio-styled shadcn Select. An empty value renders the placeholder; pass a "" option to allow clearing. */
+/** Safelight-styled shadcn Select. An empty value renders the placeholder; pass a "" option to allow clearing. */
 export function Select({
   value,
   onChange,

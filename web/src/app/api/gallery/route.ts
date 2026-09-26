@@ -2,10 +2,10 @@ import { readdir, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 import type { GalleryItem } from "@/lib/comfy/types";
-import { safeJoin } from "@/lib/studio-files";
+import { safeJoin } from "@/lib/safelight-files";
 
-/** Where ComfyUI writes results. scripts/comfy.sh points it at <studio>/outputs. */
-import { OUTPUT_DIR } from "@/lib/studio-files";
+/** Where ComfyUI writes results. scripts/comfy.sh points it at <safelight>/outputs. */
+import { OUTPUT_DIR } from "@/lib/safelight-files";
 const IMAGE_EXT = /\.(png|jpe?g|webp)$/i;
 
 async function walk(dir: string, rel = ""): Promise<GalleryItem[]> {

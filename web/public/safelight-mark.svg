@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The Safelight mark: ink tile, paper disc, lime crescent. -->
+  <rect width="512" height="512" rx="120" fill="#0d0d0f"/>
+  <circle cx="212" cy="256" r="104" fill="#fafaf7"/>
+  <circle cx="300" cy="256" r="104" fill="#84cc16" style="mix-blend-mode:multiply"/>
+</svg>

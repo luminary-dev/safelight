@@ -82,7 +82,7 @@ export function KeysDialog({ open, onClose, onChanged }: { open: boolean; onClos
                 <span className="eyebrow text-terracotta">API keys</span>
                 <h2 className="mt-1.5 font-display text-2xl font-normal tracking-[-0.02em]">Connect cloud models</h2>
                 <p className="mt-1.5 text-sm text-ink-muted">
-                  Keys are stored on this machine in <code className="code">studio/data/keys.json</code> and never sent to the browser.
+                  Keys are stored on this machine in <code className="code">safelight/data/keys.json</code> and never sent to the browser.
                 </p>
               </div>
               <button type="button" className="btn-quiet px-2" aria-label="Close" onClick={onClose}>

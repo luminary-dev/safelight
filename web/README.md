@@ -1,7 +1,5 @@
-# Studio web
+# Safelight web
 
-Next.js front end for the local image studio. Talks to ComfyUI at `COMFY_URL`.
-
-```bash
-pnpm dev
-```
+The Next.js app that is Safelight's entire product surface. See the root README for setup
+and `../BUILD-BRIEF.md` for the roadmap. Scripts: `pnpm dev` (port 3001), `pnpm verify`
+via the repo root.

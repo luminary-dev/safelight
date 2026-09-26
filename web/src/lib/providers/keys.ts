@@ -12,7 +12,7 @@ export const PROVIDER_META: Record<ProviderId, { label: string; envVar: string; 
 };
 
 /** Keys live outside the web app, next to outputs, and are gitignored. */
-const KEYS_FILE = process.env.STUDIO_KEYS_FILE ?? path.resolve(process.cwd(), "..", "data", "keys.json");
+const KEYS_FILE = process.env.SAFELIGHT_KEYS_FILE ?? process.env.STUDIO_KEYS_FILE ?? path.resolve(process.cwd(), "..", "data", "keys.json");
 
 type KeyFile = Partial<Record<ProviderId, string>>;
 

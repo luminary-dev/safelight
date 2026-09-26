@@ -6,13 +6,13 @@ import { useComfySocket } from "@/hooks/useComfySocket";
 import { teCompatible, type GalleryItem, type JobOutput, type JobStatus, type ModelCatalog, type ModelEntry } from "@/lib/comfy/types";
 import { randomSeed } from "@/lib/presets";
 import { autoTitle, newProject, newSession, type ChatAttachment, type ChatMessage, type ChatSession, type CodeSession, type DesignSession, type ImageSession, type Project, type Session, type SessionKind } from "@/lib/session-types";
-import { DEFAULT_SETTINGS, defaultsForModel, toRequest, viewUrl, type Job, type Settings, type UploadedImage } from "@/lib/studio-state";
+import { DEFAULT_SETTINGS, defaultsForModel, toRequest, viewUrl, type Job, type Settings, type UploadedImage } from "@/lib/safelight-state";
 import { chatModelKey, type ChatModelInfo, type PromptHandoff } from "./ChatMode";
 import { ChatWorkspace } from "./ChatWorkspace";
 import { CodeWorkspace } from "./CodeWorkspace";
 import { DesignWorkspace } from "./DesignWorkspace";
 import { Composer } from "./Composer";
-import type { SystemRow, Tone, TopMode } from "./Header";
+import type { SystemRow, Tone, TopMode } from "./shell";
 import type { KeyStatus } from "./KeysDialog";
 import { KeysDialog } from "./KeysDialog";
 import { Library } from "./Library";
@@ -20,12 +20,12 @@ import { Sidebar } from "./Sidebar";
 import { Stage } from "./Stage";
 
 const WS_URL = process.env.NEXT_PUBLIC_COMFY_WS ?? "ws://127.0.0.1:8188";
-const SETTINGS_KEY = "studio.settings.v2";
-const CHAT_MODEL_KEY = "studio.chatModel.v1";
-const ACTIVE_KEY = "studio.active.v1";
-const PROJECT_KEY = "studio.project.v1";
-const RAIL_KEY = "studio.rail.v1";
-const LEGACY_CHAT_KEY = "studio.chat.v1";
+const SETTINGS_KEY = "safelight.settings.v2";
+const CHAT_MODEL_KEY = "safelight.chatModel.v1";
+const ACTIVE_KEY = "safelight.active.v1";
+const PROJECT_KEY = "safelight.project.v1";
+const RAIL_KEY = "safelight.rail.v1";
+const LEGACY_CHAT_KEY = "studio.chat.v1"; // migration shim: pre-rename key, read-only
 
 /** Restores prompt and sampling preferences. Model and images are re-resolved against the live catalog. */
 function loadSavedSettings(): Settings {
@@ -43,7 +43,15 @@ function loadSavedSettings(): Settings {
 function loadString(key: string, fallback: string) {
   if (typeof window === "undefined") return fallback;
   try {
-    return localStorage.getItem(key) ?? fallback;
+    const value = localStorage.getItem(key);
+    if (value !== null) return value;
+    // Migration shim: settings written before the Safelight rename live under studio.*.
+    const legacy = localStorage.getItem(key.replace(/^safelight\./, "studio."));
+    if (legacy !== null) {
+      localStorage.setItem(key, legacy);
+      return legacy;
+    }
+    return fallback;
   } catch {
     return fallback;
   }
@@ -58,16 +66,16 @@ function loadJSON<T>(key: string, fallback: T): T {
   }
 }
 
-export function Studio() {
+export function Safelight() {
   // Stable per-browser id: ComfyUI only sends progress events to the client id that queued a job,
   // so keeping it across reloads means a refreshed page still sees live progress.
   const [clientId] = useState(() => {
     if (typeof window === "undefined") return "";
     try {
-      const saved = localStorage.getItem("studio.clientId.v1");
+      const saved = localStorage.getItem("safelight.clientId.v1") ?? localStorage.getItem("studio.clientId.v1");
       if (saved) return saved;
       const fresh = crypto.randomUUID();
-      localStorage.setItem("studio.clientId.v1", fresh);
+      localStorage.setItem("safelight.clientId.v1", fresh);
       return fresh;
     } catch {
       return crypto.randomUUID();
@@ -76,7 +84,7 @@ export function Studio() {
   const [topMode, setTopMode] = useState<TopMode>(() => {
     // ?mode=chat|image deep-links a mode; otherwise the last used mode wins.
     const fromUrl = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("mode");
-    const saved = fromUrl ?? loadString("studio.mode.v1", "image");
+    const saved = fromUrl ?? loadString("safelight.mode.v1", "image");
     return saved === "chat" || saved === "library" || saved === "code" || saved === "design" ? saved : "image";
   });
   const [online, setOnline] = useState(false);
@@ -241,7 +249,7 @@ export function Studio() {
       const { images, ...rest } = settings;
       void images;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(rest));
-      localStorage.setItem("studio.mode.v1", topMode);
+      localStorage.setItem("safelight.mode.v1", topMode);
       if (defaultChatModel) localStorage.setItem(CHAT_MODEL_KEY, defaultChatModel);
     } catch {
       /* ignore */
@@ -254,7 +262,7 @@ export function Studio() {
     setLastHealthAt(Date.now());
     if (!res || !res.ok) {
       const body = res ? ((await res.json().catch(() => ({}))) as { error?: string }) : {};
-      setCatalogError(body.error ?? "The studio server did not answer.");
+      setCatalogError(body.error ?? "The Safelight server did not answer.");
       setOnline(false);
       return;
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelCatalog, ModelEntry } from "./comfy/types";
-import { defaultsForModel, stageLabel } from "./studio-state";
+import { defaultsForModel, stageLabel } from "./safelight-state";
 
 const CATALOG: ModelCatalog = {
   models: [],

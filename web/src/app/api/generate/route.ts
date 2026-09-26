@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const clientId = typeof body.clientId === "string" && body.clientId ? body.clientId : "studio";
+  const clientId = typeof body.clientId === "string" && body.clientId ? body.clientId : "safelight";
 
   let req: GenerateRequest;
   try {

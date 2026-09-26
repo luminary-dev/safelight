@@ -1,5 +1,5 @@
 import type { JobOutput } from "@/lib/comfy/types";
-import type { Job } from "@/lib/studio-state";
+import type { Job } from "@/lib/safelight-state";
 
 export type SessionKind = "chat" | "image" | "code" | "design";
 
@@ -15,7 +15,7 @@ export interface ToolCall {
 }
 
 export interface ChatAttachment {
-  /** Reference usable by the image pipeline, e.g. "studio/photo.jpg". */
+  /** Reference usable by the image pipeline, e.g. "safelight/photo.jpg". */
   ref: string;
   filename: string;
   subfolder: string;
@@ -54,7 +54,7 @@ export interface ChatSession extends SessionBase {
   kind: "chat";
   model: string;
   messages: ChatMessage[];
-  /** Agent mode: the model may call studio tools (generate and edit images, list models). */
+  /** Agent mode: the model may call Safelight tools (generate and edit images, list models). */
   agent?: boolean;
 }
 

@@ -31,7 +31,7 @@ exports[`buildGraph > checkpoint img2img 1`] = `
   "4": {
     "class_type": "LoadImage",
     "inputs": {
-      "image": "studio/in.png",
+      "image": "safelight/in.png",
     },
   },
   "5": {
@@ -103,7 +103,7 @@ exports[`buildGraph > checkpoint img2img 1`] = `
   "9": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "studio/checkpoint",
+      "filename_prefix": "safelight/checkpoint",
       "images": [
         "8",
         0,
@@ -206,7 +206,7 @@ exports[`buildGraph > flux txt2img with dual encoders 1`] = `
   "9": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "studio/flux",
+      "filename_prefix": "safelight/flux",
       "images": [
         "8",
         0,
@@ -240,13 +240,13 @@ exports[`buildGraph > qwen-image img2img with references 1`] = `
   "4": {
     "class_type": "LoadImage",
     "inputs": {
-      "image": "studio/ref1.png",
+      "image": "safelight/ref1.png",
     },
   },
   "5": {
     "class_type": "LoadImage",
     "inputs": {
-      "image": "studio/ref2.png",
+      "image": "safelight/ref2.png",
     },
   },
   "6": {
@@ -316,7 +316,7 @@ exports[`buildGraph > qwen-image img2img with references 1`] = `
   "9": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "studio/qwen",
+      "filename_prefix": "safelight/qwen",
       "images": [
         "8",
         0,
@@ -410,7 +410,7 @@ exports[`buildGraph > qwen-image txt2img 1`] = `
   "8": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "studio/qwen",
+      "filename_prefix": "safelight/qwen",
       "images": [
         "7",
         0,

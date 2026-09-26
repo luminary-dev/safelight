@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Project, Session } from "@/lib/session-types";
 
-const FILE = process.env.STUDIO_SESSIONS_FILE ?? path.resolve(process.cwd(), "..", "data", "sessions.json");
+const FILE = process.env.SAFELIGHT_SESSIONS_FILE ?? process.env.STUDIO_SESSIONS_FILE ?? path.resolve(process.cwd(), "..", "data", "sessions.json");
 
 interface Store {
   sessions: Session[];

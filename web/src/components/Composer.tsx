@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ModelCatalog, ModelEntry } from "@/lib/comfy/types";
 import { SIZE_PRESETS, SIZE_SCALES, randomSeed, scaledSize } from "@/lib/presets";
-import type { Settings } from "@/lib/studio-state";
+import type { Settings } from "@/lib/safelight-state";
 import { cn } from "@/lib/utils";
 import { InputImages } from "./ImageControls";
 import { ModelPicker, type PickerOption } from "./ModelPicker";

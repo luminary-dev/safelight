@@ -2,11 +2,11 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 import { fetchView } from "@/lib/comfy/client";
-import { INPUT_DIR, OUTPUT_DIR, safeJoin } from "@/lib/studio-files";
+import { INPUT_DIR, OUTPUT_DIR, safeJoin } from "@/lib/safelight-files";
 
 const MIME: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
 
-/** Serves an image from the studio's output or input folders, falling back to ComfyUI's /view. */
+/** Serves an image from the output or input folders, falling back to ComfyUI's /view. */
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams;
   const filename = q.get("filename");

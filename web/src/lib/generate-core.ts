@@ -7,7 +7,7 @@ import type { GenerateRequest, JobOutput, JobStatus } from "@/lib/comfy/types";
 import { unloadOllamaModels } from "@/lib/ollama/client";
 import { generateCloudImages } from "@/lib/providers";
 import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
-import { OUTPUT_DIR, parseImageRef, safeJoin } from "@/lib/studio-files";
+import { OUTPUT_DIR, parseImageRef, safeJoin } from "@/lib/safelight-files";
 
 function clampInt(n: unknown, min: number, max: number, fallback: number): number {
   const v = typeof n === "number" && Number.isFinite(n) ? Math.round(n) : fallback;

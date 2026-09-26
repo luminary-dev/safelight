@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { INPUT_DIR, OUTPUT_DIR, parseImageRef, safeJoin } from "./studio-files";
+import { INPUT_DIR, OUTPUT_DIR, parseImageRef, safeJoin } from "./safelight-files";
 
 const ROOT = "/srv/safelight/outputs";
 

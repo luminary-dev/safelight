@@ -33,7 +33,7 @@ describe("sanitizeRequest", () => {
   });
 
   it("caps input images at 16 and stringifies entries", () => {
-    const r = sanitizeRequest({ ...MODEL, images: Array.from({ length: 30 }, (_, i) => `studio/${i}.png`) });
+    const r = sanitizeRequest({ ...MODEL, images: Array.from({ length: 30 }, (_, i) => `safelight/${i}.png`) });
     expect(r.images).toHaveLength(16);
   });
 

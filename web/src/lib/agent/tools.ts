@@ -6,9 +6,9 @@ import { emptyCatalog, getCatalog } from "@/lib/comfy/models";
 import type { GenerateRequest, JobOutput, ModelCatalog, ModelEntry } from "@/lib/comfy/types";
 import { friendlyName } from "@/lib/friendly-names";
 import { queueLocal, runCloud, sanitizeRequest, waitForJob } from "@/lib/generate-core";
-import { defaultsForModel } from "@/lib/studio-state";
+import { defaultsForModel } from "@/lib/safelight-state";
 import { cloudCatalog } from "@/lib/providers";
-import { OUTPUT_DIR } from "@/lib/studio-files";
+import { OUTPUT_DIR } from "@/lib/safelight-files";
 import { SIZE_PRESETS, randomSeed } from "@/lib/presets";
 
 /** Provider-neutral tool definition; each provider adapter maps it to its own wire format. */
@@ -20,7 +20,7 @@ export interface ToolDef {
 
 export interface ToolContext {
   clientId: string;
-  /** Replaces the studio toolset; used by the code agent. */
+  /** Replaces the Safelight toolset; used by the code agent. */
   toolset?: {
     defs: ToolDef[];
     execute: (name: string, args: Record<string, unknown>, ctx: ToolContext, id: string) => Promise<{ result: unknown; images?: JobOutput[]; note?: string }>;
@@ -47,13 +47,13 @@ export const TOOLS: ToolDef[] = [
   {
     name: "generate_image",
     description:
-      "Render a new image from a text prompt with the studio's image models. Use for any request to make, draw, render, or imagine a picture. Returns image references you can pass to edit_image. Rendering takes from a few seconds (cloud) to several minutes (local), so call it once with a strong prompt rather than many times.",
+      "Render a new image from a text prompt with Safelight's image models. Use for any request to make, draw, render, or imagine a picture. Returns image references you can pass to edit_image. Rendering takes from a few seconds (cloud) to several minutes (local), so call it once with a strong prompt rather than many times.",
     parameters: {
       type: "object",
       properties: {
         prompt: { type: "string", description: "Detailed visual description: subject, setting, lighting, style, camera." },
         aspect: { type: "string", enum: ASPECTS, description: "Aspect ratio. Default 1:1." },
-        model: { type: "string", description: "Optional model id from list_models. Defaults to the model selected in the studio." },
+        model: { type: "string", description: "Optional model id from list_models. Defaults to the model selected in the app." },
         count: { type: "integer", minimum: 1, maximum: 4, description: "How many variations. Default 1." },
       },
       required: ["prompt"],
@@ -63,11 +63,11 @@ export const TOOLS: ToolDef[] = [
   {
     name: "edit_image",
     description:
-      "Change an existing image with an instruction, keeping everything else the same. Pass the reference returned by generate_image or list_recent_images (for example 'studio/qwen_00003_.png'). Describe the change in the instruction; with the local Qwen-Image model refer to the picture as <image1>.",
+      "Change an existing image with an instruction, keeping everything else the same. Pass the reference returned by generate_image or list_recent_images (for example 'safelight/qwen_00003_.png'). Describe the change in the instruction; with the local Qwen-Image model refer to the picture as <image1>.",
     parameters: {
       type: "object",
       properties: {
-        image: { type: "string", description: "Image reference like 'studio/qwen_00003_.png' or 'cloud/openai_..._1.png'." },
+        image: { type: "string", description: "Image reference like 'safelight/qwen_00003_.png' or 'cloud/openai_..._1.png'." },
         instruction: { type: "string", description: "What to change." },
         model: { type: "string", description: "Optional model id from list_models that supports edits." },
       },

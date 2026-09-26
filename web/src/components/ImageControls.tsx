@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ModelCatalog } from "@/lib/comfy/types";
 import { SIZE_PRESETS, SIZE_SCALES, randomSeed, roundTo32, scaledSize } from "@/lib/presets";
-import type { Settings, UploadedImage } from "@/lib/studio-state";
+import type { Settings, UploadedImage } from "@/lib/safelight-state";
 import { Label, Select, Slider, Toggle } from "./ui";
 
 export function Options({ catalog, settings, onChange }: { catalog: ModelCatalog; settings: Settings; onChange: (patch: Partial<Settings>) => void }) {

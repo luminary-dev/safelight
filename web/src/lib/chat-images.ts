@@ -2,7 +2,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { ChatImage, ChatTurn } from "@/lib/providers/types";
-import { parseImageRef, safeJoin } from "@/lib/studio-files";
+import { parseImageRef, safeJoin } from "@/lib/safelight-files";
 
 const MIME: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
 
@@ -12,7 +12,7 @@ export interface WireMessage {
   images?: { ref: string }[];
 }
 
-/** Loads attached images from the studio input/output folders and base64-encodes them for the providers. */
+/** Loads attached images from the input/output folders and base64-encodes them for the providers. */
 export async function toTurns(messages: WireMessage[], limit = 30): Promise<ChatTurn[]> {
   const turns: ChatTurn[] = [];
   for (const m of messages.slice(-limit)) {

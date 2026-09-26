@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { ChatSession, CodeSession, DesignSession, ImageSession, Project, Session } from "@/lib/session-types";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "./ConfirmDelete";
-import type { SystemRow, Tone, TopMode } from "./Header";
+import { SafelightMark, type SystemRow, type Tone, type TopMode } from "./shell";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -134,7 +134,8 @@ export function Sidebar({
 
   return (
     <aside className="panel-side flex min-h-0 flex-col gap-4 p-4 pt-5">
-      <div className="flex items-center gap-1 px-2">
+      <div className="flex items-center gap-2 px-2">
+        <SafelightMark className="size-6 rounded-[8px]" />
         <span className="font-display text-[21px] font-extrabold tracking-[-0.02em] text-ink">
           Safelight<span className="text-terracotta">.</span>
         </span>

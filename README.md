@@ -1,8 +1,8 @@
 # Safelight
 
-Your private darkroom: image generation and chat with your own models, local or cloud.
-(A Luminary product; the repo folder is still `studio/` until the running services are
-stopped for a rename.) ComfyUI does the local
+Your private darkroom: image generation, chat, coding, and design research with your own
+models, local or cloud. A Luminary product, source-available under the Business Source
+License 1.1 (see LICENSE). ComfyUI does the local
 inference, Ollama serves local chat models, and OpenAI, Anthropic, and Gemini plug in with
 an API key. A Next.js app on top gives you model selection, prompts, text to image, image
 editing, chat, and a gallery.

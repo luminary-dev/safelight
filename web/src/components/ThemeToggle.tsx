@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type ThemePref = "light" | "dark";
-const KEY = "studio.theme";
+const KEY = "safelight.theme";
 const LABEL: Record<ThemePref, string> = { light: "Light", dark: "Dark" };
 
 function apply(pref: ThemePref) {
@@ -20,7 +20,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("theme") as ThemePref | null;
       if (fromUrl === "light" || fromUrl === "dark") return fromUrl;
-      const saved = localStorage.getItem(KEY);
+      const saved = localStorage.getItem(KEY) ?? localStorage.getItem("studio.theme");
       return saved === "dark" ? "dark" : "light";
     } catch {
       return "light";

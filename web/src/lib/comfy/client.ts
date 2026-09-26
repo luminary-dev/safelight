@@ -114,7 +114,7 @@ export async function interrupt(): Promise<void> {
   await fetch(`${COMFY_URL}/interrupt`, { method: "POST" });
 }
 
-export async function uploadImage(file: File, subfolder = "studio"): Promise<JobOutput> {
+export async function uploadImage(file: File, subfolder = "safelight"): Promise<JobOutput> {
   const form = new FormData();
   form.append("image", file, file.name);
   form.append("subfolder", subfolder);

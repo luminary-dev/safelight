@@ -4,7 +4,7 @@
 import { Download, Pencil, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { GalleryItem, JobOutput } from "@/lib/comfy/types";
-import { viewUrl } from "@/lib/studio-state";
+import { viewUrl } from "@/lib/safelight-state";
 import { ConfirmDelete } from "./ConfirmDelete";
 
 /** Everything ever rendered, as a calm grid. Click a print for the full-size viewer. */

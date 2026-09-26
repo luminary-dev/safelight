@@ -1,5 +1,5 @@
-import { StudioLoader } from "@/components/StudioLoader";
+import { SafelightLoader } from "@/components/SafelightLoader";
 
 export default function Page() {
-  return <StudioLoader />;
+  return <SafelightLoader />;
 }
