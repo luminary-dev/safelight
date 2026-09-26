@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Native module: load from node_modules at runtime instead of bundling.
+  serverExternalPackages: ["better-sqlite3"],
   // Explicit so a stray flag can never silently disable the gate. Lint runs separately in `pnpm verify`.
   typescript: { ignoreBuildErrors: false },
   headers: async () => [

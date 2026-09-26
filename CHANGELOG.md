@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- SQLite data layer (`data/safelight.db`, WAL): migrations, a one-shot importer for the old
+  `sessions.json` and `data/themes/*.json` (originals kept as `*.migrated`), daily local
+  backups via `VACUUM INTO` (newest 7 kept), and `/api/export` / `/api/import` for full data
+  portability. The repositories keep the old store's signatures, so no route changed.
+  (Workstream C)
 - Verification gate: `pnpm verify` (typecheck, lint, 94 unit tests, production build) and a
   GitHub Actions workflow running it on every push and PR. (Workstream B)
 - Safelight mark as the favicon and sidebar logo, replacing the placeholder H2O icon.

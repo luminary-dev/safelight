@@ -14,6 +14,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
     "@google/genai": "^2.23.0",
+    "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "cn": "^0.3.2",
@@ -38,5 +39,10 @@
     "typescript": "^5",
     "vitest": "^5.0.1"
   },
-  "packageManager": "pnpm@11.5.2"
+  "packageManager": "pnpm@11.5.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
+  }
 }

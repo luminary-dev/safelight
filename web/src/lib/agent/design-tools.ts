@@ -1,9 +1,7 @@
 import "server-only";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { saveTheme } from "@/lib/db/sessions";
 import type { ToolDef } from "./tools";
 
-const THEMES_DIR = path.resolve(process.cwd(), "..", "data", "themes");
 const MAX_PAGE_CHARS = 8000;
 
 export const DESIGN_SYSTEM_PROMPT =
@@ -149,8 +147,7 @@ export async function executeDesignTool(name: string, args: Record<string, unkno
         fonts: { display: String(fonts.display ?? ""), body: String(fonts.body ?? ""), mono: String(fonts.mono ?? "") },
         savedAt: Date.now(),
       };
-      await mkdir(THEMES_DIR, { recursive: true });
-      await writeFile(path.join(THEMES_DIR, `${name}.json`), JSON.stringify(theme, null, 2));
+      saveTheme(name, theme);
       return { result: { theme }, note: `saved ${name}` };
     }
     default:
