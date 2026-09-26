@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
           emit,
           signal: request.signal,
           systemPrompt: DESIGN_SYSTEM_PROMPT,
+          budget: { maxRounds: 32 },
           toolset: { defs: designToolDefs(), execute: (name, args) => executeDesignTool(name, args) },
         });
       } catch (err) {

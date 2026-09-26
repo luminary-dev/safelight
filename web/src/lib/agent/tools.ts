@@ -27,6 +27,8 @@ export interface ToolContext {
   };
   /** Replaces the default agent system prompt. */
   systemPrompt?: string;
+  /** Loop budget; the default suits chat-sized tasks, coding runs pass more. */
+  budget?: { maxRounds?: number };
   /** Preferred image model key "folder:name" chosen in the UI, if any. */
   preferredModel?: string;
   emit: (event: AgentEvent) => void;

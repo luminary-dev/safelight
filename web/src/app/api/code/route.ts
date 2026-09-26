@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
           emit,
           signal: request.signal,
           systemPrompt: codeSystemPrompt(root),
+          budget: { maxRounds: 60 },
           toolset: { defs: codeToolDefs(), execute: (name, args) => executeCodeTool(name, args, access) },
         });
       } catch (err) {
