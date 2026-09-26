@@ -22,3 +22,4 @@ web/tsconfig.tsbuildinfo
 
 # dependencies anywhere
 node_modules/
+web/test-results/
