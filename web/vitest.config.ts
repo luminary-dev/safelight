@@ -75,13 +75,13 @@ export default defineConfig({
       // Thresholds are set from the measured baseline over the widened denominator
       // (floor(measured) - 2) and ratchet up, never down. TEST-BRIEF §20 has the
       // per-area targets this is climbing toward.
-      // Measured 2026-09-26 over the full surface: lines 38.08 %, statements 36.71 %,
-      // functions 26.77 %, branches 29.42 % (was 75.45 % lines over lib/ alone).
+      // Measured 2026-09-26 (post TEST-BRIEF phases 0-6) over the full surface:
+      // lines 77.74 %, statements 74.51 %, functions 64.87 %, branches 65.11 %.
       thresholds: {
-        lines: 36,
-        statements: 34,
-        functions: 24,
-        branches: 27,
+        lines: 75,
+        statements: 72,
+        functions: 62,
+        branches: 63,
       },
     },
   },

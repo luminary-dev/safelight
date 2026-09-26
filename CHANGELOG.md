@@ -15,7 +15,24 @@ All notable changes to Safelight are documented here. The format follows
   guard; typed domain factories; determinism helpers; five custom matchers — 110 hermetic
   self-tests in under three seconds.
 
+### Added
+- TEST-BRIEF phases 3–6 in one wave: every previously untested API route under contract
+  (20 suites, eight route bugs fixed — hostile-JSON 500s become 400s, and `/api/code/browse`
+  no longer follows a symlink out of home); the near-zero core modules covered (agent studio
+  tools 3 % → 100 %, Ollama client, all provider adapters plus a cross-provider agent-event
+  parity suite, the design/code toolsets with a 40-case path-escape suite, property-based
+  request sanitizing, graph structural invariants); the data layer pinned (golden schema,
+  importer atomicity, backup retention, hostile imports) and every new subsystem tested with
+  an invoice-reconciliation fixture and a bidirectional i18n catalog check; 21 jsdom
+  component suites behind a strict no-network stub. Suite: 577 → **1412 unit tests** plus 16
+  e2e; coverage over the full surface 38 % → **77.7 % lines**, floors ratcheted to 75/72/62/63.
+
 ### Fixed
+- Privacy: "Local only" now also gates the cloud provider catalog — with the switch on,
+  model listing no longer contacts configured providers (the one outbound feature without a
+  guard, exposed by the new absolute no-outbound test). Live render progress now names five
+  more graph stages instead of a generic "Preparing"; the Library compare button no longer
+  renders a raw i18n key; the main model picker has an accessible name.
 - Security (TEST-BRIEF phase 2): a symlink planted inside `outputs/` could read files
   anywhere on disk through `/api/view` and delete files anywhere through the gallery DELETE —
   both now realpath-confined with proving tests; IPv6 `[::1]` hosts pass the API host
