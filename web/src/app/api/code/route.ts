@@ -11,7 +11,7 @@ import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 
 /** Streams newline-delimited JSON events while the coding agent reads and edits files under the session's workspace folder. */
 export async function POST(request: NextRequest) {
-  let body: { provider?: string; model?: string; messages?: WireMessage[]; root?: string; approvedPaths?: string[]; clientId?: string };
+  let body: { provider?: string; model?: string; messages?: WireMessage[]; root?: string; approvedPaths?: string[]; clientId?: string; projectId?: string };
   try {
     body = await request.json();
   } catch {
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
   if (!info?.isDirectory()) return Response.json({ error: "That workspace folder does not exist." }, { status: 400 });
 
   const turns = await toTurns(body.messages ?? [], 30);
+  const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : undefined;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
           systemPrompt: codeSystemPrompt(root),
           budget: { maxRounds: 60 },
           toolset,
+          projectId,
         });
       } catch (err) {
         if ((err as Error).name !== "AbortError") emit({ type: "error", text: err instanceof Error ? err.message : "The coding agent failed." });

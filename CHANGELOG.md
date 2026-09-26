@@ -12,6 +12,11 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Agent runtime (Workstream G, round two): per-session sampling params (temperature, top-p,
+  max tokens) honored by every provider; per-project memory the agent reads and appends —
+  explicit, user-visible notes at `/api/notes`, never silent; code and design agents can
+  `delegate_task` to a studio sub-agent (depth 1) whose renders stream live into the parent
+  conversation; cloud image renders now price on the raw model id.
 - Providers (Workstream E, round two): Mistral, DeepSeek, xAI (Grok), and Together join
   through one generic OpenAI-compatible adapter — key validation, live model catalogs,
   streaming chat, agent tool calling, and custom base URLs. Nine providers total, and the

@@ -31,6 +31,10 @@ export interface ToolContext {
   budget?: { maxRounds?: number };
   /** Preferred image model key "folder:name" chosen in the UI, if any. */
   preferredModel?: string;
+  /** Sampling overrides from the UI; unset fields keep each provider's defaults. */
+  params?: { temperature?: number; topP?: number; maxTokens?: number };
+  /** Project this run belongs to; when set, the per-project notes tools join the toolset. */
+  projectId?: string;
   emit: (event: AgentEvent) => void;
   signal?: AbortSignal;
 }
@@ -205,7 +209,8 @@ export async function executeTool(name: string, rawArgs: Record<string, unknown>
         matchInputSize: true,
       });
       const out = await render(req, ctx, toolId, name, rawArgs);
-      return { result: { images: out.images.map(refOf), seed: out.seed, model: friendlyName(out.model).label }, images: out.images };
+      // `model` is the friendly label for display; `modelId` is the raw identifier the pricing table matches on.
+      return { result: { images: out.images.map(refOf), seed: out.seed, model: friendlyName(out.model).label, modelId: out.model }, images: out.images };
     }
     case "edit_image": {
       const image = String(rawArgs.image ?? "").trim();
@@ -237,7 +242,7 @@ export async function executeTool(name: string, rawArgs: Record<string, unknown>
         matchInputSize: true,
       });
       const out = await render(req, ctx, toolId, name, rawArgs);
-      return { result: { images: out.images.map(refOf), seed: out.seed, model: friendlyName(out.model).label }, images: out.images };
+      return { result: { images: out.images.map(refOf), seed: out.seed, model: friendlyName(out.model).label, modelId: out.model }, images: out.images };
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

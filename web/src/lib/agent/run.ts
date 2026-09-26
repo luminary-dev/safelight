@@ -13,6 +13,8 @@ import { getLogger } from "@/lib/log";
 import { checkSpendLimits } from "@/lib/usage/limits";
 import { recordUsage } from "@/lib/usage/record";
 import { appendEvent, createRun, finishRun } from "./runs-store";
+import { withNotesTools } from "./project-notes";
+import { isSubAgentClient, withDelegateTool } from "./subagent";
 import { executeTool, TOOLS, type AgentEvent, type ToolContext } from "./tools";
 
 export const AGENT_SYSTEM_PROMPT =
@@ -163,10 +165,18 @@ function systemOf(ctx: ToolContext) {
   return ctx.systemPrompt ?? AGENT_SYSTEM_PROMPT;
 }
 
+/** Sampling overrides from the UI; every unset field keeps today's provider default. */
+function paramsOf(ctx: ToolContext): NonNullable<ToolContext["params"]> {
+  return ctx.params ?? {};
+}
+
 /** Renders count in the ledger via the images column: cloud refs carry their provider in the filename. */
 function recordImages(ctx: ToolContext, result: unknown, images: { filename: string; subfolder: string }[], durationMs: number) {
   const mode = metaOf(ctx)?.mode ?? modeOf(ctx.clientId);
-  const model = typeof (result as { model?: unknown } | null)?.model === "string" ? ((result as { model: string }).model) : "image";
+  // Prefer the raw model identifier (result.modelId) — the pricing table matches on it;
+  // result.model stays the friendly label the UI displays.
+  const r = result as { model?: unknown; modelId?: unknown } | null;
+  const model = typeof r?.modelId === "string" ? r.modelId : typeof r?.model === "string" ? r.model : "image";
   const buckets = new Map<string, number>();
   for (const img of images) {
     const cloud = img.subfolder === "cloud" || img.subfolder.startsWith("cloud/");
@@ -207,10 +217,17 @@ const runOpenAI = async (turns: ChatTurn[], model: string, ctx: ToolContext, pro
   const client = new OpenAI({ apiKey: key, baseURL: baseUrl || meta.defaultBaseUrl });
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "system", content: systemOf(ctx) }, ...toOpenAIMessages(turns)];
   const tools: OpenAI.Chat.ChatCompletionTool[] = defsOf(ctx).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  // Some models (gpt-5 family) reject temperature, so sampling fields go on the wire only when set.
+  const p = paramsOf(ctx);
+  const sampling = {
+    ...(p.temperature !== undefined ? { temperature: p.temperature } : {}),
+    ...(p.topP !== undefined ? { top_p: p.topP } : {}),
+    ...(p.maxTokens !== undefined ? { max_completion_tokens: p.maxTokens } : {}),
+  };
   for (let round = 0; round < maxRounds(ctx); round++) {
     if (!gateSpend(ctx, provider)) return;
     const t0 = Date.now();
-    const res = await withRetries(ctx, () => client.chat.completions.create({ model, messages, tools, tool_choice: "auto" }, { signal: ctx.signal }));
+    const res = await withRetries(ctx, () => client.chat.completions.create({ model, messages, tools, tool_choice: "auto", ...sampling }, { signal: ctx.signal }));
     recordRound(
       ctx,
       provider,
@@ -243,10 +260,15 @@ const runAnthropic: Runner = async (turns, model, ctx) => {
   const client = new Anthropic({ apiKey: key, ...(baseUrl ? { baseURL: baseUrl } : {}) });
   const messages: Anthropic.MessageParam[] = toAnthropicMessages(turns);
   const tools: Anthropic.Tool[] = defsOf(ctx).map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters as Anthropic.Tool.InputSchema }));
+  const p = paramsOf(ctx);
+  const sampling = {
+    ...(p.temperature !== undefined ? { temperature: p.temperature } : {}),
+    ...(p.topP !== undefined ? { top_p: p.topP } : {}),
+  };
   for (let round = 0; round < maxRounds(ctx); round++) {
     if (!gateSpend(ctx, "anthropic")) return;
     const t0 = Date.now();
-    const res = await withRetries(ctx, () => client.messages.create({ model, max_tokens: 4000, system: systemOf(ctx), messages, tools }, { signal: ctx.signal }));
+    const res = await withRetries(ctx, () => client.messages.create({ model, max_tokens: p.maxTokens ?? 4000, system: systemOf(ctx), messages, tools, ...sampling }, { signal: ctx.signal }));
     recordRound(ctx, "anthropic", model, { inputTokens: res.usage?.input_tokens, outputTokens: res.usage?.output_tokens }, Date.now() - t0);
     const text = res.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
@@ -273,13 +295,19 @@ const runGemini: Runner = async (turns, model, ctx) => {
   const ai = new GoogleGenAI({ apiKey: key, ...(baseUrl ? { httpOptions: { baseUrl } } : {}) });
   const contents: Content[] = toContents(turns);
   const declarations: FunctionDeclaration[] = defsOf(ctx).map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.parameters }));
+  const p = paramsOf(ctx);
+  const generation = {
+    ...(p.temperature !== undefined ? { temperature: p.temperature } : {}),
+    ...(p.topP !== undefined ? { topP: p.topP } : {}),
+    ...(p.maxTokens !== undefined ? { maxOutputTokens: p.maxTokens } : {}),
+  };
   for (let round = 0; round < maxRounds(ctx); round++) {
     if (!gateSpend(ctx, "gemini")) return;
     const t0 = Date.now();
     const res = await withRetries(ctx, () => ai.models.generateContent({
       model,
       contents,
-      config: { systemInstruction: systemOf(ctx), tools: [{ functionDeclarations: declarations }], abortSignal: ctx.signal },
+      config: { systemInstruction: systemOf(ctx), tools: [{ functionDeclarations: declarations }], abortSignal: ctx.signal, ...generation },
     }));
     const usage = res.usageMetadata;
     recordRound(ctx, "gemini", model, { inputTokens: usage?.promptTokenCount, outputTokens: (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0) }, Date.now() - t0);
@@ -313,12 +341,18 @@ const runOllama: Runner = async (turns, model, ctx) => {
     ...turns.map((t) => ({ role: t.role, content: t.content, images: t.images?.map((i) => i.data) })),
   ];
   const tools = defsOf(ctx).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  const p = paramsOf(ctx);
+  const options = {
+    ...(p.temperature !== undefined ? { temperature: p.temperature } : {}),
+    ...(p.topP !== undefined ? { top_p: p.topP } : {}),
+    ...(p.maxTokens !== undefined ? { num_predict: p.maxTokens } : {}),
+  };
   for (let round = 0; round < maxRounds(ctx); round++) {
     const t0 = Date.now();
     const res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model, messages, tools, stream: false }),
+      body: JSON.stringify({ model, messages, tools, stream: false, ...(Object.keys(options).length > 0 ? { options } : {}) }),
       signal: ctx.signal,
     });
     const data = (await res.json().catch(() => ({}))) as OllamaChatResponse;
@@ -340,6 +374,28 @@ const runOllama: Runner = async (turns, model, ctx) => {
   }
   ctx.emit({ type: "status", text: "Stopped: the run reached its round budget." });
 };
+
+type Toolset = NonNullable<ToolContext["toolset"]>;
+
+/**
+ * Builds the effective toolset for a run, merging extras the same way MCP does
+ * (extra defs + fall-through execute):
+ * - project-notes tools join WHATEVER toolset is active whenever ctx.projectId is set;
+ * - delegate_task joins only override toolsets that are NOT the studio one (its defs
+ *   would carry generate_image) and never a sub-agent's own run — depth limit 1.
+ *   The api/agent route passes the studio toolset explicitly, so "not studio" is
+ *   detected by the defs, not merely by ctx.toolset being set.
+ */
+function effectiveToolset(provider: ProviderId | "ollama", model: string, ctx: ToolContext): Toolset {
+  const base: Toolset = ctx.toolset ?? { defs: TOOLS, execute: executeTool };
+  let toolset = base;
+  if (ctx.projectId?.trim()) toolset = withNotesTools(toolset, ctx.projectId.trim());
+  const isStudio = base.defs.some((d) => d.name === "generate_image");
+  if (ctx.toolset && !isStudio && !isSubAgentClient(ctx.clientId)) {
+    toolset = withDelegateTool(toolset, { provider, model, run: runAgent });
+  }
+  return toolset;
+}
 
 function dispatch(provider: ProviderId | "ollama", model: string, turns: ChatTurn[], ctx: ToolContext): Promise<void> {
   if (provider === "ollama") return runOllama(turns, model, ctx);
@@ -369,6 +425,7 @@ export async function runAgent(provider: ProviderId | "ollama", model: string, t
   }
   const loopCtx: LoopCtx = {
     ...ctx,
+    toolset: effectiveToolset(provider, model, ctx),
     emit: (event) => {
       persistEvent(meta, event);
       ctx.emit(event);
