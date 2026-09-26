@@ -240,3 +240,177 @@ describe("run_command", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// TEST-BRIEF §9 extensions: edit_file matching modes, read_file caps and
+// paging, write_file caps, list_files bounds, and the escape suite.
+
+import { symlink } from "node:fs/promises";
+import { beforeAll as beforeAllHook } from "vitest";
+
+describe("edit_file matching modes", () => {
+  it("replace_all rewrites every occurrence and reports the count", async () => {
+    await writeFile(path.join(root, "all2.txt"), "aXa\naXa\naXa\n");
+    const { result, note } = await executeCodeTool("edit_file", { path: "all2.txt", old_string: "aXa", new_string: "b", replace_all: true }, access());
+    expect(result).toMatchObject({ replacements: 3 });
+    expect(note).toBe("3 replacements");
+    expect(await readFile(path.join(root, "all2.txt"), "utf8")).toBe("b\nb\nb\n");
+  });
+
+  it("matches CRLF line endings byte-exactly", async () => {
+    await writeFile(path.join(root, "crlf.txt"), "first\r\nsecond\r\nthird\r\n");
+    await executeCodeTool("edit_file", { path: "crlf.txt", old_string: "first\r\nsecond", new_string: "FIRST\r\nSECOND" }, access());
+    expect(await readFile(path.join(root, "crlf.txt"), "utf8")).toBe("FIRST\r\nSECOND\r\nthird\r\n");
+    // An LF-only old_string must NOT match a CRLF file.
+    await expect(executeCodeTool("edit_file", { path: "crlf.txt", old_string: "SECOND\nthird", new_string: "x" }, access())).rejects.toThrow(/not found/);
+  });
+
+  it("matches across newlines", async () => {
+    await writeFile(path.join(root, "multi.txt"), "function a() {\n  return 1;\n}\n");
+    await executeCodeTool("edit_file", { path: "multi.txt", old_string: "a() {\n  return 1;", new_string: "a() {\n  return 2;" }, access());
+    expect(await readFile(path.join(root, "multi.txt"), "utf8")).toContain("return 2;");
+  });
+
+  it("rejects an empty old_string", async () => {
+    await expect(executeCodeTool("edit_file", { path: "src/a.ts", old_string: "", new_string: "x" }, access())).rejects.toThrow("old_string is empty.");
+  });
+});
+
+describe("read_file caps and paging", () => {
+  it("refuses files over the 256 KB cap, naming both sizes", async () => {
+    await writeFile(path.join(root, "big.txt"), "a".repeat(257 * 1024));
+    await expect(executeCodeTool("read_file", { path: "big.txt" }, access())).rejects.toThrow(/257 KB.*only files up to 256 KB/);
+  });
+
+  it("detects binary files by NUL byte", async () => {
+    await writeFile(path.join(root, "blob.bin"), Buffer.from([0x41, 0x00, 0x42]));
+    await expect(executeCodeTool("read_file", { path: "blob.bin" }, access())).rejects.toThrow("This looks like a binary file.");
+  });
+
+  it("pages with offset and limit, numbering from the offset", async () => {
+    await writeFile(path.join(root, "pages.txt"), Array.from({ length: 10 }, (_, i) => `line ${i + 1}`).join("\n"));
+    const { result, note } = await executeCodeTool("read_file", { path: "pages.txt", offset: 5, limit: 2 }, access());
+    expect((result as { content: string }).content).toBe("5\tline 5\n6\tline 6");
+    expect((result as { totalLines: number }).totalLines).toBe(10);
+    expect(note).toBe("2 lines");
+  });
+
+  it("paging past EOF returns zero lines rather than failing", async () => {
+    await writeFile(path.join(root, "short.txt"), "only\n");
+    const { result, note } = await executeCodeTool("read_file", { path: "short.txt", offset: 100 }, access());
+    expect((result as { content: string }).content).toBe("");
+    expect(note).toBe("0 lines");
+  });
+
+  it("refuses a directory", async () => {
+    await expect(executeCodeTool("read_file", { path: "src" }, access())).rejects.toThrow("Not a file.");
+  });
+});
+
+describe("write_file cap", () => {
+  it("refuses content over 512 KB and writes nothing", async () => {
+    await expect(executeCodeTool("write_file", { path: "huge.txt", content: "a".repeat(513 * 1024) }, access())).rejects.toThrow(/larger than 512 KB/);
+    await expect(readFile(path.join(root, "huge.txt"), "utf8")).rejects.toThrow();
+  });
+});
+
+describe("list_files bounds", () => {
+  it("stops at the depth cap: entries deeper than 6 levels are invisible", async () => {
+    const deepPath = path.join("depth", "d1", "d2", "d3", "d4", "d5", "d6", "d7");
+    await mkdir(path.join(root, deepPath), { recursive: true });
+    await writeFile(path.join(root, deepPath, "too-deep.txt"), "x");
+    await writeFile(path.join(root, "depth", "d1", "d2", "d3", "d4", "d5", "d6", "visible.txt"), "x");
+    const { result } = await executeCodeTool("list_files", { path: "depth" }, access());
+    const files = (result as { files: string[] }).files;
+    expect(files).toContain(path.join("d1", "d2", "d3", "d4", "d5", "d6", "visible.txt"));
+    expect(files.some((f) => f.includes("too-deep"))).toBe(false);
+  });
+
+  it("caps entries at 400 and sets the truncated flag", async () => {
+    await mkdir(path.join(root, "many"), { recursive: true });
+    await Promise.all(Array.from({ length: 420 }, (_, i) => writeFile(path.join(root, "many", `f${String(i).padStart(3, "0")}.txt`), "x")));
+    const { result } = await executeCodeTool("list_files", { path: "many" }, access());
+    const r = result as { files: string[]; truncated: boolean };
+    expect(r.files).toHaveLength(400);
+    expect(r.truncated).toBe(true);
+  });
+
+  it("filters with a case-insensitive pattern", async () => {
+    const { result } = await executeCodeTool("list_files", { path: "src", pattern: "A.TS" }, access());
+    expect((result as { files: string[] }).files).toContain("a.ts");
+    const miss = await executeCodeTool("list_files", { path: "src", pattern: "NOPE" }, access());
+    expect((miss.result as { files: string[] }).files).toEqual([]);
+  });
+
+  it("skips every SKIP_DIRS folder, not only node_modules", async () => {
+    for (const dir of [".git", ".next", "__pycache__", "dist"]) {
+      await mkdir(path.join(root, "skipdirs", dir), { recursive: true });
+      await writeFile(path.join(root, "skipdirs", dir, "hidden.txt"), "x");
+    }
+    await writeFile(path.join(root, "skipdirs", "kept.txt"), "x");
+    const { result } = await executeCodeTool("list_files", { path: "skipdirs" }, access());
+    expect((result as { files: string[] }).files).toEqual(["kept.txt"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The escape suite (TEST-BRIEF §9): ../../etc/passwd, /etc/passwd, a symlink
+// out of the root, and ./a/../../out must hit the approval gate for EVERY tool.
+
+describe("the escape suite", () => {
+  beforeAllHook(async () => {
+    await symlink(path.join(outside, "note.txt"), path.join(root, "sneaky-link"));
+  });
+
+  const ESCAPES: [string, string][] = [
+    ["relative traversal", "../../etc/passwd"],
+    ["absolute path", "/etc/passwd"],
+    ["dot-path traversal", "./a/../../escape-target"],
+    ["symlink out of the root", "sneaky-link"],
+  ];
+
+  const TOOLS: [string, (p: string) => Record<string, unknown>][] = [
+    ["list_files", (p) => ({ path: p })],
+    ["read_file", (p) => ({ path: p })],
+    ["edit_file", (p) => ({ path: p, old_string: "x", new_string: "y" })],
+    ["write_file", (p) => ({ path: p, content: "x" })],
+    ["grep", (p) => ({ pattern: "x", path: p })],
+    ["glob", (p) => ({ pattern: "*", path: p })],
+    ["multi_edit", (p) => ({ edits: [{ path: p, old_string: "x", new_string: "y" }] })],
+    ["delete_file", (p) => ({ path: p })],
+    ["move_file", (p) => ({ from: p, to: "safe.txt" })],
+  ];
+
+  const CASES = TOOLS.flatMap(([tool, argsOf]) => ESCAPES.map(([label, p]): [string, string, string, (q: string) => Record<string, unknown>] => [tool, label, p, argsOf]));
+
+  it.each(CASES)("%s gates %s and refuses on deny", async (tool, _label, p, argsOf) => {
+    const ask = vi.fn<CodeAccess["requestApproval"]>(async () => false);
+    const a = access({ requestApproval: ask });
+    await expect(executeCodeTool(tool, argsOf(p), a)).rejects.toThrow(/declined access/);
+    expect(ask).toHaveBeenCalledOnce();
+    expect(ask.mock.calls[0][1]).toBe(tool);
+  });
+
+  it("move_file gates an escaping destination even when the source is inside", async () => {
+    await writeFile(path.join(root, "stay.txt"), "x");
+    for (const [, p] of ESCAPES) {
+      const ask = vi.fn(async () => false);
+      await expect(executeCodeTool("move_file", { from: "stay.txt", to: p }, access({ requestApproval: ask }))).rejects.toThrow(/declined access/);
+      expect(ask).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("the gate receives the CANONICAL target of a symlink, not the in-root alias", async () => {
+    const ask = vi.fn<CodeAccess["requestApproval"]>(async () => false);
+    await expect(executeCodeTool("read_file", { path: "sneaky-link" }, access({ requestApproval: ask }))).rejects.toThrow(/declined access/);
+    const asked = ask.mock.calls[0][0];
+    expect(asked).not.toContain("sneaky-link");
+    expect(asked).toContain("note.txt");
+  });
+
+  it("run_command always gates, whatever the path arguments say", async () => {
+    const ask = vi.fn(async () => false);
+    await expect(executeCodeTool("run_command", { command: "cat /etc/passwd" }, access({ requestApproval: ask }))).rejects.toThrow(/declined to run/);
+    expect(ask).toHaveBeenCalledWith("cat /etc/passwd", "run_command");
+  });
+});
