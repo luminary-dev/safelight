@@ -1,9 +1,16 @@
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { probeMcpServer } from "@/lib/agent/mcp";
 import { resetDbForTests } from "@/lib/db";
 import { setSetting } from "@/lib/db/settings";
+import { listDownloads, startDownload } from "@/lib/models/download";
+import { cloudCatalog, invalidateCloudCatalog, streamCloudChat } from "@/lib/providers";
+import { validateKey } from "@/lib/providers/keys";
+import { searchWeb } from "@/lib/search/chain";
+import { sha256Of, startModelFileServer } from "@/test/fakes/hf-civitai";
 import { assertOutboundAllowed, invalidateLocalOnlyCache, isLocalOnly, isLoopbackUrl } from "./privacy";
 
 let dir: string;
@@ -57,5 +64,104 @@ describe("assertOutboundAllowed", () => {
     setSetting("localOnly", true);
     invalidateLocalOnlyCache();
     expect(isLocalOnly()).toBe(true);
+  });
+});
+
+/**
+ * THE ABSOLUTE (TEST-BRIEF §10): with Local only ON, no outbound request is
+ * made AT ALL. fetch is intercepted at the boundary: any non-loopback call
+ * fails the test by name, loopback passes through to the real implementation
+ * because local servers are the product. This proves the switch as an
+ * absolute, not a preference — features either refuse loudly or work locally,
+ * and in both cases zero bytes head for the internet.
+ */
+describe("local-only is absolute: no outbound fetch, ever", () => {
+  const realFetch = globalThis.fetch;
+  let outbound: string[];
+
+  beforeEach(() => {
+    setSetting("localOnly", true);
+    invalidateLocalOnlyCache();
+    invalidateCloudCatalog();
+    outbound = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (isLoopbackUrl(url)) return realFetch(input, init);
+        outbound.push(url);
+        throw new Error(`OUTBOUND CALL ESCAPED THE LOCAL-ONLY SWITCH: ${url}`);
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("web search refuses before any provider is contacted", async () => {
+    // Force keyed providers on so a missing guard would actually dial out.
+    vi.stubEnv("BRAVE_API_KEY", "test-key");
+    vi.stubEnv("TAVILY_API_KEY", "test-key");
+    await expect(searchWeb("anything at all")).rejects.toThrow(/Local only is on — web search is disabled/);
+    expect(outbound).toEqual([]);
+  });
+
+  it("the provider catalog is empty instead of calling every configured provider (regression: it used to dial out)", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-not-real");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-not-real");
+    const catalog = await cloudCatalog();
+    expect(catalog).toEqual({ chat: [], images: [], errors: {} });
+    expect(outbound).toEqual([]);
+  });
+
+  it("cloud chat refuses before the provider request is built", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-not-real");
+    await expect(streamCloudChat("openai", "gpt-5", [{ role: "user", content: "hi" }])).rejects.toThrow(/Local only is on — cloud chat is disabled/);
+    expect(outbound).toEqual([]);
+  });
+
+  it("key validation refuses without touching the provider", async () => {
+    await expect(validateKey("openai", "sk-test-not-real")).rejects.toThrow(/Local only is on — key validation is disabled/);
+    expect(outbound).toEqual([]);
+  });
+
+  it("a model download to the internet refuses synchronously and books nothing", () => {
+    expect(() => startDownload({ url: "https://huggingface.co/x/y/resolve/main/m.gguf", targetDir: path.join(dir, "models"), fileName: "m.gguf", sizeBytes: 8 })).toThrow(
+      /Local only is on — model downloading is disabled/,
+    );
+    expect(listDownloads().find((d) => d.file.endsWith("m.gguf"))).toBeUndefined();
+    expect(outbound).toEqual([]);
+  });
+
+  it("a remote MCP server refuses before its first JSON-RPC message", async () => {
+    await expect(probeMcpServer({ id: "remote", name: "Remote", transport: "http", url: "https://mcp.example.com/mcp", enabled: true })).rejects.toThrow(
+      /Local only is on — remote MCP servers is disabled/,
+    );
+    expect(outbound).toEqual([]);
+  });
+
+  it("loopback still works end-to-end: a local model file server download completes with the switch on", async () => {
+    const payload = Buffer.from("local model bytes ".repeat(64));
+    const files = await startModelFileServer({ "local.gguf": payload });
+    try {
+      const targetDir = path.join(dir, "models", "loopback");
+      const { id } = startDownload({ url: files.urlFor("local.gguf"), targetDir, fileName: "local.gguf", sizeBytes: payload.length, sha256: sha256Of(payload) });
+      const start = Date.now();
+      for (;;) {
+        const row = listDownloads().find((d) => d.id === id);
+        if (row && (row.state === "done" || row.state === "error")) {
+          expect(row.state).toBe("done");
+          break;
+        }
+        if (Date.now() - start > 5000) throw new Error(`download never settled: ${row?.state}`);
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      expect(existsSync(path.join(targetDir, "local.gguf"))).toBe(true);
+      expect(outbound).toEqual([]);
+    } finally {
+      await files.close();
+    }
   });
 });

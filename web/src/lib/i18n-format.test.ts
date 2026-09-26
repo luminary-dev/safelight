@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { formatBytes, formatDate, formatNumber, formatTime } from "./i18n-format";
 
 describe("formatBytes", () => {
@@ -52,5 +52,48 @@ describe("formatDate / formatTime", () => {
 
   it("renders the time of day alone", () => {
     expect(formatTime(ms)).toMatch(/^\d{2}:\d{2}(\s?[AP]M)?$/);
+  });
+});
+
+/**
+ * Locales beyond en (TEST-BRIEF §10, Workstream U): the module reads the active
+ * locale from @/i18n/config once, so each locale gets a fresh module instance
+ * via an isolated import. This proves the Intl wiring is real — a future locale
+ * switch reformats numbers, dates and sizes with zero call-site changes — and
+ * that the byte-unit labels (model-file sizes) are conventional symbols, never
+ * translated.
+ */
+describe("Intl wiring under other locales", () => {
+  async function formatUnder(locale: string) {
+    vi.resetModules();
+    vi.doMock("@/i18n/config", () => ({ locale }));
+    const mod = await import("./i18n-format");
+    vi.doUnmock("@/i18n/config");
+    return mod;
+  }
+
+  it("de: dot grouping, comma decimals, German month names — same call sites", async () => {
+    const de = await formatUnder("de");
+    expect(de.formatNumber(1234567)).toBe("1.234.567");
+    expect(de.formatBytes(1536)).toBe("1,5 KB");
+    expect(de.formatBytes(3.2 * 1024 ** 3)).toBe("3,2 GB");
+    const out = de.formatDate(Date.UTC(2026, 0, 15, 12, 30));
+    expect(out).toMatch(/Jan/); // "15. Jan. 2026" ± a day depending on TZ
+    expect(out).toMatch(/2026/);
+  });
+
+  it("ar-EG: Arabic-Indic digits flow through numbers, sizes and times", async () => {
+    const ar = await formatUnder("ar-EG");
+    expect(ar.formatNumber(1234567)).toMatch(/^[٠-٩٫٬]+$/);
+    const bytes = ar.formatBytes(1536);
+    expect(bytes).toMatch(/[٠-٩]/); // localized digits…
+    expect(bytes.endsWith(" KB")).toBe(true); // …but the unit label is never translated
+    expect(ar.formatTime(Date.UTC(2026, 0, 15, 12, 30))).toMatch(/[٠-٩]/);
+  });
+
+  it("invalid input still renders as ? and empty under any locale", async () => {
+    const de = await formatUnder("de");
+    expect(de.formatBytes(Number.NaN)).toBe("?");
+    expect(de.formatDate(Number.NaN)).toBe("");
   });
 });

@@ -61,6 +61,15 @@ export function invalidateCloudCatalog() {
 
 export async function cloudCatalog(): Promise<CloudCatalog> {
   const out: CloudCatalog = { chat: [], images: [], errors: {} };
+  // BUG FIX: this was the one outbound feature without a local-only guard — with
+  // the master switch on and a key configured, listing models still called every
+  // provider. Local only means the cloud catalog is simply empty (local models
+  // keep working); the guard logs the refusal like every other blocked feature.
+  try {
+    assertOutboundAllowed("provider catalog");
+  } catch {
+    return out;
+  }
   await Promise.all(
     PROVIDERS.map(async (provider) => {
       const { key, baseUrl } = await getProviderConfig(provider);

@@ -161,3 +161,43 @@ describe("applyInputs", () => {
     expect(JSON.stringify(zImage.graph)).toBe(snapshot);
   });
 });
+
+describe("malformed and truncated blueprints", () => {
+  it("refuses inputs that are not a UI-format workflow, naming the problem", () => {
+    for (const bad of [null, 42, "nodes", {}, { nodes: "not-an-array" }, { definitions: {} }]) {
+      expect(() => parseBlueprint(bad, { id: "bad", name: "bad" })).toThrow(/missing nodes array/i);
+    }
+  });
+
+  it("DOCUMENTED: a truncated file whose subgraph definition was cut off parses, leaving the raw uuid class for the gate to flag", () => {
+    // With definitions.subgraphs gone, the instance node is indistinguishable
+    // from a custom node, so parse cannot refuse it. The uuid class_type
+    // survives into requiredNodeClasses, where gating reports it missing and
+    // the all-blueprints sweep rejects it for shipped files.
+    const truncated = {
+      nodes: [{ id: 1, type: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", inputs: [], outputs: [] }],
+      links: [],
+      definitions: { subgraphs: [] }, // the instance's definition is gone
+    };
+    const parsed = parseBlueprint(truncated, { id: "cut", name: "cut" });
+    expect(parsed.graph["1"].class_type).toMatch(/^[0-9a-f]{8}-/);
+    expect(parsed.spec.requiredNodeClasses).toContain("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee");
+  });
+
+  it("an empty workflow parses to an empty surface instead of throwing", () => {
+    const parsed = parseBlueprint({ nodes: [], links: [] }, { id: "empty", name: "empty" });
+    expect(parsed.graph).toEqual({});
+    expect(parsed.spec.inputs).toEqual([]);
+    expect(parsed.saves).toEqual([]);
+  });
+
+  it("a node class ComfyUI does not ship still parses and lands in requiredNodeClasses for the gate", () => {
+    const doc = {
+      nodes: [{ id: 1, type: "TotallyMadeUpNode", inputs: [], outputs: [], widgets_values: [] }],
+      links: [],
+    };
+    const parsed = parseBlueprint(doc, { id: "custom", name: "custom" });
+    expect(parsed.graph["1"].class_type).toBe("TotallyMadeUpNode");
+    expect(parsed.spec.requiredNodeClasses).toContain("TotallyMadeUpNode");
+  });
+});

@@ -266,7 +266,14 @@
     "save": "Save",
     "delete": "Delete",
     "selectedCount": "{count} selected",
-    "compare": "Compare",
+    "compare": {
+      "ariaDialog": "Compare images",
+      "vs": "vs",
+      "closeCompare": "Close compare",
+      "divider": "Comparison divider",
+      "badgeA": "A",
+      "badgeB": "B"
+    },
     "export": "Export",
     "clear": "Clear",
     "deleteManyTitle": "Delete {count, plural, one {# image} other {# images}}?",
@@ -320,14 +327,7 @@
       "selectAllButNewest": "Select all but newest",
       "selectAria": "Select {path}"
     },
-    "compare": {
-      "ariaDialog": "Compare images",
-      "vs": "vs",
-      "closeCompare": "Close compare",
-      "divider": "Comparison divider",
-      "badgeA": "A",
-      "badgeB": "B"
-    }
+    "compareAction": "Compare"
   },
   "blueprints": {
     "heading": "Blueprints",
