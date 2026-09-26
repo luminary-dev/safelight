@@ -10,7 +10,7 @@
  * :8188, :11434, ./data or ./outputs.
  */
 import { spawn } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +25,8 @@ mkdirSync(appDir);
 // through a symlinked src, and a snapshot keeps parallel edits from moving
 // under a running suite. Only node_modules stays a symlink. Deliberately no
 // .env.local: this run's environment is exactly what is set below.
-const COPIED = ["src", "public", "package.json", "next.config.ts", "tsconfig.json", "postcss.config.mjs", "components.json", "next-env.d.ts"];
+// next-env.d.ts is generated (gitignored) — copy it only when present (CI checkouts lack it).
+const COPIED = ["src", "public", "package.json", "next.config.ts", "tsconfig.json", "postcss.config.mjs", "components.json", "next-env.d.ts"].filter((f) => existsSync(path.join(web, f)));
 for (const entry of COPIED) cpSync(path.join(web, entry), path.join(appDir, entry), { recursive: true });
 symlinkSync(path.join(web, "node_modules"), path.join(appDir, "node_modules"));
 for (const dir of ["data", "outputs", "inputs"]) mkdirSync(path.join(root, dir));
