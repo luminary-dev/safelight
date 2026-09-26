@@ -53,7 +53,7 @@ export function CodeWorkspace({
     setDraft(root);
   }
   const approvedPaths = useMemo(() => active?.approvedPaths ?? [], [active?.approvedPaths]);
-  const agentBody = useMemo(() => ({ root, approvedPaths }), [root, approvedPaths]);
+  const agentBody = useMemo(() => ({ root, approvedPaths, projectId: active?.projectId }), [root, approvedPaths, active?.projectId]);
   const toolCapable = models.filter((m) => m.provider !== "ollama" || m.tags?.includes("tools"));
 
   return (

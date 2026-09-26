@@ -1,12 +1,14 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { ArrowRight, ArrowUp, Bot, Check, Copy, Image as ImageSquare, ImagePlus, Loader2, Paperclip, Pencil, RefreshCw, TriangleAlert, Wrench, X } from "lucide-react";
+import { ArrowRight, ArrowUp, Bot, Check, Copy, FileText, GitBranch, Image as ImageSquare, ImagePlus, Loader2, Mic, Paperclip, Pencil, RefreshCw, SlidersHorizontal, TriangleAlert, Volume2, VolumeX, Wrench, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { EXTRACT_EXTENSIONS, isExtractable, MAX_FILE_BYTES } from "@/lib/attachments";
 import type { JobOutput } from "@/lib/comfy/types";
 import { viewUrl } from "@/lib/safelight-state";
-import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { applyTheme, clearTheme, getActiveThemeName, subscribeActiveTheme } from "@/lib/theme/apply";
 import { themeContrast, type ThemeColors } from "@/lib/theme/contrast";
 import ReactMarkdown from "react-markdown";
@@ -40,7 +42,47 @@ export function chatModelKey(m: { provider: string; id: string }) {
   return `${m.provider}::${m.id}`;
 }
 
-import type { ChatAttachment, ChatMessage as Message, ToolCall } from "@/lib/session-types";
+import type { ChatAttachment, ChatFile, ChatMessage as Message, ChatParams, ToolCall } from "@/lib/session-types";
+
+/** What the composer's file input accepts: images (via /api/upload) plus everything /api/chat/extract can read. */
+const FILE_ACCEPT = `image/*,${EXTRACT_EXTENSIONS.join(",")}`;
+
+// ---------------- Web Speech (voice input + TTS), feature-detected ----------------
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike };
+
+function speechCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as SpeechWindow;
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+// Feature flags read through useSyncExternalStore so SSR renders without the buttons and hydration stays consistent.
+const noopSubscribe = () => () => {};
+const canListenSnapshot = () => speechCtor() !== null;
+const canSpeakSnapshot = () => typeof window !== "undefined" && "speechSynthesis" in window;
+const serverSnapshot = () => false;
+
+// ---------------- Token/cost estimate helpers ----------------
+
+function fmtTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+function fmtCost(c: number): string {
+  return c >= 0.1 ? c.toFixed(2) : c.toFixed(4);
+}
 
 export interface PromptHandoff {
   prompt: string;
@@ -154,6 +196,11 @@ export function ChatMode({
   agentLocked = false,
   onApprovePath,
   onUpload,
+  onBranch,
+  onPatchSession,
+  system,
+  params,
+  projectId,
 }: {
   models: ChatModelInfo[];
   ollamaUp: boolean;
@@ -185,11 +232,22 @@ export function ChatMode({
   onApprovePath?: (path: string) => void;
   /** Uploads files into the Safelight input folder and returns references usable by both chat and Image mode. */
   onUpload: (files: File[]) => Promise<ChatAttachment[]>;
+  /** Fork the conversation from a message: called with the history truncated after it. Hidden when absent. */
+  onBranch?: (messages: Message[]) => void;
+  /** Persists per-session tuning (system prompt, sampling params). Chat mode only this round. */
+  onPatchSession?: (patch: Partial<{ system: string; params: ChatParams }>) => void;
+  /** Per-session system prompt, sent with every request and appended server-side to the default. */
+  system?: string;
+  /** Per-session sampling parameters, sent with every request. */
+  params?: ChatParams;
+  /** Project of the active session, forwarded to the agent for scoped runs. */
+  projectId?: string;
 }) {
   const selected = models.find((m) => chatModelKey(m) === model) ?? null;
   const setMessages = onMessages;
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<ChatAttachment[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<ChatFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const noVision = pending.length > 0 && selected && selected.vision === false;
@@ -197,18 +255,31 @@ export function ChatMode({
   const attach = useCallback(
     async (files: File[]) => {
       const imgs = files.filter((f) => f.type.startsWith("image/")).slice(0, 6 - pending.length);
-      if (!imgs.length) return;
+      const docs = files.filter((f) => !f.type.startsWith("image/") && isExtractable(f.name)).slice(0, 4 - pendingFiles.length);
+      if (!imgs.length && !docs.length) return;
       setUploading(true);
       try {
-        const added = await onUpload(imgs);
-        setPending((p) => [...p, ...added].slice(0, 6));
+        if (imgs.length) {
+          const added = await onUpload(imgs);
+          setPending((p) => [...p, ...added].slice(0, 6));
+        }
+        for (const doc of docs) {
+          if (doc.size > MAX_FILE_BYTES) throw new Error(`${doc.name} is larger than 10 MB.`);
+          const form = new FormData();
+          form.append("file", doc);
+          const res = await fetch("/api/chat/extract", { method: "POST", body: form });
+          const body = (await res.json().catch(() => ({}))) as { name?: string; text?: string; truncated?: boolean; error?: string };
+          if (!res.ok || typeof body.text !== "string") throw new Error(body.error ?? `Could not read ${doc.name}.`);
+          const file: ChatFile = { name: body.name ?? doc.name, text: body.text, truncated: body.truncated || undefined };
+          setPendingFiles((p) => [...p.filter((x) => x.name !== file.name), file].slice(0, 4));
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed");
       } finally {
         setUploading(false);
       }
     },
-    [onUpload, pending.length],
+    [onUpload, pending.length, pendingFiles.length],
   );
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -229,6 +300,94 @@ export function ChatMode({
   const threadRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Edit-and-resend: which user message is being edited, and its draft text.
+  const [editing, setEditing] = useState<{ index: number; text: string } | null>(null);
+
+  // Voice: push-to-talk recognition into the composer, and per-message TTS playback.
+  const canListen = useSyncExternalStore(noopSubscribe, canListenSnapshot, serverSnapshot);
+  const canSpeak = useSyncExternalStore(noopSubscribe, canSpeakSnapshot, serverSnapshot);
+  const [listening, setListening] = useState(false);
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  const toggleMic = useCallback(() => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return; // onend flips the state off
+    }
+    const Ctor = speechCtor();
+    if (!Ctor) return;
+    const rec = new Ctor();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.lang = typeof navigator !== "undefined" ? navigator.language : "en-US";
+    rec.onresult = (e) => {
+      const chunk = Array.from({ length: e.results.length - e.resultIndex }, (_, k) => e.results[e.resultIndex + k]?.[0]?.transcript ?? "")
+        .join(" ")
+        .trim();
+      if (chunk) setInput((v) => (v.trim() ? `${v.trimEnd()} ${chunk}` : chunk));
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setListening(true);
+  }, [listening]);
+
+  const toggleSpeak = useCallback(
+    (index: number, text: string) => {
+      if (!canSpeak) return;
+      window.speechSynthesis.cancel();
+      if (speakingIndex === index) {
+        setSpeakingIndex(null);
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.onend = () => setSpeakingIndex((cur) => (cur === index ? null : cur));
+      utterance.onerror = () => setSpeakingIndex((cur) => (cur === index ? null : cur));
+      window.speechSynthesis.speak(utterance);
+      setSpeakingIndex(index);
+    },
+    [canSpeak, speakingIndex],
+  );
+
+  // Pricing for the composer's cost estimate; null while local/unpriced so nothing shows.
+  const [rates, setRates] = useState<{ inPerMtok: number | null; outPerMtok: number | null } | null>(null);
+  const provider = selected?.provider;
+  const modelId = selected?.id;
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve(); // keep every setState in this effect on an async continuation
+      if (!provider || !modelId || provider === "ollama") {
+        if (!cancelled) setRates(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/chat/estimate?provider=${encodeURIComponent(provider)}&model=${encodeURIComponent(modelId)}`);
+        const body = (await res.json().catch(() => ({}))) as { inPerMtok?: number | null; outPerMtok?: number | null };
+        if (!cancelled) setRates(res.ok ? { inPerMtok: body.inPerMtok ?? null, outPerMtok: body.outPerMtok ?? null } : null);
+      } catch {
+        if (!cancelled) setRates(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [provider, modelId]);
+
+  // Rough size of what the next send would carry: full history + composer + attachments + system prompt, chars/4.
+  const estTokens = useMemo(() => {
+    let chars = input.length + (system?.length ?? 0);
+    for (const m of messages) {
+      chars += m.text.length;
+      for (const f of m.files ?? []) chars += f.text.length;
+    }
+    for (const f of pendingFiles) chars += f.text.length;
+    return Math.ceil(chars / 4);
+  }, [messages, input, pendingFiles, system]);
+  const estCost = rates?.inPerMtok != null && estTokens > 0 ? (estTokens / 1_000_000) * rates.inPerMtok : null;
+
   useEffect(() => {
     const t = threadRef.current;
     if (t) t.scrollTop = t.scrollHeight;
@@ -240,28 +399,57 @@ export function ChatMode({
     return () => abortRef.current?.abort();
   }, [sessionId]);
 
+  // Stop the mic and any speech playback when leaving the session.
+  useEffect(
+    () => () => {
+      recognitionRef.current?.stop();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    },
+    [],
+  );
+
   /** Sends the composer content, or — when `historyOverride` is given (regenerate) — re-runs that exact history without touching the composer. */
   const send = useCallback(async (historyOverride?: Message[]) => {
     const text = input.trim();
     if (thinking || !selected) return;
-    if (!historyOverride && !text && pending.length === 0) return;
+    if (!historyOverride && !text && pending.length === 0 && pendingFiles.length === 0) return;
     setError(null);
     const attachments = historyOverride ? [] : pending;
-    const history: Message[] = historyOverride ?? [...messages, { role: "user", text: text || "Write a prompt for this image.", images: attachments.length ? attachments : undefined }];
+    const attachedFiles = historyOverride ? [] : pendingFiles;
+    const history: Message[] = historyOverride ?? [
+      ...messages,
+      {
+        role: "user",
+        text: text || (attachments.length ? "Write a prompt for this image." : ""),
+        images: attachments.length ? attachments : undefined,
+        files: attachedFiles.length ? attachedFiles : undefined,
+      },
+    ];
     setMessages(() => [...history, { role: "assistant", text: "" }]);
     if (!historyOverride) {
       setInput("");
       setPending([]);
+      setPendingFiles([]);
     }
     setThinking(true);
     const controller = new AbortController();
     abortRef.current = controller;
     const patchLast = (fn: (m: Message) => Message) => setMessages((list) => list.map((m, i) => (i === list.length - 1 ? fn(m) : m)));
     try {
+      const hasParams = params && (params.temperature ?? params.topP ?? params.maxTokens) !== undefined;
       const payload = {
         provider: selected?.provider,
         model: selected?.id,
-        messages: history.map((m) => ({ role: m.role, content: m.text, images: m.images?.map((img) => ({ ref: img.ref })) })),
+        messages: history.map((m) => ({
+          role: m.role,
+          content: m.text,
+          images: m.images?.map((img) => ({ ref: img.ref })),
+          files: m.files?.map((f) => ({ name: f.name, text: f.text })),
+        })),
+        // Per-session tuning; undefined fields drop out of the JSON body entirely.
+        system: system?.trim() || undefined,
+        params: hasParams ? params : undefined,
+        projectId: projectId || undefined,
       };
       if (agent) {
         const res = await fetch(agentEndpoint, {
@@ -347,7 +535,7 @@ export function ChatMode({
       setApprovals([]);
       abortRef.current = null;
     }
-  }, [input, pending, thinking, selected, messages, setMessages, agent, preferredModel, clientId, agentEndpoint, agentBody]);
+  }, [input, pending, pendingFiles, thinking, selected, messages, setMessages, agent, preferredModel, clientId, agentEndpoint, agentBody, system, params, projectId]);
 
   /** Drops the last assistant message and re-sends the user message before it through the normal send path. */
   const regenerate = useCallback(() => {
@@ -355,6 +543,17 @@ export function ChatMode({
     if (thinking || messages[messages.length - 1]?.role !== "assistant" || base[base.length - 1]?.role !== "user") return;
     void send(base);
   }, [messages, thinking, send]);
+
+  /** Edit-and-resend: replaces the edited user message, drops everything after it, and re-runs. */
+  const resendEdited = useCallback(() => {
+    if (!editing || thinking) return;
+    const text = editing.text.trim();
+    const original = messages[editing.index];
+    if (!text || original?.role !== "user") return;
+    const history = [...messages.slice(0, editing.index), { ...original, text }];
+    setEditing(null);
+    void send(history);
+  }, [editing, thinking, messages, send]);
 
   const stop = () => abortRef.current?.abort();
   const empty = messages.length === 0 && !thinking;
@@ -413,17 +612,80 @@ export function ChatMode({
                   ))}
                 </div>
               ) : null}
-              <div
-                className={`min-w-0 text-[15px] leading-[1.6] text-ink [text-wrap:pretty] ${
-                  msg.role === "user" ? "whitespace-pre-wrap rounded-[14px] bg-green-wash px-4 py-2.5" : ""
-                }`}
-              >
-                {msg.role === "assistant" && msg.text ? (
-                  <Markdown text={msg.text} />
-                ) : (
-                  msg.text || (thinking && i === messages.length - 1 && !msg.tools?.length ? <span className="pulse text-ink-muted">…</span> : "")
-                )}
-              </div>
+              {msg.files && msg.files.length > 0 ? (
+                <div className={`flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                  {msg.files.map((f) => (
+                    <details key={f.name} className="max-w-full rounded-[12px] border border-line bg-paper-2 px-3 py-1.5">
+                      <summary className="flex cursor-pointer list-none items-center gap-1.5 font-mono text-[11px] text-ink-muted">
+                        <FileText className="size-3 shrink-0" /> {f.name}
+                        {f.truncated ? <span className="text-faint">· clipped</span> : null}
+                      </summary>
+                      <pre className="mt-1.5 max-h-52 overflow-auto whitespace-pre-wrap rounded-[8px] bg-pill/40 p-2 font-mono text-[11px] leading-relaxed text-ink-muted">{f.text}</pre>
+                    </details>
+                  ))}
+                </div>
+              ) : null}
+              {editing && editing.index === i && msg.role === "user" ? (
+                <div className="w-full min-w-[min(480px,72vw)] rounded-[14px] bg-green-wash p-1.5">
+                  <textarea
+                    value={editing.text}
+                    onChange={(e) => setEditing({ index: i, text: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        resendEdited();
+                      } else if (e.key === "Escape") {
+                        setEditing(null);
+                      }
+                    }}
+                    rows={1}
+                    autoFocus
+                    className="max-h-60 w-full resize-none border-0 bg-transparent px-2.5 py-2 font-sans text-[15px] leading-normal text-ink"
+                    style={{ fieldSizing: "content" } as React.CSSProperties}
+                  />
+                  <div className="flex items-center justify-end gap-2 px-1 pb-1">
+                    <span className="mr-auto font-mono text-[10.5px] text-faint">Replaces this message and everything after it</span>
+                    <button type="button" onClick={() => setEditing(null)} className="btn-quiet h-7 rounded-full px-3 text-[12px]">
+                      Cancel
+                    </button>
+                    <button type="button" onClick={resendEdited} disabled={!editing.text.trim() || thinking} className="btn-primary h-7 rounded-full px-3 text-[12px]">
+                      Send
+                    </button>
+                  </div>
+                </div>
+              ) : msg.text || msg.role === "assistant" ? (
+                <div
+                  className={`min-w-0 text-[15px] leading-[1.6] text-ink [text-wrap:pretty] ${
+                    msg.role === "user" ? "whitespace-pre-wrap rounded-[14px] bg-green-wash px-4 py-2.5" : ""
+                  }`}
+                >
+                  {msg.role === "assistant" && msg.text ? (
+                    <Markdown text={msg.text} />
+                  ) : (
+                    msg.text || (thinking && i === messages.length - 1 && !msg.tools?.length ? <span className="pulse text-ink-muted">…</span> : "")
+                  )}
+                </div>
+              ) : null}
+              {msg.role === "user" && !thinking && editing?.index !== i ? (
+                <div className="flex flex-wrap items-center justify-end gap-4 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ index: i, text: msg.text })}
+                    className="inline-flex w-fit items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint transition-colors hover:text-ink"
+                  >
+                    <Pencil size={13} /> Edit
+                  </button>
+                  {onBranch ? (
+                    <button
+                      type="button"
+                      onClick={() => onBranch(messages.slice(0, i + 1))}
+                      className="inline-flex w-fit items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint transition-colors hover:text-ink"
+                    >
+                      <GitBranch size={13} /> Branch from here
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               {msg.role === "assistant" && msg.text && !(thinking && i === messages.length - 1) ? (
                 <div className="flex flex-wrap items-center gap-4 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                   <button
@@ -451,6 +713,35 @@ export function ChatMode({
                       className="inline-flex w-fit items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint transition-colors hover:text-ink"
                     >
                       <RefreshCw size={13} /> Regenerate
+                    </button>
+                  ) : null}
+                  {onBranch && !thinking ? (
+                    <button
+                      type="button"
+                      onClick={() => onBranch(messages.slice(0, i + 1))}
+                      className="inline-flex w-fit items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint transition-colors hover:text-ink"
+                    >
+                      <GitBranch size={13} /> Branch from here
+                    </button>
+                  ) : null}
+                  {canSpeak ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSpeak(i, msg.text)}
+                      aria-pressed={speakingIndex === i}
+                      className={`inline-flex w-fit items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors ${
+                        speakingIndex === i ? "text-terracotta" : "text-faint hover:text-ink"
+                      }`}
+                    >
+                      {speakingIndex === i ? (
+                        <>
+                          <VolumeX size={13} /> Stop
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 size={13} /> Read aloud
+                        </>
+                      )}
                     </button>
                   ) : null}
                   <button
@@ -542,18 +833,32 @@ export function ChatMode({
               ))}
             </div>
           ) : null}
+          {pendingFiles.length > 0 ? (
+            <div className="flex flex-wrap gap-2 px-3.5 pt-3">
+              {pendingFiles.map((f) => (
+                <span key={f.name} className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 font-mono text-[11px] text-ink-muted">
+                  <FileText className="size-3 shrink-0" />
+                  <span className="truncate" title={f.name}>{f.name}</span>
+                  {f.truncated ? <span className="shrink-0 text-faint">· clipped</span> : null}
+                  <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setPendingFiles((p) => p.filter((x) => x.name !== f.name))} className="grid size-4 shrink-0 place-items-center rounded-full text-ink-muted hover:text-ink">
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="flex items-end gap-2 py-2.5 pl-2.5 pr-2.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button type="button" aria-label="Attach an image" disabled={uploading || pending.length >= 6} onClick={() => fileRef.current?.click()} className="mb-1 grid size-9 shrink-0 place-items-center rounded-full text-ink-muted transition-colors hover:bg-pill hover:text-ink disabled:opacity-50">
+                <button type="button" aria-label="Attach a file" disabled={uploading || (pending.length >= 6 && pendingFiles.length >= 4)} onClick={() => fileRef.current?.click()} className="mb-1 grid size-9 shrink-0 place-items-center rounded-full text-ink-muted transition-colors hover:bg-pill hover:text-ink disabled:opacity-50">
                   {uploading ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="rounded-[8px] bg-ink px-2 py-1 font-mono text-[11px] text-paper">
-                Attach a reference photo (or drop / paste one)
+                Attach a photo or a file — PDF, text, CSV, code (or drop / paste)
               </TooltipContent>
             </Tooltip>
-            <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => void attach(Array.from(e.target.files ?? []))} />
+            <input ref={fileRef} type="file" accept={FILE_ACCEPT} multiple hidden onChange={(e) => void attach(Array.from(e.target.files ?? []))} />
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -575,6 +880,26 @@ export function ChatMode({
             className="max-h-40 flex-1 resize-none border-0 bg-transparent py-2 font-sans text-[15px] leading-normal text-ink"
             style={{ fieldSizing: "content" } as React.CSSProperties}
           />
+          {canListen ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={listening ? "Stop listening" : "Dictate"}
+                  aria-pressed={listening}
+                  onClick={toggleMic}
+                  className={`mb-1 grid size-9 shrink-0 place-items-center rounded-full transition-colors ${
+                    listening ? "bg-terracotta-wash text-terracotta" : "text-ink-muted hover:bg-pill hover:text-ink"
+                  }`}
+                >
+                  <Mic className={`size-4 ${listening ? "animate-pulse" : ""}`} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="rounded-[8px] bg-ink px-2 py-1 font-mono text-[11px] text-paper">
+                {listening ? "Listening — click to stop" : "Push to talk: dictate into the composer"}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           {agentLocked ? null : (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -604,7 +929,7 @@ export function ChatMode({
               type="button"
               aria-label="Send"
               onClick={() => void send()}
-              disabled={(!input.trim() && pending.length === 0) || !selected || Boolean(noVision)}
+              disabled={(!input.trim() && pending.length === 0 && pendingFiles.length === 0) || !selected || Boolean(noVision)}
               className="btn-primary mb-1 grid size-[38px] shrink-0 place-items-center rounded-[12px] p-0 text-[17px]"
             >
               <ArrowUp className="size-4" />
@@ -642,11 +967,112 @@ export function ChatMode({
               emptyHint={ollamaUp ? "No chat models yet." : "Ollama is offline."}
               options={models.map((m) => ({ key: chatModelKey(m), label: m.label, tags: m.tags, provider: m.provider }))}
             />
+            {onPatchSession && !agentLocked ? <TunePopover system={system} params={params} onPatch={onPatchSession} /> : null}
           </div>
-          <span className="hidden font-mono text-[11px] text-faint lg:inline">Enter to send · Shift + Enter for a new line</span>
+          <span className="flex items-center gap-3">
+            {estTokens > 0 ? (
+              <span
+                title="Rough estimate — characters ÷ 4 across the conversation, attachments, and draft. Cost uses the input rate for the selected cloud model."
+                className="font-mono text-[11px] text-faint"
+              >
+                ~{fmtTokens(estTokens)} tok{estCost != null ? ` · ~$${fmtCost(estCost)}` : ""}
+              </span>
+            ) : null}
+            <span className="hidden font-mono text-[11px] text-faint lg:inline">Enter to send · Shift + Enter for a new line</span>
+          </span>
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * Per-session tuning: a system prompt appended to the default, plus sampling
+ * parameters. Rendered next to the model picker in chat mode only; commits via
+ * onPatch when the popover closes or a field blurs.
+ */
+export function TunePopover({ system, params, onPatch }: { system?: string; params?: ChatParams; onPatch: (patch: Partial<{ system: string; params: ChatParams }>) => void }) {
+  const [open, setOpen] = useState(false);
+  const [sys, setSys] = useState(system ?? "");
+  const [temperature, setTemperature] = useState(params?.temperature?.toString() ?? "");
+  const [topP, setTopP] = useState(params?.topP?.toString() ?? "");
+  const [maxTokens, setMaxTokens] = useState(params?.maxTokens?.toString() ?? "");
+  const tuned = Boolean(system?.trim()) || (params && (params.temperature ?? params.topP ?? params.maxTokens) !== undefined);
+
+  const commit = useCallback(() => {
+    const num = (raw: string, int = false): number | undefined => {
+      const v = int ? parseInt(raw, 10) : parseFloat(raw);
+      return Number.isFinite(v) ? v : undefined;
+    };
+    const next: ChatParams = { temperature: num(temperature), topP: num(topP), maxTokens: num(maxTokens, true) };
+    const hasParams = (next.temperature ?? next.topP ?? next.maxTokens) !== undefined;
+    onPatch({ system: sys.trim() || undefined, params: hasParams ? next : undefined });
+  }, [sys, temperature, topP, maxTokens, onPatch]);
+
+  const numberField = (label: string, hint: string, value: string, set: (v: string) => void, props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <label className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-faint">{label}</span>
+      <input
+        type="number"
+        value={value}
+        placeholder={hint}
+        onChange={(e) => set(e.target.value)}
+        onBlur={commit}
+        className="h-8 w-full rounded-[10px] border border-line bg-paper-2 px-2.5 font-mono text-[12.5px] text-ink placeholder:text-placeholder"
+        {...props}
+      />
+    </label>
+  );
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) commit();
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label="Chat settings: system prompt and sampling"
+              className={`grid size-8 shrink-0 place-items-center rounded-full border border-line transition-colors ${
+                tuned ? "bg-terracotta-wash text-terracotta" : "bg-paper-2 text-ink-muted hover:bg-pill hover:text-ink"
+              }`}
+            >
+              <SlidersHorizontal className="size-3.5" />
+            </button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="rounded-[8px] bg-ink px-2 py-1 font-mono text-[11px] text-paper">
+          System prompt &amp; sampling for this chat
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent align="start" sideOffset={8} className="w-[340px] rounded-[16px] p-3.5">
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-faint">System prompt — added to the default</span>
+            <textarea
+              value={sys}
+              onChange={(e) => setSys(e.target.value)}
+              onBlur={commit}
+              rows={4}
+              placeholder="Extra instructions for this chat…"
+              className="max-h-48 w-full resize-none rounded-[10px] border border-line bg-paper-2 px-2.5 py-2 text-[13px] leading-normal text-ink placeholder:text-placeholder"
+              style={{ fieldSizing: "content" } as React.CSSProperties}
+            />
+          </label>
+          <div className="flex gap-2">
+            {numberField("Temp", "0–2", temperature, setTemperature, { min: 0, max: 2, step: 0.1 })}
+            {numberField("Top-p", "0–1", topP, setTopP, { min: 0, max: 1, step: 0.05 })}
+            {numberField("Max tok", "auto", maxTokens, setMaxTokens, { min: 1, step: 1 })}
+          </div>
+          <p className="m-0 font-mono text-[10.5px] leading-relaxed text-faint">Saved with this chat. Blank fields use the provider defaults.</p>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

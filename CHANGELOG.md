@@ -12,6 +12,11 @@ All notable changes to Safelight are documented here. The format follows
   composer or a health poll no longer re-renders the whole shell. Behavior unchanged.
 
 ### Added
+- Chat parity (Workstream M): branch a conversation from any message, edit-and-resend any of
+  your messages, a per-session tune popover (system prompt, temperature, top-p, max tokens),
+  file attachments — PDF, text, CSV, code — extracted server-side and carried as collapsible
+  chips, a live ~token/cost estimate under the composer for cloud models, and voice: dictation
+  and read-aloud through the browser's own speech engine, nothing sent anywhere.
 - Accessibility (Workstream T): a visible keyboard focus ring on every interactive control,
   dialogs with proper labels, focus trap and focus return, live regions announcing status,
   queue, and loading changes, a keyboard-operable compare slider, reduced-motion-aware

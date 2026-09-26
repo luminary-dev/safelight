@@ -21,6 +21,14 @@ export interface ChatAttachment {
   subfolder: string;
 }
 
+/** A non-image file attached to a message, already extracted to text server-side. */
+export interface ChatFile {
+  name: string;
+  text: string;
+  /** True when the extracted text was clipped to the server limit. */
+  truncated?: boolean;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   text: string;
@@ -28,6 +36,15 @@ export interface ChatMessage {
   tools?: ToolCall[];
   /** Images attached to a user message; sent to vision-capable models. */
   images?: ChatAttachment[];
+  /** Non-image attachments (PDF, text, CSV, code) rendered as collapsed chips. */
+  files?: ChatFile[];
+}
+
+/** Per-session sampling parameters; unset fields use the provider defaults. */
+export interface ChatParams {
+  temperature?: number;
+  topP?: number;
+  maxTokens?: number;
 }
 
 /** A named grouping of chats and image sessions, e.g. one collection or shoot. */
@@ -56,6 +73,10 @@ export interface ChatSession extends SessionBase {
   messages: ChatMessage[];
   /** Agent mode: the model may call Safelight tools (generate and edit images, list models). */
   agent?: boolean;
+  /** Per-session system prompt, appended to the default — never replaces it. */
+  system?: string;
+  /** Per-session sampling parameters. */
+  params?: ChatParams;
 }
 
 export interface ImageSession extends SessionBase {

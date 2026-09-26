@@ -70,6 +70,7 @@ export function DesignWorkspace({
           onAgent={() => undefined}
           agentLocked
           agentEndpoint="/api/design"
+          agentBody={{ projectId: active?.projectId }}
           onUseAsInput={onUseAsInput}
           clientId={clientId}
           showControls={false}

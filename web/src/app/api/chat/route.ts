@@ -6,7 +6,7 @@ import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
 import { CHAT_SYSTEM_PROMPT } from "@/lib/providers/types";
 
 export async function POST(request: NextRequest) {
-  let body: { provider?: string; model?: string; messages?: WireMessage[] };
+  let body: { provider?: string; model?: string; messages?: WireMessage[]; system?: string };
   try {
     body = await request.json();
   } catch {
@@ -14,7 +14,9 @@ export async function POST(request: NextRequest) {
   }
   if (!body.model) return Response.json({ error: "Pick a chat model." }, { status: 400 });
   const provider = body.provider ?? "ollama";
-  const system = CHAT_SYSTEM_PROMPT;
+  // A per-session system prompt is appended to the default, never replacing it.
+  const extra = typeof body.system === "string" ? body.system.trim() : "";
+  const system = extra ? `${CHAT_SYSTEM_PROMPT}\n\n${extra}` : CHAT_SYSTEM_PROMPT;
   const turns = await toTurns(body.messages ?? [], 40);
   try {
     let stream: ReadableStream<Uint8Array> | null = null;

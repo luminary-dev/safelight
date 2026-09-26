@@ -7,7 +7,7 @@ import { useComfySocket } from "@/hooks/useComfySocket";
 import { useImageStudio, uploadRefFiles } from "@/hooks/useImageStudio";
 import { useSessions } from "@/hooks/useSessions";
 import { loadString } from "@/lib/local-prefs";
-import { autoTitle, type ChatAttachment, type ChatMessage, type ChatSession, type CodeSession, type DesignSession, type ImageSession, type SessionKind } from "@/lib/session-types";
+import { autoTitle, type ChatAttachment, type ChatMessage, type ChatParams, type ChatSession, type CodeSession, type DesignSession, type ImageSession, type SessionKind } from "@/lib/session-types";
 import { deriveStatus } from "@/lib/system-status";
 import { applyTheme } from "@/lib/theme/apply";
 import type { ThemeColors } from "@/lib/theme/contrast";
@@ -233,6 +233,21 @@ export function Safelight() {
     },
     [ensureSession, updateSession],
   );
+  /** Fork the conversation: a new chat session seeded with the truncated history. */
+  const onBranch = useCallback(
+    (messages: ChatMessage[]) => {
+      const firstUser = messages.find((m) => m.role === "user")?.text ?? "";
+      createSession("chat", { messages, title: autoTitle(firstUser, "Branched chat"), titled: false } as Partial<ChatSession>);
+    },
+    [createSession],
+  );
+  const onPatchChatSession = useCallback(
+    (patch: Partial<{ system: string; params: ChatParams }>) => {
+      const sess = ensureSession("chat");
+      updateSession<ChatSession>(sess.id, (x) => ({ ...x, ...patch }));
+    },
+    [ensureSession, updateSession],
+  );
   const onDesignMessages = useCallback(
     (fn: (prev: ChatMessage[]) => ChatMessage[]) => {
       const sess = ensureSession("design");
@@ -325,6 +340,8 @@ export function Safelight() {
             onAgent={setAgent}
             messages={activeChat?.messages ?? []}
             onMessages={onMessages}
+            onBranch={onBranch}
+            onPatchSession={onPatchChatSession}
             onUseAsPrompt={img.useAsPrompt}
             onUseAsInput={img.useAsInput}
             onOpenKeys={openKeys}

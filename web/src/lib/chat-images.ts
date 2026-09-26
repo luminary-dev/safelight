@@ -10,6 +10,18 @@ export interface WireMessage {
   role: string;
   content: string;
   images?: { ref: string }[];
+  /** Non-image attachments already extracted to text by /api/chat/extract. */
+  files?: { name: string; text: string }[];
+}
+
+/** Folds extracted file attachments into the turn text as labeled fenced blocks. */
+export function foldFiles(content: string, files?: { name: string; text: string }[]): string {
+  const blocks = (files ?? [])
+    .slice(0, 8)
+    .filter((f) => f && typeof f.name === "string" && typeof f.text === "string" && f.text.trim())
+    .map((f) => `[Attached: ${f.name}]\n\`\`\`\n${f.text}\n\`\`\``);
+  if (blocks.length === 0) return content;
+  return content.trim() ? `${blocks.join("\n\n")}\n\n${content}` : blocks.join("\n\n");
 }
 
 /** Loads attached images from the input/output folders and base64-encodes them for the providers. */
@@ -33,8 +45,9 @@ export async function toTurns(messages: WireMessage[], limit = 30): Promise<Chat
         }
       }
     }
-    if (!m.content.trim() && !images?.length) continue;
-    turns.push({ role: m.role, content: m.content, images });
+    const content = m.role === "user" ? foldFiles(m.content, m.files) : m.content;
+    if (!content.trim() && !images?.length) continue;
+    turns.push({ role: m.role, content, images });
   }
   return turns;
 }
