@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 11
@@ -19,6 +21,13 @@ jobs:
       - run: pnpm --dir web install --frozen-lockfile
       - run: pnpm verify
       - run: pnpm --dir web audit --prod --audit-level high
+      # Secret scan over full history (baseline run 2026-09-26: clean; data/keys.json
+      # has never been committed). Plain binary — the marketplace action needs a paid
+      # license for org repos. Config: .gitleaks.toml. Needs fetch-depth: 0 above.
+      - name: gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz gitleaks
+          ./gitleaks git --redact --no-banner .
   # Non-blocking e2e smoke (quality gate 3, in progress): boots its own dev
   # server against a throwaway data dir with ComfyUI/Ollama unreachable on
   # purpose. Not in the required `verify` job yet; failures don't block merges.
