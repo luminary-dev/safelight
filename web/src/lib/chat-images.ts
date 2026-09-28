@@ -1,8 +1,7 @@
 import "server-only";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readImageBytesForRef } from "@/lib/input-bytes";
 import type { ChatImage, ChatTurn } from "@/lib/providers/types";
-import { parseImageRef, safeJoin } from "@/lib/safelight-files";
 
 const MIME: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
 
@@ -34,12 +33,9 @@ export async function toTurns(messages: WireMessage[], limit = 30): Promise<Chat
     if (m.role === "user" && m.images?.length) {
       images = [];
       for (const att of m.images.slice(0, 6)) {
-        const { dir, subfolder, filename } = parseImageRef(att.ref);
-        const full = safeJoin(dir, subfolder, filename);
-        if (!full) continue;
         try {
-          const bytes = await readFile(full);
-          images.push({ mime: MIME[path.extname(filename).toLowerCase()] ?? "image/png", data: bytes.toString("base64") });
+          const { bytes, filename } = await readImageBytesForRef(att.ref);
+          images.push({ mime: MIME[path.extname(filename).toLowerCase()] ?? "image/png", data: Buffer.from(bytes).toString("base64") });
         } catch {
           /* skip missing files */
         }

@@ -1,9 +1,10 @@
 import { existsSync, readdirSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import sharp from "sharp";
 import { startFakeComfy, type FakeComfy } from "@/test/fakes/comfy-server";
 
 /**
@@ -75,6 +76,41 @@ describe("with ComfyUI up", () => {
   it("a malformed (non-form) body is a 400, not an unhandled 500", async () => {
     const res = await POST(new Request("http://localhost:3001/api/upload", { method: "POST", body: "{json}" }) as unknown as NextRequest);
     expect(res.status).toBe(400);
+  });
+
+  it("mirrors the ComfyUI upload into our own input folder (an external ComfyUI keeps a different one)", async () => {
+    const res = await upload([{ name: "mirror-me.png" }]);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadBody;
+    const f = body.files[0];
+    // ComfyUI received it AND the same bytes exist under INPUT_DIR for cloud renders/chat.
+    expect(comfy.uploads.map((u) => u.filename)).toContain("mirror-me.png");
+    expect(existsSync(path.join(dir, "inputs", f.subfolder, f.filename))).toBe(true);
+  });
+
+  it("converts an iPhone-style HEIF family file to JPEG before anything downstream sees it", async () => {
+    // sharp cannot ENCODE .heic in this build, but .avif is the same HEIF container
+    // family and exercises the identical convert path.
+    const avif = await sharp({ create: { width: 4, height: 4, channels: 3, background: { r: 200, g: 30, b: 30 } } })
+      .avif()
+      .toBuffer();
+    const res = await upload([{ name: "IMG_8058.avif", type: "image/avif", bytes: avif }]);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadBody;
+    expect(body.files[0].filename).toBe("IMG_8058.jpg");
+    // What ComfyUI got is a real JPEG, not the original container.
+    expect(comfy.uploads.map((u) => u.filename)).toContain("IMG_8058.jpg");
+    const mirrored = await readFile(path.join(dir, "inputs", body.files[0].subfolder, body.files[0].filename));
+    expect(mirrored.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8])); // JPEG SOI
+  });
+
+  it("an undecodable .heic is a 400 that says what to do, and reaches neither disk nor ComfyUI", async () => {
+    const before = comfy.uploads.length;
+    const res = await upload([{ name: "broken.heic", type: "image/heic", bytes: Buffer.from("not an image") }]);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toMatch(/broken\.heic.*JPEG or PNG/);
+    expect(comfy.uploads.length).toBe(before);
+    expect(existsSync(path.join(dir, "inputs", "safelight", "broken.heic"))).toBe(false);
   });
 });
 

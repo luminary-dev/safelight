@@ -1,6 +1,6 @@
 import "server-only";
 import { readFileSync } from "node:fs";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getHistory, getQueue, hasNode, listFolder, queuePrompt, systemStats, type HistoryEntry } from "@/lib/comfy/client";
 import { parseExtraModelPaths } from "@/lib/models/paths";
@@ -10,6 +10,7 @@ import { unloadOllamaModels } from "@/lib/ollama/client";
 import { randomSeed } from "@/lib/presets";
 import { generateCloudImages } from "@/lib/providers";
 import { PROVIDERS, type ProviderId } from "@/lib/providers/keys";
+import { readImageBytesForRef } from "@/lib/input-bytes";
 import { OUTPUT_DIR, parseImageRef, safeJoin } from "@/lib/safelight-files";
 import { readSidecar, sidecarForAction, sidecarForRequest, sidecarSettings, sidecarToRequest, writeSidecar, type RenderSidecar } from "@/lib/sidecars";
 
@@ -118,11 +119,8 @@ export async function runCloud(req: GenerateRequest): Promise<JobOutput[]> {
 
   const images = await Promise.all(
     (req.mode === "img2img" ? req.images : []).map(async (ref) => {
-      const { dir, subfolder, filename } = parseImageRef(ref);
-      const full = safeJoin(dir, subfolder, filename);
-      if (!full) throw new Error(`Bad input reference: ${ref}`);
-      const bytes = await readFile(full);
-      return { bytes: new Uint8Array(bytes), mime: MIME_BY_EXT[path.extname(filename).toLowerCase()] ?? "image/png", name: filename };
+      const { bytes, filename } = await readImageBytesForRef(ref);
+      return { bytes, mime: MIME_BY_EXT[path.extname(filename).toLowerCase()] ?? "image/png", name: filename };
     }),
   );
 
