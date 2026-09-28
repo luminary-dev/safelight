@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import type { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import sharp from "sharp";
@@ -111,6 +113,27 @@ describe("with ComfyUI up", () => {
     expect(((await res.json()) as { error: string }).error).toMatch(/broken\.heic.*JPEG or PNG/);
     expect(comfy.uploads.length).toBe(before);
     expect(existsSync(path.join(dir, "inputs", "safelight", "broken.heic"))).toBe(false);
+  });
+
+  // sharp's prebuilt libvips has no HEVC decoder (patents), so a real iPhone
+  // HEIC exercises the macOS sips fallback. The fixture is made by sips itself.
+  it.runIf(process.platform === "darwin")("converts a real HEVC HEIC through the system decoder", async () => {
+    const tmp = await mkdtemp(path.join(tmpdir(), "sl-heic-fixture-"));
+    let heic: Buffer;
+    try {
+      const src = path.join(tmp, "px.png");
+      await writeFile(src, await sharp({ create: { width: 8, height: 6, channels: 3, background: { r: 10, g: 200, b: 50 } } }).png().toBuffer());
+      await promisify(execFile)("/usr/bin/sips", ["-s", "format", "heic", src, "--out", path.join(tmp, "px.heic")]);
+      heic = await readFile(path.join(tmp, "px.heic"));
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+    const res = await upload([{ name: "IMG_0001.heic", type: "image/heic", bytes: heic }]);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadBody;
+    expect(body.files[0].filename).toBe("IMG_0001.jpg");
+    const mirrored = await readFile(path.join(dir, "inputs", body.files[0].subfolder, body.files[0].filename));
+    expect(mirrored.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
   });
 });
 

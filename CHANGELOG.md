@@ -12,8 +12,10 @@ All notable changes to Safelight are documented here. The format follows
   cloud render with a reference failed with ENOENT under the desktop app's data root).
 - iPhone photos: HEIC/HEIF/AVIF attachments are converted to JPEG (with EXIF rotation
   baked in) at upload, since neither ComfyUI's loader nor the cloud providers accept
-  them; an undecodable file is refused with instructions instead of failing at render
-  time.
+  them; on macOS a HEIC that sharp cannot decode (its prebuilt libvips ships no HEVC
+  codec) goes through the system's own `sips` converter, so iPhone photos work out of
+  the box; a file nothing can decode is refused with instructions instead of failing
+  at render time.
 
 ## [0.1.0] - 2026-09-26
 

@@ -1,23 +1,53 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import type { NextRequest } from "next/server";
 import sharp from "sharp";
 import { inputRef, isComfyUp, uploadImage } from "@/lib/comfy/client";
 import { INPUT_DIR, safeJoin } from "@/lib/safelight-files";
 
+const execFileAsync = promisify(execFile);
+
 // Neither ComfyUI's image loader nor the cloud providers accept these — convert
 // to JPEG at the boundary so an iPhone photo just works everywhere downstream.
 const CONVERT_EXTS = new Set([".heic", ".heif", ".avif"]);
 
+/**
+ * macOS ships an HEVC decoder that sharp's prebuilt libvips is not allowed to
+ * bundle (patent licensing), so an iPhone HEIC that sharp cannot decode goes
+ * through the system's own converter. Fixed binary, temp-file arguments only.
+ */
+async function heicToJpegViaSips(bytes: Buffer): Promise<Buffer> {
+  const dir = await mkdtemp(path.join(tmpdir(), "sl-heic-"));
+  try {
+    const src = path.join(dir, "in.heic");
+    const out = path.join(dir, "out.jpg");
+    await writeFile(src, bytes);
+    await execFileAsync("/usr/bin/sips", ["-s", "format", "jpeg", "-s", "formatOptions", "92", src, "--out", out]);
+    return await readFile(out);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 async function normalizeFile(f: File): Promise<File> {
   const ext = path.extname(f.name).toLowerCase();
   if (!CONVERT_EXTS.has(ext)) return f;
+  const bytes = Buffer.from(await f.arrayBuffer());
   let jpeg: Buffer;
   try {
     // .rotate() bakes in the EXIF orientation — phone photos are usually stored sideways.
-    jpeg = await sharp(Buffer.from(await f.arrayBuffer())).rotate().jpeg({ quality: 92 }).toBuffer();
+    jpeg = await sharp(bytes).rotate().jpeg({ quality: 92 }).toBuffer();
   } catch {
-    throw new Error(`${f.name} could not be converted to JPEG (this build cannot decode it) — export it as JPEG or PNG and attach that instead.`);
+    try {
+      if (process.platform !== "darwin") throw new Error("no system decoder");
+      // Re-encode sips' output through sharp so the orientation is baked into pixels.
+      jpeg = await sharp(await heicToJpegViaSips(bytes)).rotate().jpeg({ quality: 92 }).toBuffer();
+    } catch {
+      throw new Error(`${f.name} could not be converted to JPEG (this build cannot decode it) — export it as JPEG or PNG and attach that instead.`);
+    }
   }
   return new File([new Uint8Array(jpeg)], `${path.basename(f.name, ext)}.jpg`, { type: "image/jpeg" });
 }
