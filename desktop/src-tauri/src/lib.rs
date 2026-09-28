@@ -46,12 +46,21 @@ fn http_get(port: u16, path: &str, timeout: Duration) -> Option<String> {
     Some(String::from_utf8_lossy(&out).into_owned())
 }
 
-/// A healthy Safelight server answers /api/health with a 200 carrying its shape.
-fn is_safelight(port: u16) -> bool {
-    match http_get(port, "/api/health", Duration::from_millis(800)) {
-        Some(res) => res.starts_with("HTTP/1.1 200") && res.contains("\"up\""),
-        None => false,
+/// A healthy Safelight server answers /api/health with a 200 carrying its shape;
+/// the answer includes which web build it is running ("dev" for a dev server).
+fn safelight_build(port: u16) -> Option<String> {
+    let res = http_get(port, "/api/health", Duration::from_millis(800))?;
+    if !(res.starts_with("HTTP/1.1 200") && res.contains("\"up\"")) {
+        return None;
     }
+    // Minimal extraction of "build":"<id>" — the value is a Next BUILD_ID or "dev".
+    let build = res
+        .split("\"build\":\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .unwrap_or("unknown")
+        .to_string();
+    Some(build)
 }
 
 fn port_in_use(port: u16) -> bool {
@@ -132,10 +141,26 @@ fn start_or_attach(app_data: &Path, resource_dir: &Path) -> Result<(ServerPlan, 
         }
     }
 
+    // The build this bundle ships (written by assemble-web.mjs, bundled as a resource).
+    let bundled_build = fs::read_to_string(resource_dir.join("WEB_BUILD_ID"))
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+    // An explicit SAFELIGHT_DESKTOP_PORT is the documented escape hatch (e.g. a dev
+    // server for server-side testing) — it attaches without the build handshake.
+    let explicit_port = std::env::var("SAFELIGHT_DESKTOP_PORT").is_ok();
+
     for port in candidates {
-        if is_safelight(port) {
-            log::info!("attaching to the healthy Safelight server on {port}");
-            return Ok((ServerPlan { port, attached: true }, None));
+        if let Some(build) = safelight_build(port) {
+            if explicit_port || (!bundled_build.is_empty() && build == bundled_build) {
+                log::info!("attaching to the healthy Safelight server on {port} (build {build})");
+                return Ok((ServerPlan { port, attached: true }, None));
+            }
+            // A lingering orphan keeps old route code in memory while serving new
+            // static files from disk — attaching would run stale code invisibly.
+            log::warn!(
+                "port {port} has a Safelight server from a different build (found {build}, bundled {bundled_build}); leaving it alone and trying the next port"
+            );
+            continue;
         }
         if port_in_use(port) {
             log::warn!("port {port} is occupied by something that is not Safelight; trying the next");
@@ -179,7 +204,7 @@ fn start_or_attach(app_data: &Path, resource_dir: &Path) -> Result<(ServerPlan, 
 fn wait_ready(port: u16, limit: Duration) -> bool {
     let start = Instant::now();
     while start.elapsed() < limit {
-        if is_safelight(port) {
+        if safelight_build(port).is_some() {
             return true;
         }
         thread::sleep(Duration::from_millis(400));

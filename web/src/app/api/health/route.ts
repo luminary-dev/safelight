@@ -1,4 +1,4 @@
-import { statfsSync } from "node:fs";
+import { readFileSync, statfsSync } from "node:fs";
 import { isComfyUp, systemStats, COMFY_URL } from "@/lib/comfy/client";
 import { OLLAMA_URL } from "@/lib/ollama/client";
 import { getProviderConfig, PROVIDER_META, PROVIDERS, validateKey, type ProviderId } from "@/lib/providers/keys";
@@ -68,10 +68,28 @@ async function providerHealth(): Promise<ProviderHealth[]> {
   return data;
 }
 
+/**
+ * Which build this server is running. The desktop shell refuses to attach to a
+ * Safelight whose build differs from the one it bundles — a lingering orphaned
+ * server would otherwise serve stale route code forever. Stamped by
+ * desktop/assemble-web.mjs; a dev server reports "dev".
+ */
+function serverBuild(): string {
+  for (const f of ["SAFELIGHT_BUILD_ID", ".next/BUILD_ID"]) {
+    try {
+      return readFileSync(f, "utf8").trim();
+    } catch {
+      /* next candidate */
+    }
+  }
+  return "dev";
+}
+const BUILD = serverBuild();
+
 export async function GET() {
   const [up, ollama, providers] = await Promise.all([isComfyUp(), ollamaHealth(), providerHealth()]);
   const disk = diskHealth();
-  if (!up) return Response.json({ up: false, url: COMFY_URL, ollama, disk, providers }, { status: 200 });
+  if (!up) return Response.json({ up: false, url: COMFY_URL, build: BUILD, ollama, disk, providers }, { status: 200 });
   const stats = await systemStats().catch(() => null);
-  return Response.json({ up: true, url: COMFY_URL, stats, ollama, disk, providers });
+  return Response.json({ up: true, url: COMFY_URL, build: BUILD, stats, ollama, disk, providers });
 }

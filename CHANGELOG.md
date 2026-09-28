@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The desktop shell no longer attaches to a stale Safelight server: /api/health now
+  reports which web build the server runs, and the supervisor only attaches when it
+  matches the bundled build (an explicitly set SAFELIGHT_DESKTOP_PORT keeps the
+  no-handshake dev escape hatch). Previously a lingering orphaned server could serve new
+  static files while running weeks-old route code — new UI, old bugs, invisibly.
 - Reference photos survive the desktop app + external ComfyUI split: uploads through
   ComfyUI are now mirrored into the app's own input folder, and cloud renders / chat
   attachments fall back to ComfyUI's `/view` when a file only exists there (previously a
