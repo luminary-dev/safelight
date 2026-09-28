@@ -6,6 +6,11 @@ All notable changes to Safelight are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- Desktop: clicking Save/download now actually saves the file. WKWebView silently drops
+  `<a download>` clicks unless the shell claims them; the shell now handles download
+  requests and writes into the user's Downloads folder with collision-safe names
+  ("x.png", "x (1).png", …). Filenames are sanitized so a download attribute can never
+  become a path.
 - The desktop shell no longer attaches to a stale Safelight server: /api/health now
   reports which web build the server runs, and the supervisor only attaches when it
   matches the bundled build (an explicitly set SAFELIGHT_DESKTOP_PORT keeps the

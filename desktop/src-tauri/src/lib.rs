@@ -12,9 +12,40 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use tauri::webview::DownloadEvent;
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
 struct Supervised(Mutex<Vec<Child>>);
+
+/// A non-clobbering path in `dir` for `name`: "x.png", then "x (1).png", "x (2).png"…
+fn unique_download_path(dir: &Path, name: &str) -> PathBuf {
+    // WKWebView suggests plain names, but a hostile `download` attribute could
+    // carry separators — never let a filename become a path.
+    let clean = name.replace(['/', '\\', '\0'], "_");
+    let first = dir.join(&clean);
+    if !first.exists() {
+        return first;
+    }
+    let stem = Path::new(&clean)
+        .file_stem()
+        .map(|v| v.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "download".to_string());
+    let ext = Path::new(&clean)
+        .extension()
+        .map(|v| format!(".{}", v.to_string_lossy()))
+        .unwrap_or_default();
+    for i in 1..1000u32 {
+        let candidate = dir.join(format!("{stem} ({i}){ext}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    dir.join(format!("{stem}-{stamp}{ext}"))
+}
 
 /// Minimal HTTP GET over a raw socket; returns the first bytes of the response.
 fn http_get(port: u16, path: &str, timeout: Duration) -> Option<String> {
@@ -268,9 +299,42 @@ pub fn run() {
                 let h2 = handle.clone();
                 let _ = handle.run_on_main_thread(move || {
                     let url = format!("http://127.0.0.1:{port}/").parse().unwrap();
+                    // WKWebView drops <a download> clicks on the floor unless the shell
+                    // claims them: save into the user's Downloads with a unique name.
+                    let downloads = h2
+                        .path()
+                        .download_dir()
+                        .unwrap_or_else(|_| std::env::temp_dir());
                     match WebviewWindowBuilder::new(&h2, "main", WebviewUrl::External(url))
                         .title("Safelight")
                         .inner_size(1360.0, 860.0)
+                        .on_download(move |_webview, event| {
+                            match event {
+                                DownloadEvent::Requested { url, destination } => {
+                                    let name = destination
+                                        .file_name()
+                                        .map(|n| n.to_string_lossy().into_owned())
+                                        .filter(|n| !n.is_empty())
+                                        .or_else(|| {
+                                            url.path_segments()
+                                                .and_then(|s| s.last().map(str::to_string))
+                                                .filter(|n| !n.is_empty())
+                                        })
+                                        .unwrap_or_else(|| "safelight-download".to_string());
+                                    *destination = unique_download_path(&downloads, &name);
+                                    log::info!("download: {url} -> {}", destination.display());
+                                }
+                                DownloadEvent::Finished { url, path, success } => {
+                                    if success {
+                                        log::info!("download finished: {url} ({path:?})");
+                                    } else {
+                                        log::warn!("download FAILED: {url}");
+                                    }
+                                }
+                                _ => {}
+                            }
+                            true
+                        })
                         .build()
                     {
                         Ok(_) => {
