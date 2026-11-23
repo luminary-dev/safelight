@@ -13,3 +13,5 @@ networkConcurrency: 4
 onlyBuiltDependencies:
   - better-sqlite3
   - sharp
+overrides:
+  '@modelcontextprotocol/sdk': ^1.32.2
